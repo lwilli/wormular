@@ -3,15 +3,18 @@ export type TitleUi = {
   setHighScore: (score: number) => void
   setScore: (score: number) => void
   setHudVisible: (visible: boolean) => void
+  setSoundEnabled: (enabled: boolean) => void
   onPlay: (cb: () => void) => void
+  onSoundToggle: (cb: () => void) => void
 }
 
 export function bindTitleUi(): TitleUi {
-  const title = must('#title')
-  const highScore = must('#high-score')
-  const play = must('#play') as HTMLButtonElement
-  const hud = must('#hud')
-  const scoreEl = must('#score')
+  const title = mustHtml('#title')
+  const highScore = mustHtml('#high-score')
+  const play = mustHtml('#play') as HTMLButtonElement
+  const soundToggle = mustHtml('#sound-toggle') as HTMLButtonElement
+  const hud = mustHtml('#hud')
+  const scoreEl = mustHtml('#score')
 
   return {
     setVisible(visible) {
@@ -27,8 +30,25 @@ export function bindTitleUi(): TitleUi {
     setHudVisible(visible) {
       hud.hidden = !visible
     },
+    setSoundEnabled(enabled) {
+      const muted = !enabled
+      soundToggle.classList.toggle('is-muted', muted)
+      soundToggle.setAttribute('aria-pressed', muted ? 'true' : 'false')
+      soundToggle.setAttribute(
+        'aria-label',
+        muted ? 'Unmute sound' : 'Mute sound',
+      )
+      soundToggle.title = muted ? 'Sound off' : 'Sound on'
+    },
     onPlay(cb) {
       play.addEventListener('click', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        cb()
+      })
+    },
+    onSoundToggle(cb) {
+      soundToggle.addEventListener('click', (e) => {
         e.preventDefault()
         e.stopPropagation()
         cb()
@@ -37,8 +57,8 @@ export function bindTitleUi(): TitleUi {
   }
 }
 
-function must(sel: string): HTMLElement {
-  const el = document.querySelector(sel)
+function mustHtml(sel: string, root: ParentNode = document): HTMLElement {
+  const el = root.querySelector(sel)
   if (!(el instanceof HTMLElement)) {
     throw new Error(`Missing element ${sel}`)
   }

@@ -7,6 +7,7 @@ import {
 import { createWorld, step, stepAttract } from './core/world'
 import type { World } from './core/types'
 import { createHoldInput } from './input/hold'
+import { createAudio } from './platform/audio'
 import { recordScore, loadHighScore } from './platform/storage'
 import { drawWorld } from './render/draw'
 import { bindTitleUi } from './ui/title'
@@ -24,6 +25,7 @@ const ctx: CanvasRenderingContext2D = ctxRaw
 
 const ui = bindTitleUi()
 const input = createHoldInput(canvas)
+const audio = createAudio()
 
 let mode: Mode = 'title'
 let highScore = loadHighScore()
@@ -37,8 +39,16 @@ let titleReadyAt = 0
 ui.setHighScore(highScore)
 ui.setVisible(true)
 ui.setHudVisible(false)
+ui.setSoundEnabled(audio.isEnabled())
 
-ui.onPlay(() => requestStart())
+ui.onPlay(() => {
+  audio.unlock()
+  requestStart()
+})
+ui.onSoundToggle(() => {
+  const enabled = audio.toggle()
+  ui.setSoundEnabled(enabled)
+})
 
 function arenaRadius(): number {
   const side = Math.min(window.innerWidth, window.innerHeight)
@@ -59,6 +69,7 @@ function startGame(): void {
   awaitReleaseBeforeStart = false
   // Leave input.holding as-is (true only while finger/key is actually down).
   input.playRequested = false
+  audio.unlock()
   ui.setVisible(false)
   ui.setHudVisible(true)
   ui.setScore(0)
@@ -127,6 +138,10 @@ function frame(ts: number): void {
       stepAttract(world, FIXED_DT)
     } else {
       step(world, { holding: input.holding }, FIXED_DT)
+      for (const ev of world.events) {
+        if (ev.type === 'AteFood') audio.playEat()
+        else if (ev.type === 'Died') audio.playCrash()
+      }
       ui.setScore(world.score)
       if (!world.alive) {
         returnToTitle()

@@ -105,6 +105,60 @@ body {
   outline-offset: 3px;
 }
 
+.sound-toggle {
+  appearance: none;
+  position: absolute;
+  top: max(0.75rem, env(safe-area-inset-top));
+  right: max(0.75rem, env(safe-area-inset-right));
+  z-index: 2;
+  pointer-events: auto;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(11, 16, 32, 0.55);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.sound-toggle:hover,
+.sound-toggle:focus-visible {
+  color: var(--text);
+}
+
+.sound-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sound-icon {
+  width: 1.35rem;
+  height: 1.35rem;
+  display: block;
+  grid-area: 1 / 1;
+}
+
+.sound-toggle .sound-icon-off {
+  display: none;
+}
+
+.sound-toggle.is-muted .sound-icon-on {
+  display: none;
+}
+
+.sound-toggle.is-muted .sound-icon-off {
+  display: block;
+}
+
+.sound-toggle.is-muted,
+.sound-toggle[aria-pressed='true'] {
+  color: var(--muted);
+  opacity: 0.75;
+}
+
 .hud {
   position: absolute;
   top: max(0.75rem, env(safe-area-inset-top));

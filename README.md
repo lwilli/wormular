@@ -6,6 +6,8 @@ One-tap arcade game: Snake meets the gravity helicopter game, played in a circul
 
 ## Play (web)
 
+**Live:** [lwilli.github.io/wormular](https://lwilli.github.io/wormular/)
+
 ```bash
 npm install
 npm run dev
@@ -16,6 +18,7 @@ Hold anywhere (or Space / ↑) to thrust outward. Release to fall toward the cen
 ```bash
 npm test      # core simulation tests
 npm run build # production bundle
+npm run preview # serve dist locally (uses /wormular/ base path)
 ```
 
 ## Design
@@ -24,4 +27,4 @@ npm run build # production bundle
 
 ## Status
 
-v1 web playable: core + canvas + title/high score. Silent (no VFX/audio yet — juice is phase 4).
+v1 web playable with audio juice (eat/crash SFX, BGM, mute toggle). Deployed to GitHub Pages on push to `main`.
