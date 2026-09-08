@@ -4,19 +4,24 @@ One-tap arcade game: Snake meets the gravity helicopter game, played in a circul
 
 **Hold** to thrust outward. **Release** and gravity pulls toward the center. Eat apples, grow, avoid rocks.
 
+## Play (web)
+
+```bash
+npm install
+npm run dev
+```
+
+Hold anywhere (or Space / ↑) to thrust outward. Release to fall toward the center. Eat apples; avoid rocks, walls, and yourself.
+
+```bash
+npm test      # core simulation tests
+npm run build # production bundle
+```
+
+## Design
+
+**→ [docs/PLAN.md](docs/PLAN.md)** — stack, architecture, simulation, phases, and non-goals.
+
 ## Status
 
-Foundation plan only — no game code yet. Implementation should follow the handoff spec:
-
-**→ [docs/PLAN.md](docs/PLAN.md)**
-
-That document covers product, tech stack, architecture, simulation, rendering, screens, phases, and non-goals.
-
-## How this repo will be built
-
-1. **TypeScript + Vite + HTML Canvas** — pure simulation core, procedural vector art, no game engine.
-2. **Web first** — playable in the browser, then wrapped with Capacitor for iOS (and Android later).
-3. **v1** — core, canvas play, title + high score (silent, no VFX).
-4. **Later** — subtle eat/death juice + sounds, then native shells and store assets.
-
-See [docs/PLAN.md](docs/PLAN.md) for the full phase order and quality bar.
+v1 web playable: core + canvas + title/high score. Silent (no VFX/audio yet — juice is phase 4).

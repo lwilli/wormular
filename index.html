@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>Wormular</title>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game"></canvas>
+      <div id="hud" class="hud" hidden>
+        <div id="score" class="score">0</div>
+      </div>
+      <div id="title" class="overlay">
+        <div class="title-wordmark">WORMULAR</div>
+        <div id="high-score" class="high-score">High Score: 0</div>
+        <button id="play" class="play" type="button">Play</button>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
