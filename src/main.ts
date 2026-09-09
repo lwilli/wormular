@@ -1,5 +1,7 @@
 import './style.css'
 import {
+  ARENA_NARROW_SIDE_PX,
+  ARENA_PADDING_NARROW_PX,
   ARENA_PADDING_PX,
   FIXED_DT,
   TITLE_RESTART_COOLDOWN_MS,
@@ -78,7 +80,9 @@ void initStorage().then(() => {
 
 function arenaRadius(): number {
   const side = Math.min(viewW, viewH)
-  return Math.max(80, side * 0.5 - ARENA_PADDING_PX)
+  // Portrait phones are width-limited; 24px L/R leaves unused space. Tighten a bit.
+  const pad = side < ARENA_NARROW_SIDE_PX ? ARENA_PADDING_NARROW_PX : ARENA_PADDING_PX
+  return Math.max(80, side * 0.5 - pad)
 }
 
 function createAttractWorld(): World {

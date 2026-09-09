@@ -21,7 +21,12 @@ export const MAX_ROCKS = 12
 export const ROCK_SPAWN_CHANCE = 0.35
 /** Extra clearance from center rock / outer wall when spawning apples & rocks. */
 export const SPAWN_EDGE_MARGIN_FRAC = 0.06
+/** Inset from the short viewport edge to the arena rim (each side). */
 export const ARENA_PADDING_PX = 24
+/** Tighter inset when the short side is phone-narrow (width-limited portrait). */
+export const ARENA_PADDING_NARROW_PX = 12
+/** Use narrow padding when min(viewW, viewH) is below this. */
+export const ARENA_NARROW_SIDE_PX = 400
 export const START_RADIUS_FRAC = 0.45
 /** Fixed launch heading (radians). 0 = +x; worm always starts here. */
 export const START_THETA = 0
