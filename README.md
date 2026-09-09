@@ -40,6 +40,7 @@ Short version: Apple ID in Xcode → plug in phone → select your Team on the A
 ## Design
 
 - **[docs/PLAN.md](docs/PLAN.md)** — stack, architecture, simulation, phases, and non-goals.
+- **[docs/controls.md](docs/controls.md)** — physics & juice knobs (danger, swell, shake, FX timings).
 - **[docs/adr/0001-capacitor-ios-shell.md](docs/adr/0001-capacitor-ios-shell.md)** — why Capacitor and how the iOS shell is wired.
 - **[docs/ios.md](docs/ios.md)** — device / simulator runbook.
 
