@@ -33,16 +33,18 @@ npm run cap:sync   # copy web assets into ios/
 npm run cap:open   # open ios/App/App.xcodeproj
 ```
 
-Requirements: Xcode with the matching **iOS platform** installed (Settings → Components). Pick a simulator or device, then Run.
+**→ [docs/ios.md](docs/ios.md)** — run on a **real iPhone** (signing, Developer Mode, trust cert).
 
-High scores use Capacitor Preferences on device and `localStorage` on web.
+Short version: Apple ID in Xcode → plug in phone → select your Team on the App target → pick the device → Run. Trust the developer cert on the phone if iOS blocks the first launch.
 
 ## Design
 
-**→ [docs/PLAN.md](docs/PLAN.md)** — stack, architecture, simulation, phases, and non-goals.
+- **[docs/PLAN.md](docs/PLAN.md)** — stack, architecture, simulation, phases, and non-goals.
+- **[docs/adr/0001-capacitor-ios-shell.md](docs/adr/0001-capacitor-ios-shell.md)** — why Capacitor and how the iOS shell is wired.
+- **[docs/ios.md](docs/ios.md)** — device / simulator runbook.
 
 ## Status
 
-v1 web playable with audio juice (eat/crash SFX, BGM, mute toggle). Deployed to GitHub Pages on push to `main`.
+v1 web playable with juice (FX + audio). Deployed to GitHub Pages on push to `main`.
 
-iOS Capacitor shell is scaffolded (`ios/`); open in Xcode to run on simulator/device. Store icons / TestFlight are still later (plan phase 8).
+iOS Capacitor shell works on simulator; physical device needs your Apple ID signing (see [docs/ios.md](docs/ios.md)). Store / TestFlight still phase 8.
