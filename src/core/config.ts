@@ -16,7 +16,7 @@ export const NECK_THICKNESSES = 2
 export const APPLE_RADIUS_FRAC = 0.035
 export const ROCK_MIN_FRAC = 0.04
 export const ROCK_MAX_FRAC = 0.07
-export const START_ROCK_COUNT = 4
+export const START_ROCK_COUNT = 2
 export const MAX_ROCKS = 12
 export const ROCK_SPAWN_CHANCE = 0.35
 /** Extra clearance from center rock / outer wall when spawning apples & rocks. */
