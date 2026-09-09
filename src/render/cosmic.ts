@@ -433,7 +433,7 @@ export function wallDanger(
   halfThickness: number,
 ): number {
   const headR = r + halfThickness
-  const start = R * 0.7
+  const start = R * 0.8
   return clamp((headR - start) / Math.max(1, R - start), 0, 1)
 }
 
