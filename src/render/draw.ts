@@ -1,3 +1,4 @@
+import rockUrl from '../../assets/images/rock.png'
 import { tunablesForRadius } from '../core/config'
 import type { World } from '../core/types'
 import { headPos } from '../core/worm'
@@ -27,6 +28,15 @@ export const COLORS = {
   eye: '#0B1020',
   eyeHighlight: '#FFFFFF',
 } as const
+
+/** Crisp 64×64 pixel rock; drawn when decode completes. */
+const rockSprite = new Image()
+rockSprite.decoding = 'async'
+rockSprite.src = rockUrl
+
+function rockSpriteReady(): boolean {
+  return rockSprite.complete && rockSprite.naturalWidth > 0
+}
 
 export type DrawOpts = {
   /** 0–1 darken over the frame (title screen). Drawn on canvas, not CSS. */
@@ -107,6 +117,21 @@ function drawRock(
   radius: number,
   id: number,
 ): void {
+  if (rockSpriteReady()) {
+    const size = radius * 2
+    // Sit “upright” vs center gravity: sprite top points outward.
+    const angle =
+      x === 0 && y === 0 ? 0 : Math.atan2(y, x) + Math.PI * 0.5
+    ctx.save()
+    ctx.translate(x, y)
+    if (angle !== 0) ctx.rotate(angle)
+    ctx.imageSmoothingEnabled = false
+    ctx.drawImage(rockSprite, -size * 0.5, -size * 0.5, size, size)
+    ctx.restore()
+    return
+  }
+
+  // Fallback before the sprite finishes loading.
   ctx.beginPath()
   ctx.arc(x, y, radius, 0, Math.PI * 2)
   ctx.fillStyle = COLORS.rock
