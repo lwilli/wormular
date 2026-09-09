@@ -1,7 +1,7 @@
-import type { AppleColor, GameEvent } from '../core/types'
+import type { GameEvent } from '../core/types'
 
-const APPLE_RED = '#E23B3B'
-const APPLE_GREEN = '#3CB86A'
+const FOOD_GOLD = '#FFD24A'
+const FOOD_HOT = '#FFF4C8'
 
 const EAT_LIFE = 0.15
 const PLUS_LIFE = 0.45
@@ -90,7 +90,7 @@ export function fxActive(fx: FxState): boolean {
 
 export function handleGameEvent(fx: FxState, ev: GameEvent): void {
   if (ev.type === 'AteFood') {
-    spawnEat(fx, ev.x, ev.y, ev.radius, ev.color)
+    spawnEat(fx, ev.x, ev.y, ev.radius)
   } else if (ev.type === 'Died') {
     spawnDeath(fx)
   }
@@ -101,10 +101,8 @@ function spawnEat(
   x: number,
   y: number,
   radius: number,
-  color: AppleColor,
 ): void {
-  const fill = color === 'red' ? APPLE_RED : APPLE_GREEN
-  fx.pops.push({ x, y, radius, color: fill, life: EAT_LIFE, age: 0 })
+  fx.pops.push({ x, y, radius, color: FOOD_GOLD, life: EAT_LIFE, age: 0 })
   fx.plusOnes.push({ x, y, life: PLUS_LIFE, age: 0 })
 
   const n = 5 + Math.floor(Math.random() * 4)
@@ -118,7 +116,7 @@ function spawnEat(
       vy: Math.sin(a) * speed,
       life: 0.2 + Math.random() * 0.2,
       age: 0,
-      color: fill,
+      color: i % 2 === 0 ? FOOD_GOLD : FOOD_HOT,
       size: 1.5 + Math.random() * 2.5,
     })
   }
@@ -155,7 +153,6 @@ export function updateFx(fx: FxState, dt: number): boolean {
     s.age += dt
     s.x += s.vx * dt
     s.y += s.vy * dt
-    s.vy += 120 * dt
   }
   compactByAge(fx.specks)
 

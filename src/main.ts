@@ -206,7 +206,8 @@ function frame(ts: number): void {
   const t1 = performance.now()
 
   drawWorld(ctx, world, viewW, viewH, fx, {
-    dim: mode === 'title' ? 0.45 : 0,
+    dim: mode === 'title' ? 0.22 : 0,
+    time: ts * 0.001,
   })
   const t2 = performance.now()
 

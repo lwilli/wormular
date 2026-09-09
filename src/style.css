@@ -1,10 +1,10 @@
 :root {
   color-scheme: dark;
-  --bg: #0b1020;
+  --bg: #05060e;
   --text: #f2f4f8;
   --muted: #9aa3b5;
   --accent: #ff7a18;
-  --btn: #e23b3b;
+  --btn: #c43b6f;
   --btn-text: #fff;
 }
 
@@ -73,7 +73,9 @@ body {
   letter-spacing: 0.08em;
   color: var(--accent);
   /* Hard shadow only — blur shadows over an animating canvas are costly. */
-  text-shadow: 0 2px 0 #c45a10;
+  text-shadow:
+    0 2px 0 #c45a10,
+    3px 3px 0 #3a2466;
 }
 
 .high-score {
@@ -165,6 +167,10 @@ body {
   display: flex;
   justify-content: center;
   pointer-events: none;
+}
+
+.hud[hidden] {
+  display: none;
 }
 
 .score {
