@@ -55,12 +55,9 @@ body {
     max(1.5rem, env(safe-area-inset-right))
     max(2rem, env(safe-area-inset-bottom))
     max(1.5rem, env(safe-area-inset-left));
-  background: radial-gradient(
-    ellipse at center,
-    rgba(11, 16, 32, 0.15) 0%,
-    rgba(11, 16, 32, 0.45) 70%,
-    rgba(11, 16, 32, 0.65) 100%
-  );
+  /* No translucent backdrop — blending a full-screen CSS layer over an
+     animating canvas tanks Retina FPS. Title dim is drawn on the canvas. */
+  background: transparent;
   /* Let canvas receive hold/tap; only the Play button captures clicks. */
   pointer-events: none;
 }
@@ -75,6 +72,7 @@ body {
   font-weight: 800;
   letter-spacing: 0.08em;
   color: var(--accent);
+  /* Hard shadow only — blur shadows over an animating canvas are costly. */
   text-shadow: 0 2px 0 #c45a10;
 }
 

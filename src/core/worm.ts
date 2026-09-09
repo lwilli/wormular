@@ -13,7 +13,7 @@ export function headPos(worm: Worm): Vec2 {
 
 /**
  * Body is an ink trail: samples are deposited behind the head and never moved.
- * The live head may sit slightly ahead of points[0]; draw/collide should use headPos().
+ * The live head may sit slightly ahead of the newest sample (last index).
  */
 export function advanceWorm(
   worm: Worm,
@@ -56,22 +56,26 @@ export function seedBody(
   spacing: number,
 ): void {
   const head = polarToCart(worm.r, worm.theta)
-  worm.points = [head]
-  // Travel increases theta, so the body trails toward smaller theta on the same orbit.
+  // Oldest → newest so deposits can push() in O(1).
+  const points: Vec2[] = []
   let remaining = length
   let theta = worm.theta
   const r = worm.r
+  const older: Vec2[] = []
   while (remaining > spacing) {
     const dTheta = spacing / Math.max(r, 1)
     theta -= dTheta
-    worm.points.push(polarToCart(r, theta))
+    older.push(polarToCart(r, theta))
     remaining -= spacing
   }
+  for (let i = older.length - 1; i >= 0; i--) points.push(older[i]!)
+  points.push(head)
+  worm.points = points
 }
 
 /**
  * Drop fixed-spacing samples from the last deposited point toward `head`.
- * Existing samples are never rewritten — only new ones are prepended.
+ * Existing samples are never rewritten — only new ones are appended.
  */
 function depositAlongPath(points: Vec2[], head: Vec2, spacing: number): void {
   if (points.length === 0) {
@@ -79,17 +83,15 @@ function depositAlongPath(points: Vec2[], head: Vec2, spacing: number): void {
     return
   }
 
-  // Deposit while the head has pulled more than `spacing` ahead of the newest sample.
-  // New samples are exact copies of positions along that segment; older samples stay put.
   for (;;) {
-    const newest = points[0]!
+    const newest = points[points.length - 1]!
     const dx = head.x - newest.x
     const dy = head.y - newest.y
     const d = Math.hypot(dx, dy)
     if (d < spacing) break
 
     const t = spacing / d
-    points.unshift({
+    points.push({
       x: newest.x + dx * t,
       y: newest.y + dy * t,
     })
@@ -102,31 +104,31 @@ function distApprox(a: Vec2, b: Vec2): number {
   return Math.hypot(dx, dy)
 }
 
-/** Drop tail samples beyond maxLen. May clip only the final tip point. */
+/** Drop oldest samples beyond maxLen (newest is at the end). */
 function trimTrail(points: Vec2[], maxLen: number): void {
   if (points.length < 2) return
 
   let len = 0
-  let keep = 1
-  for (let i = 1; i < points.length; i++) {
-    const seg = distApprox(points[i - 1]!, points[i]!)
+  let oldestKeep = 0
+  for (let i = points.length - 1; i > 0; i--) {
+    const a = points[i]!
+    const b = points[i - 1]!
+    const seg = distApprox(a, b)
     if (len + seg > maxLen) {
       const remain = maxLen - len
       const t = remain / seg
-      const a = points[i - 1]!
-      const b = points[i]!
-      // Only the tip is clipped so total length matches; no interior sample moves.
-      points[i] = {
+      // Clip only the oldest tip so total length matches.
+      points[i - 1] = {
         x: a.x + (b.x - a.x) * t,
         y: a.y + (b.y - a.y) * t,
       }
-      keep = i + 1
+      oldestKeep = i - 1
       break
     }
     len += seg
-    keep = i + 1
+    oldestKeep = i - 1
   }
-  points.length = keep
+  if (oldestKeep > 0) points.splice(0, oldestKeep)
 }
 
 export function trailLength(points: Vec2[]): number {
@@ -137,13 +139,13 @@ export function trailLength(points: Vec2[]): number {
   return len
 }
 
-/** Polyline for draw/collide: live head + deposited path (skip duplicate if coincident). */
+/** Polyline for draw/collide: deposited path + live head (skip duplicate if coincident). */
 export function bodyPolyline(worm: Worm): Vec2[] {
   const head = headPos(worm)
   if (worm.points.length === 0) return [head]
-  const newest = worm.points[0]!
+  const newest = worm.points[worm.points.length - 1]!
   if (Math.hypot(head.x - newest.x, head.y - newest.y) < 0.05) {
     return worm.points
   }
-  return [head, ...worm.points]
+  return [...worm.points, head]
 }

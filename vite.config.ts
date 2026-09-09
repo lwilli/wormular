@@ -1,10 +1,10 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 
-// GitHub Pages serves from https://<user>.github.io/wormular/
-export default defineConfig({
-  base: '/wormular/',
+// Local dev at `/`; GitHub Pages at `/wormular/`.
+export default defineConfig(({ command }) => ({
+  base: command === 'build' ? '/wormular/' : '/',
   test: {
     environment: 'node',
   },
-})
+}))

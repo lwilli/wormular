@@ -1,7 +1,7 @@
 import type { Tunables } from './config'
 import type { Apple, DeathCause, Rock, Vec2, Worm } from './types'
 import { dist } from './types'
-import { bodyPolyline, headPos } from './worm'
+import { headPos } from './worm'
 
 export type CollisionResult =
   | { kind: 'none' }
@@ -30,7 +30,7 @@ export function checkCollisions(
     }
   }
 
-  if (hitsSelf(head, bodyPolyline(worm), half, tunables.neckWindow)) {
+  if (hitsSelf(head, worm.points, half, tunables.neckWindow)) {
     return { kind: 'death', cause: 'self' }
   }
 
@@ -47,16 +47,20 @@ function hitsSelf(
   headRadius: number,
   neckWindow: number,
 ): boolean {
+  if (points.length === 0) return false
+
+  // Walk head → newest → older. Skip the neck window.
   let along = 0
-  for (let i = 1; i < points.length; i++) {
-    const a = points[i - 1]!
+  let prevX = head.x
+  let prevY = head.y
+  const hitR = headRadius + headRadius * 0.85
+  for (let i = points.length - 1; i >= 0; i--) {
     const b = points[i]!
-    const seg = dist(a, b)
-    along += seg
+    along += Math.hypot(b.x - prevX, b.y - prevY)
+    prevX = b.x
+    prevY = b.y
     if (along < neckWindow) continue
-    if (dist(head, b) < headRadius + headRadius * 0.85) {
-      return true
-    }
+    if (dist(head, b) < hitR) return true
   }
   return false
 }

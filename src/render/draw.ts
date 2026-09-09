@@ -1,6 +1,13 @@
 import { tunablesForRadius } from '../core/config'
 import type { World } from '../core/types'
-import { bodyPolyline, headPos } from '../core/worm'
+import { headPos } from '../core/worm'
+import {
+  drawFx,
+  fxActive,
+  shakeOffset,
+  wormFlashOn,
+  type FxState,
+} from '../fx/effects'
 
 export const COLORS = {
   background: '#0B1020',
@@ -9,6 +16,7 @@ export const COLORS = {
   guide: 'rgba(58, 74, 106, 0.35)',
   wormFill: '#FF7A18',
   wormOutline: '#C45A10',
+  wormFlash: '#FFF3E0',
   appleRed: '#E23B3B',
   appleGreen: '#3CB86A',
   appleStem: '#5C3B1E',
@@ -20,34 +28,30 @@ export const COLORS = {
   eyeHighlight: '#FFFFFF',
 } as const
 
+export type DrawOpts = {
+  /** 0–1 darken over the frame (title screen). Drawn on canvas, not CSS. */
+  dim?: number
+}
+
 export function drawWorld(
   ctx: CanvasRenderingContext2D,
   world: World,
   viewW: number,
   viewH: number,
+  fx?: FxState,
+  opts?: DrawOpts,
 ): void {
   const cx = viewW * 0.5
   const cy = viewH * 0.5
   const tunables = tunablesForRadius(world.R)
+  const shake = fx ? shakeOffset(fx) : { x: 0, y: 0 }
 
+  // Single opaque clear — avoid a second full-frame gradient fill (very costly).
   ctx.fillStyle = COLORS.background
   ctx.fillRect(0, 0, viewW, viewH)
 
-  const vig = ctx.createRadialGradient(
-    cx,
-    cy,
-    world.R * 0.2,
-    cx,
-    cy,
-    Math.max(viewW, viewH) * 0.75,
-  )
-  vig.addColorStop(0, 'rgba(0,0,0,0)')
-  vig.addColorStop(1, 'rgba(0,0,0,0.55)')
-  ctx.fillStyle = vig
-  ctx.fillRect(0, 0, viewW, viewH)
-
   ctx.save()
-  ctx.translate(cx, cy)
+  ctx.translate(cx + shake.x, cy + shake.y)
 
   ctx.beginPath()
   ctx.arc(0, 0, world.R, 0, Math.PI * 2)
@@ -82,9 +86,18 @@ export function drawWorld(
     )
   }
 
-  drawWorm(ctx, world, tunables.wormThickness)
+  const flash = fx ? wormFlashOn(fx) : false
+  drawWorm(ctx, world, tunables.wormThickness, flash)
+
+  if (fx && fxActive(fx)) drawFx(ctx, fx)
 
   ctx.restore()
+
+  const dim = opts?.dim ?? 0
+  if (dim > 0) {
+    ctx.fillStyle = `rgba(11, 16, 32, ${dim})`
+    ctx.fillRect(0, 0, viewW, viewH)
+  }
 }
 
 function drawRock(
@@ -149,35 +162,46 @@ function drawWorm(
   ctx: CanvasRenderingContext2D,
   world: World,
   thickness: number,
+  flash = false,
 ): void {
-  const points = bodyPolyline(world.worm)
-  if (points.length === 0) return
+  const deposited = world.worm.points
+  if (deposited.length === 0) return
+
+  const fill = flash ? COLORS.wormFlash : COLORS.wormFill
+  const outline = flash ? '#FFFFFF' : COLORS.wormOutline
+  const head = headPos(world.worm)
 
   ctx.lineJoin = 'round'
   ctx.lineCap = 'round'
 
-  // Contiguous worm: outline then fill along the deposited path (samples never slide).
-  strokePolyline(ctx, points, thickness + 4, COLORS.wormOutline)
-  strokePolyline(ctx, points, thickness, COLORS.wormFill)
+  // Contiguous worm: outline then fill. Avoid allocating a merged polyline each frame.
+  strokeWormPath(ctx, head, deposited, thickness + 4, outline)
+  strokeWormPath(ctx, head, deposited, thickness, fill)
 
-  const head = headPos(world.worm)
   ctx.beginPath()
   ctx.arc(head.x, head.y, thickness * 0.55, 0, Math.PI * 2)
-  ctx.fillStyle = COLORS.wormFill
+  ctx.fillStyle = fill
   ctx.fill()
   ctx.lineWidth = 2
-  ctx.strokeStyle = COLORS.wormOutline
+  ctx.strokeStyle = outline
   ctx.stroke()
 
   let tx = Math.cos(world.worm.theta)
   let ty = Math.sin(world.worm.theta)
-  if (points.length > 1) {
-    const n = points[1]!
-    const dx = head.x - n.x
-    const dy = head.y - n.y
-    const len = Math.hypot(dx, dy) || 1
+  const newest = deposited[deposited.length - 1]!
+  const dx = head.x - newest.x
+  const dy = head.y - newest.y
+  const len = Math.hypot(dx, dy)
+  if (len > 0.05) {
     tx = dx / len
     ty = dy / len
+  } else if (deposited.length > 1) {
+    const prev = deposited[deposited.length - 2]!
+    const dx2 = head.x - prev.x
+    const dy2 = head.y - prev.y
+    const len2 = Math.hypot(dx2, dy2) || 1
+    tx = dx2 / len2
+    ty = dy2 / len2
   }
   const nx = -ty
   const ny = tx
@@ -197,24 +221,31 @@ function drawWorm(
   )
 }
 
-function strokePolyline(
+function strokeWormPath(
   ctx: CanvasRenderingContext2D,
-  points: { x: number; y: number }[],
+  head: { x: number; y: number },
+  deposited: { x: number; y: number }[],
   width: number,
   color: string,
 ): void {
-  if (points.length < 2) {
+  const newest = deposited[deposited.length - 1]!
+  const headGap = Math.hypot(head.x - newest.x, head.y - newest.y)
+  const count = deposited.length + (headGap >= 0.05 ? 1 : 0)
+  if (count < 2) {
     ctx.beginPath()
-    ctx.arc(points[0]!.x, points[0]!.y, width * 0.5, 0, Math.PI * 2)
+    ctx.arc(head.x, head.y, width * 0.5, 0, Math.PI * 2)
     ctx.fillStyle = color
     ctx.fill()
     return
   }
+
+  // Draw oldest → newest → live head.
   ctx.beginPath()
-  ctx.moveTo(points[0]!.x, points[0]!.y)
-  for (let i = 1; i < points.length; i++) {
-    ctx.lineTo(points[i]!.x, points[i]!.y)
+  ctx.moveTo(deposited[0]!.x, deposited[0]!.y)
+  for (let i = 1; i < deposited.length; i++) {
+    ctx.lineTo(deposited[i]!.x, deposited[i]!.y)
   }
+  if (headGap >= 0.05) ctx.lineTo(head.x, head.y)
   ctx.strokeStyle = color
   ctx.lineWidth = width
   ctx.stroke()

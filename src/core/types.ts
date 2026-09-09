@@ -3,7 +3,7 @@ export type Vec2 = { x: number; y: number }
 export type DeathCause = 'rock' | 'wall' | 'center' | 'self'
 
 export type GameEvent =
-  | { type: 'AteFood'; x: number; y: number }
+  | { type: 'AteFood'; x: number; y: number; color: AppleColor; radius: number }
   | { type: 'Died'; x: number; y: number; cause: DeathCause }
 
 export type AppleColor = 'red' | 'green'
@@ -27,7 +27,7 @@ export type Worm = {
   theta: number
   vr: number
   /**
-   * Deposited path samples, newest at index 0.
+   * Deposited path samples, oldest at index 0, newest at the end.
    * Samples are never moved after deposit (ink trail); live head is worm.r/theta.
    */
   points: Vec2[]

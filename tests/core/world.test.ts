@@ -78,10 +78,11 @@ describe('wormular core', () => {
   it('head vs neck does not die', () => {
     const tunables = tunablesForRadius(R)
     const half = tunables.wormThickness * 0.5
+    // Oldest → newest (near head).
     const points = [
-      { x: 100, y: 0 },
-      { x: 100 - half, y: 0 },
       { x: 100 - half * 2, y: 0 },
+      { x: 100 - half, y: 0 },
+      { x: 100, y: 0 },
     ]
     const worm = { r: 100, theta: 0, vr: 0, points }
     const result = checkCollisions(worm, [], null, tunables)
@@ -91,15 +92,16 @@ describe('wormular core', () => {
   it('head vs tail does die', () => {
     const tunables = tunablesForRadius(R)
     const half = tunables.wormThickness * 0.5
-    // Build a long trail that loops back near the head, past the neck window.
+    // Build newest-first then reverse to oldest → newest.
     const points = [{ x: 100, y: 0 }]
     let x = 100
     for (let i = 0; i < 40; i++) {
       x -= tunables.pointSpacing
       points.push({ x, y: 0 })
     }
-    // Curve around and place a tail point on the head.
+    // Curve around and place a tip point on the head.
     points.push({ x: 100, y: half * 0.5 })
+    points.reverse()
 
     const worm = { r: 100, theta: 0, vr: 0, points }
     const result = checkCollisions(worm, [], null, tunables)
@@ -121,7 +123,8 @@ describe('wormular core', () => {
     const world = createWorld(R, 6)
     run(world, true, 45)
     expect(world.worm.points.length).toBeGreaterThan(5)
-    const idx = Math.min(4, world.worm.points.length - 2)
+    // Freeze a mid-body sample (not the oldest tip, which trim may clip).
+    const idx = Math.max(1, world.worm.points.length - 5)
     const frozen = { ...world.worm.points[idx]! }
     run(world, true, 30)
     const still = world.worm.points.find(

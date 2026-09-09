@@ -128,6 +128,8 @@ export function step(world: World, input: StepInput, dt: number): void {
       type: 'AteFood',
       x: hit.apple.x,
       y: hit.apple.y,
+      color: hit.apple.color,
+      radius: hit.apple.radius,
     })
 
     const rng = rngFromSeed(world.seed + world.score * 9973)

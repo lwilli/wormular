@@ -17,25 +17,45 @@ export type AudioController = {
 export function createAudio(): AudioController {
   let enabled = loadEnabled()
   let unlocked = false
+  let music: HTMLAudioElement | null = null
+  let eatProto: HTMLAudioElement | null = null
+  let crashProto: HTMLAudioElement | null = null
 
-  const music = new Audio(musicUrl)
-  music.loop = true
-  music.preload = 'auto'
-  music.volume = 0.10
+  function ensureSfx(): void {
+    if (!eatProto) {
+      eatProto = new Audio(eatUrl)
+      eatProto.preload = 'auto'
+    }
+    if (!crashProto) {
+      crashProto = new Audio(crashUrl)
+      crashProto.preload = 'auto'
+    }
+  }
+
+  function ensureMusic(): HTMLAudioElement {
+    if (!music) {
+      music = new Audio(musicUrl)
+      music.loop = true
+      music.preload = 'none'
+      music.volume = 0.1
+    }
+    return music
+  }
 
   function syncMusic(): void {
     if (!unlocked || !enabled) {
-      music.pause()
+      music?.pause()
       return
     }
-    void music.play().catch(() => {
+    const m = ensureMusic()
+    void m.play().catch(() => {
       // Autoplay may still be blocked until a later gesture.
     })
   }
 
-  function playOneShot(src: string, volume: number): void {
+  function playOneShot(proto: HTMLAudioElement, volume: number): void {
     if (!enabled || !unlocked) return
-    const shot = new Audio(src)
+    const shot = proto.cloneNode(true) as HTMLAudioElement
     shot.volume = volume
     void shot.play().catch(() => {})
   }
@@ -47,6 +67,7 @@ export function createAudio(): AudioController {
       enabled = on
       saveEnabled(on)
       if (on) unlocked = true
+      if (on) ensureSfx()
       syncMusic()
     },
 
@@ -57,20 +78,21 @@ export function createAudio(): AudioController {
     },
 
     unlock() {
-      if (unlocked) {
-        syncMusic()
-        return
+      if (!unlocked) {
+        unlocked = true
+        ensureSfx()
       }
-      unlocked = true
       syncMusic()
     },
 
     playEat() {
-      playOneShot(eatUrl, 1)
+      if (!eatProto) ensureSfx()
+      playOneShot(eatProto!, 1)
     },
 
     playCrash() {
-      playOneShot(crashUrl, 0.85)
+      if (!crashProto) ensureSfx()
+      playOneShot(crashProto!, 0.85)
     },
   }
 }
