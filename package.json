@@ -6,11 +6,21 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:ios": "tsc && vite build --mode capacitor",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "cap:sync": "npm run build:ios && npx cap sync ios",
+    "cap:open": "npx cap open ios",
+    "ios": "npm run cap:sync && npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.5.1",
+    "@capacitor/ios": "^8.5.1",
+    "@capacitor/preferences": "^8.0.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.1",
     "typescript": "~5.9.3",
     "vite": "^7.1.7",
     "vitest": "^3.2.4"

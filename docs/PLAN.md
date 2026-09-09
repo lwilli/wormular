@@ -196,7 +196,7 @@ If it takes more than a day or starts looking like a particle editor, it is too 
 **After v1:**
 
 4. **Juice** — subtle eat/death VFX + two WebAudio sounds, as specified above.
-5. **iOS shell** — Vite build + Capacitor, safe areas, standalone, 60fps on device.
+5. **iOS shell** — Vite build + Capacitor, safe areas, standalone, 60fps on device. *(Scaffolded: `capacitor.config.ts`, `ios/`, `npm run ios`. Verify on device once Xcode iOS platform is installed.)*
 6. **tvOS** — same web build in a tvOS WKWebView shell + remote hold mapping; fallback plan is Swift port of `src/core` + SpriteKit stroke.
 7. **Android later** — Capacitor Android, no game changes.
 8. **Store** — icons, screenshots, Game Center later (not v1).

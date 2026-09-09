@@ -14,22 +14,83 @@ export type AudioController = {
   playCrash: () => void
 }
 
+type SfxBuffers = {
+  eat: AudioBuffer | null
+  crash: AudioBuffer | null
+}
+
+/**
+ * SFX via Web Audio (decode once, play with BufferSource — low latency on iOS).
+ * BGM stays on HTMLAudioElement (simple looping).
+ */
 export function createAudio(): AudioController {
   let enabled = loadEnabled()
   let unlocked = false
   let music: HTMLAudioElement | null = null
-  let eatProto: HTMLAudioElement | null = null
-  let crashProto: HTMLAudioElement | null = null
+  let ctx: AudioContext | null = null
+  const buffers: SfxBuffers = { eat: null, crash: null }
+  let rawEat: ArrayBuffer | null = null
+  let rawCrash: ArrayBuffer | null = null
+  let fetchPromise: Promise<void> | null = null
+  let decodePromise: Promise<void> | null = null
 
-  function ensureSfx(): void {
-    if (!eatProto) {
-      eatProto = new Audio(eatUrl)
-      eatProto.preload = 'auto'
+  function ensureCtx(): AudioContext {
+    if (!ctx) {
+      const AC =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext
+      ctx = new AC()
     }
-    if (!crashProto) {
-      crashProto = new Audio(crashUrl)
-      crashProto.preload = 'auto'
-    }
+    return ctx
+  }
+
+  function prefetchSfx(): Promise<void> {
+    if (fetchPromise) return fetchPromise
+    fetchPromise = (async () => {
+      const [eatRes, crashRes] = await Promise.all([
+        fetch(eatUrl),
+        fetch(crashUrl),
+      ])
+      rawEat = await eatRes.arrayBuffer()
+      rawCrash = await crashRes.arrayBuffer()
+    })().catch(() => {
+      fetchPromise = null
+    })
+    return fetchPromise
+  }
+
+  function decodeSfx(): Promise<void> {
+    if (buffers.eat && buffers.crash) return Promise.resolve()
+    if (decodePromise) return decodePromise
+    decodePromise = (async () => {
+      await prefetchSfx()
+      if (!rawEat || !rawCrash) return
+      const ac = ensureCtx()
+      // decodeAudioData detaches the buffer; keep copies for retries.
+      const [eat, crash] = await Promise.all([
+        ac.decodeAudioData(rawEat.slice(0)),
+        ac.decodeAudioData(rawCrash.slice(0)),
+      ])
+      buffers.eat = eat
+      buffers.crash = crash
+    })().catch(() => {
+      decodePromise = null
+    })
+    return decodePromise
+  }
+
+  function playBuffer(buf: AudioBuffer | null, volume: number): void {
+    if (!enabled || !unlocked || !buf) return
+    const ac = ensureCtx()
+    if (ac.state === 'suspended') void ac.resume()
+    const src = ac.createBufferSource()
+    src.buffer = buf
+    const gain = ac.createGain()
+    gain.gain.value = volume
+    src.connect(gain)
+    gain.connect(ac.destination)
+    src.start(0)
   }
 
   function ensureMusic(): HTMLAudioElement {
@@ -53,12 +114,8 @@ export function createAudio(): AudioController {
     })
   }
 
-  function playOneShot(proto: HTMLAudioElement, volume: number): void {
-    if (!enabled || !unlocked) return
-    const shot = proto.cloneNode(true) as HTMLAudioElement
-    shot.volume = volume
-    void shot.play().catch(() => {})
-  }
+  // Warm-fetch SFX bytes at boot (no AudioContext yet — safer on iOS).
+  void prefetchSfx()
 
   return {
     isEnabled: () => enabled,
@@ -67,7 +124,10 @@ export function createAudio(): AudioController {
       enabled = on
       saveEnabled(on)
       if (on) unlocked = true
-      if (on) ensureSfx()
+      if (on) {
+        void ensureCtx().resume()
+        void decodeSfx()
+      }
       syncMusic()
     },
 
@@ -78,21 +138,19 @@ export function createAudio(): AudioController {
     },
 
     unlock() {
-      if (!unlocked) {
-        unlocked = true
-        ensureSfx()
-      }
+      if (!unlocked) unlocked = true
+      const ac = ensureCtx()
+      void ac.resume()
+      void decodeSfx()
       syncMusic()
     },
 
     playEat() {
-      if (!eatProto) ensureSfx()
-      playOneShot(eatProto!, 1)
+      playBuffer(buffers.eat, 1)
     },
 
     playCrash() {
-      if (!crashProto) ensureSfx()
-      playOneShot(crashProto!, 0.85)
+      playBuffer(buffers.crash, 0.85)
     },
   }
 }

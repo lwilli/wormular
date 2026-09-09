@@ -16,7 +16,7 @@ import {
 } from './fx/effects'
 import { createHoldInput } from './input/hold'
 import { createAudio } from './platform/audio'
-import { recordScore, loadHighScore } from './platform/storage'
+import { initStorage, recordScore, loadHighScore } from './platform/storage'
 import { drawWorld } from './render/draw'
 import { bindTitleUi } from './ui/title'
 
@@ -71,6 +71,11 @@ ui.onSoundToggle(() => {
   ui.setSoundEnabled(enabled)
 })
 
+void initStorage().then(() => {
+  highScore = loadHighScore()
+  ui.setHighScore(highScore)
+})
+
 function arenaRadius(): number {
   const side = Math.min(viewW, viewH)
   return Math.max(80, side * 0.5 - ARENA_PADDING_PX)
@@ -121,8 +126,10 @@ function requestStart(): void {
 }
 
 function resize(): void {
-  viewW = Math.max(1, window.innerWidth)
-  viewH = Math.max(1, window.innerHeight)
+  // Prefer visualViewport when present (iOS WKWebView / browser chrome).
+  const vv = window.visualViewport
+  viewW = Math.max(1, Math.round(vv?.width ?? window.innerWidth))
+  viewH = Math.max(1, Math.round(vv?.height ?? window.innerHeight))
   const dpr = Math.min(window.devicePixelRatio || 1, 2)
   // Cap backing-store size — full Retina desktop canvases are expensive in Canvas2D.
   const maxMajor = 900
@@ -147,6 +154,8 @@ function resize(): void {
 }
 
 window.addEventListener('resize', resize)
+window.visualViewport?.addEventListener('resize', resize)
+window.visualViewport?.addEventListener('scroll', resize)
 resize()
 
 function frame(ts: number): void {
@@ -216,6 +225,8 @@ if (import.meta.hot) {
     // Only cancel THIS module's rAF — never bump gen here (new module owns that).
     cancelAnimationFrame(rafId)
     window.removeEventListener('resize', resize)
+    window.visualViewport?.removeEventListener('resize', resize)
+    window.visualViewport?.removeEventListener('scroll', resize)
     input.destroy()
     fps.dispose()
   })
