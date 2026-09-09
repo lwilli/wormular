@@ -15,7 +15,7 @@ import {
   voidShake,
   wallDanger,
 } from './cosmic'
-import { drawHazards, drawStarFruit, drawWorm } from './entities'
+import { drawHazards, drawStarFruit, drawWorm, syncSpawnPops } from './entities'
 import { PALETTE } from './palette'
 
 export const COLORS = {
@@ -59,7 +59,8 @@ export function drawWorld(
 
   drawOcean(ctx, world.R, world.RCore, t)
   drawVortex(ctx, world.RCore, t)
-  drawHazards(ctx, world.rocks)
+  syncSpawnPops(world, t)
+  drawHazards(ctx, world.rocks, t)
 
   if (world.apple) drawStarFruit(ctx, world.apple, t)
 

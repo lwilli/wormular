@@ -1,14 +1,71 @@
 import type { Apple, Rock, World } from '../core/types'
 import { headPos } from '../core/worm'
 import { PALETTE } from './palette'
-import { hash01 } from './util'
+import { clamp, hash01 } from './util'
+
+const POP_IN = 0.18
+const rockBorn = new Map<number, number>()
+let popSeed = Number.NaN
+let appleKey = ''
+let appleBorn = 0
+
+/** Remember when each rock/apple first appeared so they can pop in. */
+export function syncSpawnPops(world: World, t: number): void {
+  if (world.seed !== popSeed) {
+    popSeed = world.seed
+    rockBorn.clear()
+    appleKey = ''
+  }
+
+  for (const id of rockBorn.keys()) {
+    if (!world.rocks.some((r) => r.id === id)) rockBorn.delete(id)
+  }
+  for (let i = 0; i < world.rocks.length; i++) {
+    const id = world.rocks[i]!.id
+    if (!rockBorn.has(id)) rockBorn.set(id, t)
+  }
+
+  const apple = world.apple
+  const key = apple ? `${apple.x.toFixed(2)},${apple.y.toFixed(2)}` : ''
+  if (key !== appleKey) {
+    appleKey = key
+    appleBorn = t
+  }
+}
+
+function popScale(born: number, t: number): number {
+  const u = clamp((t - born) / POP_IN, 0, 1)
+  return 0.08 + 0.92 * (1 - (1 - u) * (1 - u) * (1 - u))
+}
+
+function withPop(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  scale: number,
+  draw: () => void,
+): void {
+  if (scale >= 0.995) {
+    draw()
+    return
+  }
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.scale(scale, scale)
+  ctx.translate(-x, -y)
+  draw()
+  ctx.restore()
+}
 
 export function drawHazards(
   ctx: CanvasRenderingContext2D,
   rocks: Rock[],
+  t: number,
 ): void {
   for (let i = 0; i < rocks.length; i++) {
-    drawHazard(ctx, rocks[i]!)
+    const rock = rocks[i]!
+    const born = rockBorn.get(rock.id) ?? t
+    withPop(ctx, rock.x, rock.y, popScale(born, t), () => drawHazard(ctx, rock))
   }
 }
 
@@ -145,8 +202,8 @@ function drawComet(ctx: CanvasRenderingContext2D, rock: Rock): void {
   for (let i = 0; i < 3; i++) {
     const spread = (i - 1) * 0.34
     const tlen = tail * (1 - Math.abs(i - 1) * 0.22)
-    ctx.globalAlpha = i === 1 ? 0.55 : 0.28
-    ctx.lineWidth = i === 1 ? radius * 0.42 : radius * 0.2
+    ctx.globalAlpha = i === 1 ? 0.22 : 0.1
+    ctx.lineWidth = i === 1 ? radius * 0.28 : radius * 0.12
     ctx.beginPath()
     ctx.moveTo(x, y)
     ctx.lineTo(
@@ -211,27 +268,28 @@ export function drawStarFruit(
   const { x, y, radius } = apple
   const pulse = 1 + 0.08 * Math.sin(t * 4.2)
   const r = radius * pulse
+  withPop(ctx, x, y, popScale(appleBorn, t), () => {
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, r * 2.3)
+    glow.addColorStop(0, 'rgba(255, 248, 210, 0.55)')
+    glow.addColorStop(0.35, 'rgba(255, 210, 74, 0.28)')
+    glow.addColorStop(1, 'rgba(255, 210, 74, 0)')
+    ctx.fillStyle = glow
+    ctx.fillRect(x - r * 2.3, y - r * 2.3, r * 4.6, r * 4.6)
 
-  const glow = ctx.createRadialGradient(x, y, 0, x, y, r * 2.3)
-  glow.addColorStop(0, 'rgba(255, 248, 210, 0.55)')
-  glow.addColorStop(0.35, 'rgba(255, 210, 74, 0.28)')
-  glow.addColorStop(1, 'rgba(255, 210, 74, 0)')
-  ctx.fillStyle = glow
-  ctx.fillRect(x - r * 2.3, y - r * 2.3, r * 4.6, r * 4.6)
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+    starPath(ctx, x, y, r * 1.02, r * 0.5, 5, t)
+    ctx.fillStyle = PALETTE.food
+    ctx.fill()
+    ctx.lineWidth = 1.5
+    ctx.strokeStyle = PALETTE.foodHot
+    ctx.stroke()
 
-  ctx.lineJoin = 'round'
-  ctx.lineCap = 'round'
-  starPath(ctx, x, y, r * 1.02, r * 0.50, 5, t)
-  ctx.fillStyle = PALETTE.food
-  ctx.fill()
-  ctx.lineWidth = 1.5
-  ctx.strokeStyle = PALETTE.foodHot
-  ctx.stroke()
-
-  ctx.beginPath()
-  ctx.arc(x - r * 0.16, y - r * 0.18, r * 0.18, 0, Math.PI * 2)
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.55)'
-  ctx.fill()
+    ctx.beginPath()
+    ctx.arc(x - r * 0.16, y - r * 0.18, r * 0.18, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.55)'
+    ctx.fill()
+  })
 }
 
 function starPath(
