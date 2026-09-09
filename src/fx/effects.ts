@@ -1,4 +1,4 @@
-import type { GameEvent } from '../core/types'
+import type { DeathCause, GameEvent } from '../core/types'
 
 const FOOD_GOLD = '#FFD24A'
 const FOOD_HOT = '#FFF4C8'
@@ -6,6 +6,7 @@ const FOOD_HOT = '#FFF4C8'
 const EAT_LIFE = 0.15
 const PLUS_LIFE = 0.45
 const DEATH_FREEZE = 0.18
+const SUCK_LIFE = 0.62
 const SHAKE_LIFE = 0.22
 const SHAKE_PX = 3.5
 const FLASH_LIFE = 0.18
@@ -37,6 +38,8 @@ type PlusOne = {
   age: number
 }
 
+export type DeathFx = 'crash' | 'suck'
+
 export type FxState = {
   pops: Pop[]
   specks: Speck[]
@@ -47,6 +50,9 @@ export type FxState = {
   flashLife: number
   freezeLeft: number
   deathPending: boolean
+  deathFx: DeathFx | null
+  suckAge: number
+  suckLife: number
 }
 
 const shakeOut = { x: 0, y: 0 }
@@ -62,6 +68,9 @@ export function createFx(): FxState {
     flashLife: 0,
     freezeLeft: 0,
     deathPending: false,
+    deathFx: null,
+    suckAge: 0,
+    suckLife: 0,
   }
 }
 
@@ -75,6 +84,9 @@ export function clearFx(fx: FxState): void {
   fx.flashLife = 0
   fx.freezeLeft = 0
   fx.deathPending = false
+  fx.deathFx = null
+  fx.suckAge = 0
+  fx.suckLife = 0
 }
 
 export function fxActive(fx: FxState): boolean {
@@ -92,7 +104,7 @@ export function handleGameEvent(fx: FxState, ev: GameEvent): void {
   if (ev.type === 'AteFood') {
     spawnEat(fx, ev.x, ev.y, ev.radius)
   } else if (ev.type === 'Died') {
-    spawnDeath(fx)
+    spawnDeath(fx, ev.cause)
   }
 }
 
@@ -122,13 +134,49 @@ function spawnEat(
   }
 }
 
-function spawnDeath(fx: FxState): void {
+function spawnDeath(fx: FxState, cause: DeathCause): void {
+  fx.deathPending = true
+  if (cause === 'center') {
+    fx.deathFx = 'suck'
+    fx.suckLife = SUCK_LIFE
+    fx.suckAge = 0
+    fx.freezeLeft = SUCK_LIFE
+    fx.shakeLife = 0
+    fx.shakeAge = 0
+    fx.flashLife = 0
+    fx.flashAge = 0
+    spawnSuckDebris(fx)
+    return
+  }
+
+  fx.deathFx = 'crash'
+  fx.suckLife = 0
+  fx.suckAge = 0
   fx.freezeLeft = DEATH_FREEZE
   fx.shakeLife = SHAKE_LIFE
   fx.shakeAge = 0
   fx.flashLife = FLASH_LIFE
   fx.flashAge = 0
-  fx.deathPending = true
+}
+
+/** Tiny motes that fall straight into the hole with the worm. */
+function spawnSuckDebris(fx: FxState): void {
+  const n = 10
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2
+    const r = 28 + Math.random() * 70
+    const inward = 70 + Math.random() * 110
+    fx.specks.push({
+      x: Math.cos(a) * r,
+      y: Math.sin(a) * r,
+      vx: -Math.cos(a) * inward,
+      vy: -Math.sin(a) * inward,
+      life: 0.45 + Math.random() * 0.35,
+      age: 0,
+      color: i % 2 === 0 ? '#c8b0ff' : '#6aa8ff',
+      size: 1.2 + Math.random() * 2,
+    })
+  }
 }
 
 /** Compact alive items in-place (no per-frame array alloc). */
@@ -151,6 +199,12 @@ export function updateFx(fx: FxState, dt: number): boolean {
   for (let i = 0; i < fx.specks.length; i++) {
     const s = fx.specks[i]!
     s.age += dt
+    if (fx.deathFx === 'suck') {
+      // Extra radial pull toward origin while the hole is feeding.
+      const pull = 3.4 * dt
+      s.vx += -s.x * pull
+      s.vy += -s.y * pull
+    }
     s.x += s.vx * dt
     s.y += s.vy * dt
   }
@@ -161,6 +215,7 @@ export function updateFx(fx: FxState, dt: number): boolean {
 
   if (fx.shakeLife > 0) fx.shakeAge += dt
   if (fx.flashLife > 0) fx.flashAge += dt
+  if (fx.suckLife > 0) fx.suckAge += dt
 
   let deathDone = false
   if (fx.deathPending) {
@@ -178,6 +233,12 @@ export function isFreezing(fx: FxState): boolean {
   return fx.deathPending && fx.freezeLeft > 0
 }
 
+/** 0–1 progress of the black-hole swallow, or 0 when inactive. */
+export function suckProgress(fx: FxState): number {
+  if (fx.deathFx !== 'suck' || fx.suckLife <= 0) return 0
+  return Math.min(1, fx.suckAge / fx.suckLife)
+}
+
 export function shakeOffset(fx: FxState): { x: number; y: number } {
   if (fx.shakeAge >= fx.shakeLife || fx.shakeLife <= 0) {
     shakeOut.x = 0
@@ -193,6 +254,7 @@ export function shakeOffset(fx: FxState): { x: number; y: number } {
 }
 
 export function wormFlashOn(fx: FxState): boolean {
+  if (fx.deathFx === 'suck') return false
   if (fx.flashAge >= fx.flashLife || fx.flashLife <= 0) return false
   return Math.floor(fx.flashAge * 28) % 2 === 0
 }
@@ -215,9 +277,12 @@ export function drawFx(ctx: CanvasRenderingContext2D, fx: FxState): void {
   for (let i = 0; i < fx.specks.length; i++) {
     const s = fx.specks[i]!
     const u = s.age / s.life
-    ctx.globalAlpha = 1 - u
+    const dist = Math.hypot(s.x, s.y)
+    // Fade harder once debris crosses the event horizon.
+    const holeFade = fx.deathFx === 'suck' ? Math.min(1, dist / 18) : 1
+    ctx.globalAlpha = (1 - u) * holeFade
     ctx.beginPath()
-    ctx.arc(s.x, s.y, s.size * (1 - u * 0.5), 0, Math.PI * 2)
+    ctx.arc(s.x, s.y, s.size * (1 - u * 0.5) * holeFade, 0, Math.PI * 2)
     ctx.fillStyle = s.color
     ctx.fill()
   }

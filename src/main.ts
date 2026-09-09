@@ -193,7 +193,8 @@ function frame(ts: number): void {
         handleGameEvent(fx, ev)
         if (ev.type === 'AteFood') audio.playEat()
         else if (ev.type === 'Died') {
-          audio.playCrash()
+          if (ev.cause === 'center') audio.playWoosh()
+          else audio.playCrash()
           mode = 'dying'
         }
       }

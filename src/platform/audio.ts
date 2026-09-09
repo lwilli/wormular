@@ -1,5 +1,6 @@
 import eatUrl from '../../assets/sounds/eat.m4a?url'
 import crashUrl from '../../assets/sounds/crash.m4a?url'
+import wooshUrl from '../../assets/sounds/woosh.m4a?url'
 import musicUrl from '../../assets/sounds/music.mp3?url'
 
 const MUTE_KEY = 'wormular.soundEnabled'
@@ -12,11 +13,13 @@ export type AudioController = {
   unlock: () => void
   playEat: () => void
   playCrash: () => void
+  playWoosh: () => void
 }
 
 type SfxBuffers = {
   eat: AudioBuffer | null
   crash: AudioBuffer | null
+  woosh: AudioBuffer | null
 }
 
 /**
@@ -28,9 +31,10 @@ export function createAudio(): AudioController {
   let unlocked = false
   let music: HTMLAudioElement | null = null
   let ctx: AudioContext | null = null
-  const buffers: SfxBuffers = { eat: null, crash: null }
+  const buffers: SfxBuffers = { eat: null, crash: null, woosh: null }
   let rawEat: ArrayBuffer | null = null
   let rawCrash: ArrayBuffer | null = null
+  let rawWoosh: ArrayBuffer | null = null
   let fetchPromise: Promise<void> | null = null
   let decodePromise: Promise<void> | null = null
 
@@ -48,12 +52,14 @@ export function createAudio(): AudioController {
   function prefetchSfx(): Promise<void> {
     if (fetchPromise) return fetchPromise
     fetchPromise = (async () => {
-      const [eatRes, crashRes] = await Promise.all([
+      const [eatRes, crashRes, wooshRes] = await Promise.all([
         fetch(eatUrl),
         fetch(crashUrl),
+        fetch(wooshUrl),
       ])
       rawEat = await eatRes.arrayBuffer()
       rawCrash = await crashRes.arrayBuffer()
+      rawWoosh = await wooshRes.arrayBuffer()
     })().catch(() => {
       fetchPromise = null
     })
@@ -61,19 +67,21 @@ export function createAudio(): AudioController {
   }
 
   function decodeSfx(): Promise<void> {
-    if (buffers.eat && buffers.crash) return Promise.resolve()
+    if (buffers.eat && buffers.crash && buffers.woosh) return Promise.resolve()
     if (decodePromise) return decodePromise
     decodePromise = (async () => {
       await prefetchSfx()
-      if (!rawEat || !rawCrash) return
+      if (!rawEat || !rawCrash || !rawWoosh) return
       const ac = ensureCtx()
       // decodeAudioData detaches the buffer; keep copies for retries.
-      const [eat, crash] = await Promise.all([
+      const [eat, crash, woosh] = await Promise.all([
         ac.decodeAudioData(rawEat.slice(0)),
         ac.decodeAudioData(rawCrash.slice(0)),
+        ac.decodeAudioData(rawWoosh.slice(0)),
       ])
       buffers.eat = eat
       buffers.crash = crash
+      buffers.woosh = woosh
     })().catch(() => {
       decodePromise = null
     })
@@ -151,6 +159,10 @@ export function createAudio(): AudioController {
 
     playCrash() {
       playBuffer(buffers.crash, 0.85)
+    },
+
+    playWoosh() {
+      playBuffer(buffers.woosh, 0.9)
     },
   }
 }

@@ -328,6 +328,8 @@ export function drawWorm(
   thickness: number,
   flash: boolean,
   danger: number,
+  /** 0–1 black-hole swallow. 0 = normal. */
+  suck = 0,
 ): void {
   const deposited = world.worm.points
   if (deposited.length === 0) return
@@ -335,76 +337,149 @@ export function drawWorm(
   const fill = flash ? PALETTE.wormFlash : PALETTE.wormFill
   const outline = flash ? '#ffffff' : PALETTE.wormOutline
   const gloss = flash ? '#ffffff' : PALETTE.wormGloss
-  const head = headPos(world.worm)
+  const liveHead = headPos(world.worm)
 
+  const sucking = suck > 0.001
+  const u = sucking ? suckEase(suck) : 0
+  // Head leads into the hole; tail lags a beat behind.
+  const head = sucking
+    ? suckPoint(liveHead.x, liveHead.y, u, 1)
+    : liveHead
+  const body = sucking
+    ? suckBody(deposited, u)
+    : deposited
+
+  const thickScale = sucking ? Math.max(0.08, (1 - u) ** 1.15) : 1
+  const th = thickness * thickScale
+  const alpha = sucking ? Math.max(0, 1 - u * u * 1.05) : 1
+  if (alpha < 0.02) return
+
+  ctx.save()
+  ctx.globalAlpha = alpha
   ctx.lineJoin = 'round'
   ctx.lineCap = 'round'
 
-  const glowA = 0.22 + danger * 0.35
+  const glowA = (0.22 + danger * 0.35) * alpha
   ctx.globalAlpha = glowA
-  strokeWormPath(ctx, head, deposited, thickness + 12, PALETTE.wormFill)
-  if (danger > 0.35) {
+  strokeWormPath(ctx, head, body, th + 12 * thickScale, PALETTE.wormFill)
+  if (danger > 0.35 && !sucking) {
     ctx.globalAlpha = danger * 0.45
-    strokeWormPath(ctx, head, deposited, thickness + 18, '#ff5030')
+    strokeWormPath(ctx, head, body, th + 18, '#ff5030')
   }
-  ctx.globalAlpha = 1
+  ctx.globalAlpha = alpha
 
-  strokeWormPath(ctx, head, deposited, thickness + 4, outline)
-  strokeWormPath(ctx, head, deposited, thickness, fill)
-  strokeWormPath(ctx, head, deposited, thickness * 0.38, gloss)
+  strokeWormPath(ctx, head, body, th + 4 * thickScale, outline)
+  strokeWormPath(ctx, head, body, th, fill)
+  strokeWormPath(ctx, head, body, th * 0.38, gloss)
 
-  ctx.beginPath()
-  ctx.arc(head.x, head.y, thickness * 0.55, 0, Math.PI * 2)
-  ctx.fillStyle = fill
-  ctx.fill()
-  ctx.lineWidth = 2
-  ctx.strokeStyle = outline
-  ctx.stroke()
+  // Once deep in the hole, drop the face — it's already swallowed.
+  if (u < 0.82) {
+    ctx.beginPath()
+    ctx.arc(head.x, head.y, th * 0.55, 0, Math.PI * 2)
+    ctx.fillStyle = fill
+    ctx.fill()
+    ctx.lineWidth = 2 * thickScale
+    ctx.strokeStyle = outline
+    ctx.stroke()
 
-  ctx.beginPath()
-  ctx.arc(
-    head.x - thickness * 0.12,
-    head.y - thickness * 0.14,
-    thickness * 0.16,
-    0,
-    Math.PI * 2,
-  )
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.28)'
-  ctx.fill()
+    ctx.beginPath()
+    ctx.arc(
+      head.x - th * 0.12,
+      head.y - th * 0.14,
+      th * 0.16,
+      0,
+      Math.PI * 2,
+    )
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.28)'
+    ctx.fill()
 
-  let tx = Math.cos(world.worm.theta)
-  let ty = Math.sin(world.worm.theta)
-  const newest = deposited[deposited.length - 1]!
-  const dx = head.x - newest.x
-  const dy = head.y - newest.y
-  const len = Math.hypot(dx, dy)
-  if (len > 0.05) {
-    tx = dx / len
-    ty = dy / len
-  } else if (deposited.length > 1) {
-    const prev = deposited[deposited.length - 2]!
-    const dx2 = head.x - prev.x
-    const dy2 = head.y - prev.y
-    const len2 = Math.hypot(dx2, dy2) || 1
-    tx = dx2 / len2
-    ty = dy2 / len2
+    if (u < 0.55) {
+      let tx = Math.cos(world.worm.theta)
+      let ty = Math.sin(world.worm.theta)
+      const newest = body[body.length - 1]!
+      const dx = head.x - newest.x
+      const dy = head.y - newest.y
+      const len = Math.hypot(dx, dy)
+      if (len > 0.05) {
+        tx = dx / len
+        ty = dy / len
+      } else if (body.length > 1) {
+        const prev = body[body.length - 2]!
+        const dx2 = head.x - prev.x
+        const dy2 = head.y - prev.y
+        const len2 = Math.hypot(dx2, dy2) || 1
+        tx = dx2 / len2
+        ty = dy2 / len2
+      }
+      const nx = -ty
+      const ny = tx
+      const eyeDist = th * 0.28
+      const eyeForward = th * 0.2
+      const eyeA = 1 - u / 0.55
+      ctx.globalAlpha = alpha * eyeA
+      drawEye(
+        ctx,
+        head.x + tx * eyeForward + nx * eyeDist,
+        head.y + ty * eyeForward + ny * eyeDist,
+        th * 0.12,
+      )
+      drawEye(
+        ctx,
+        head.x + tx * eyeForward - nx * eyeDist,
+        head.y + ty * eyeForward - ny * eyeDist,
+        th * 0.12,
+      )
+    }
   }
-  const nx = -ty
-  const ny = tx
-  const eyeDist = thickness * 0.28
-  const eyeForward = thickness * 0.2
-  drawEye(
-    ctx,
-    head.x + tx * eyeForward + nx * eyeDist,
-    head.y + ty * eyeForward + ny * eyeDist,
-    thickness * 0.12,
-  )
-  drawEye(
-    ctx,
-    head.x + tx * eyeForward - nx * eyeDist,
-    head.y + ty * eyeForward - ny * eyeDist,
-    thickness * 0.12,
-  )
+
+  ctx.restore()
+}
+
+/** Ease-in so the last moments accelerate into the singularity. */
+function suckEase(t: number): number {
+  const x = t < 0 ? 0 : t > 1 ? 1 : t
+  return x * x * (2.2 - 1.2 * x)
+}
+
+/**
+ * Pull a point straight into the origin (radial collapse).
+ * `lead` 0 = tail, 1 = head (head gets eaten first).
+ */
+function suckPoint(
+  x: number,
+  y: number,
+  u: number,
+  lead: number,
+): { x: number; y: number } {
+  const local = Math.min(1, u * (0.72 + lead * 0.55))
+  const scale = (1 - local) ** 1.65
+  return { x: x * scale, y: y * scale }
+}
+
+/** Scratch buffer reused each frame to avoid GC during the death anim. */
+const suckScratch: { x: number; y: number }[] = []
+
+function suckBody(
+  deposited: { x: number; y: number }[],
+  u: number,
+): { x: number; y: number }[] {
+  const n = deposited.length
+  if (suckScratch.length < n) {
+    for (let i = suckScratch.length; i < n; i++) {
+      suckScratch.push({ x: 0, y: 0 })
+    }
+  }
+  for (let i = 0; i < n; i++) {
+    // Index 0 = oldest (tail). Head-adjacent samples lead.
+    const lead = n <= 1 ? 1 : i / (n - 1)
+    const p = deposited[i]!
+    const out = suckScratch[i]!
+    const s = suckPoint(p.x, p.y, u, lead)
+    out.x = s.x
+    out.y = s.y
+  }
+  suckScratch.length = n
+  return suckScratch
 }
 
 function strokeWormPath(

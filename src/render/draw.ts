@@ -4,14 +4,17 @@ import {
   drawFx,
   fxActive,
   shakeOffset,
+  suckProgress,
   wormFlashOn,
   type FxState,
 } from '../fx/effects'
 import {
+  coreProximity,
   drawOcean,
   drawSpace,
   drawVoidBoundary,
   drawVortex,
+  drawVortexCore,
   voidShake,
   wallDanger,
 } from './cosmic'
@@ -57,15 +60,21 @@ export function drawWorld(
   ctx.save()
   ctx.translate(cx + shake.x + warn.x, cy + shake.y + warn.y)
 
+  const suck = fx ? suckProgress(fx) : 0
+  const near = coreProximity(world.worm.r, world.RCore)
+
   drawOcean(ctx, world.R, world.RCore, t)
-  drawVortex(ctx, world.RCore, t)
+  drawVortex(ctx, world.RCore, t, suck, near)
   syncSpawnPops(world, t)
   drawHazards(ctx, world.rocks, t)
 
   if (world.apple) drawStarFruit(ctx, world.apple, t)
 
   const flash = fx ? wormFlashOn(fx) : false
-  drawWorm(ctx, world, tunables.wormThickness, flash, danger)
+  drawWorm(ctx, world, tunables.wormThickness, flash, danger, suck)
+
+  // Occlude the swallowed tip under the event horizon.
+  if (suck > 0.02) drawVortexCore(ctx, world.RCore, suck, near)
 
   drawVoidBoundary(ctx, world.R, t, danger)
 

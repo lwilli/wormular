@@ -270,6 +270,10 @@ export function drawVortex(
   ctx: CanvasRenderingContext2D,
   RCore: number,
   t: number,
+  /** 0–1 swallow intensity — brightens / tightens the hole while feeding. */
+  feed = 0,
+  /** 0–1 worm proximity — hole swells slightly when the worm is near. */
+  near = 0,
 ): void {
   const disc = vortexDiscLayer(RCore)
   const size = RCore * 3.2
@@ -277,13 +281,14 @@ export function drawVortex(
 
   const spirals = spiralArmsLayer(RCore)
   const spin = RCore * 3
+  const feedEase = feed * feed
   ctx.save()
   ctx.rotate(t * 0.42)
   ctx.drawImage(spirals.canvas, -spin * 0.5, -spin * 0.5, spin, spin)
   ctx.restore()
   ctx.save()
   ctx.rotate(-t * 0.2)
-  ctx.globalAlpha = 0.55
+  ctx.globalAlpha = 0.55 + feedEase * 0.35
   ctx.scale(1.06, 1.06)
   ctx.drawImage(spirals.canvas, -spin * 0.5, -spin * 0.5, spin, spin)
   ctx.restore()
@@ -291,13 +296,13 @@ export function drawVortex(
 
   ctx.save()
   ctx.rotate(t * 0.55)
-  ctx.strokeStyle = 'rgba(220, 200, 255, 0.32)'
-  ctx.lineWidth = 2
+  ctx.strokeStyle = `rgba(220, 200, 255, ${0.32 + feedEase * 0.35})`
+  ctx.lineWidth = 2 + feedEase
   ctx.beginPath()
   ctx.ellipse(0, 0, RCore * 0.98, RCore * 0.34, 0, 0, Math.PI * 2)
   ctx.stroke()
-  ctx.strokeStyle = 'rgba(90, 160, 255, 0.4)'
-  ctx.lineWidth = 1.7
+  ctx.strokeStyle = `rgba(90, 160, 255, ${0.4 + feedEase * 0.3})`
+  ctx.lineWidth = 1.7 + feedEase * 0.8
   ctx.beginPath()
   ctx.ellipse(0, 0, RCore * 1.12, RCore * 0.42, 0.7, 0, Math.PI * 2)
   ctx.stroke()
@@ -305,7 +310,28 @@ export function drawVortex(
 
   drawVortexParticles(ctx, RCore, t)
 
-  const coreR = RCore * 0.48
+  drawVortexCore(ctx, RCore, feedEase, near)
+
+  // Exact collision radius — thin, readable, independent of bloom.
+  ctx.strokeStyle = 'rgba(180, 160, 255, 0.28)'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.arc(0, 0, RCore, 0, Math.PI * 2)
+  ctx.stroke()
+}
+
+/** Black core + optional accretion flash. Drawn again over the worm while swallowing. */
+export function drawVortexCore(
+  ctx: CanvasRenderingContext2D,
+  RCore: number,
+  feed = 0,
+  /** 0–1 worm proximity — swells only the dark core. */
+  near = 0,
+): void {
+  const feedEase = feed * feed
+  // Ease-in swell so it reads late (max ~65%).
+  const swell = 1 + near * near * 0.65
+  const coreR = RCore * (0.48 + feedEase * 0.50) * swell
   const core = ctx.createRadialGradient(0, 0, 0, 0, 0, coreR)
   core.addColorStop(0, '#000000')
   core.addColorStop(0.7, PALETTE.vortexCore)
@@ -315,12 +341,16 @@ export function drawVortex(
   ctx.arc(0, 0, coreR, 0, Math.PI * 2)
   ctx.fill()
 
-  // Exact collision radius — thin, readable, independent of bloom.
-  ctx.strokeStyle = 'rgba(180, 160, 255, 0.28)'
-  ctx.lineWidth = 1
-  ctx.beginPath()
-  ctx.arc(0, 0, RCore, 0, Math.PI * 2)
-  ctx.stroke()
+  if (feedEase > 0.05) {
+    const flash = ctx.createRadialGradient(0, 0, coreR * 0.6, 0, 0, RCore * 1.4)
+    flash.addColorStop(0, `rgba(200, 170, 255, ${0.12 * feedEase})`)
+    flash.addColorStop(0.55, `rgba(90, 140, 255, ${0.18 * feedEase})`)
+    flash.addColorStop(1, 'rgba(40, 60, 140, 0)')
+    ctx.fillStyle = flash
+    ctx.beginPath()
+    ctx.arc(0, 0, RCore * 1.4, 0, Math.PI * 2)
+    ctx.fill()
+  }
 }
 
 function drawSpiralArms(
@@ -403,8 +433,17 @@ export function wallDanger(
   halfThickness: number,
 ): number {
   const headR = r + halfThickness
-  const start = R * 0.8
+  const start = R * 0.7
   return clamp((headR - start) / Math.max(1, R - start), 0, 1)
+}
+
+/**
+ * 0 far from the hole, 1 when the orbit radius is on the lethal core.
+ * Visual only — death radius stays RCore.
+ */
+export function coreProximity(r: number, RCore: number): number {
+  const start = RCore * 2.4
+  return clamp((start - r) / Math.max(1, start - RCore), 0, 1)
 }
 
 export function voidShake(
