@@ -219,10 +219,12 @@ export function drawStarFruit(
   ctx.fillStyle = glow
   ctx.fillRect(x - r * 2.3, y - r * 2.3, r * 4.6, r * 4.6)
 
-  starPath(ctx, x, y, r * 1.08, r * 0.42, 5, t)
+  ctx.lineJoin = 'round'
+  ctx.lineCap = 'round'
+  starPath(ctx, x, y, r * 1.02, r * 0.50, 5, t)
   ctx.fillStyle = PALETTE.food
   ctx.fill()
-  ctx.lineWidth = 1.25
+  ctx.lineWidth = 1.5
   ctx.strokeStyle = PALETTE.foodHot
   ctx.stroke()
 
@@ -241,15 +243,23 @@ function starPath(
   points: number,
   t: number,
 ): void {
+  // Rounded lobes (quadratic through each tip) instead of sharp spikes.
   ctx.beginPath()
-  for (let i = 0; i < points * 2; i++) {
-    const a = -Math.PI * 0.5 + (i * Math.PI) / points
-    const wobble = 1 + 0.06 * Math.sin(t * 3.2 + i)
-    const rad = (i % 2 === 0 ? outer : inner) * wobble
-    const px = x + Math.cos(a) * rad
-    const py = y + Math.sin(a) * rad
-    if (i === 0) ctx.moveTo(px, py)
-    else ctx.lineTo(px, py)
+  for (let i = 0; i < points; i++) {
+    const a = -Math.PI * 0.5 + (i * 2 * Math.PI) / points
+    const wobble = 1 + 0.04 * Math.sin(t * 3.2 + i)
+    const notch = inner * wobble
+    const tip = outer * wobble
+    const a0 = a - Math.PI / points
+    const a1 = a + Math.PI / points
+    const x0 = x + Math.cos(a0) * notch
+    const y0 = y + Math.sin(a0) * notch
+    const tx = x + Math.cos(a) * tip
+    const ty = y + Math.sin(a) * tip
+    const x1 = x + Math.cos(a1) * notch
+    const y1 = y + Math.sin(a1) * notch
+    if (i === 0) ctx.moveTo(x0, y0)
+    ctx.quadraticCurveTo(tx, ty, x1, y1)
   }
   ctx.closePath()
 }
