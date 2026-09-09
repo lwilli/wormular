@@ -52,16 +52,20 @@ export function drawWorld(
     world.R,
     tunables.wormThickness * 0.5,
   )
+  const near = coreProximity(world.worm.r, world.RCore)
   const shake = fx ? shakeOffset(fx) : { x: 0, y: 0 }
   const warn = voidShake(t, danger)
+  const hole = voidShake(t + 1.7, near)
 
   drawSpace(ctx, viewW, viewH)
 
   ctx.save()
-  ctx.translate(cx + shake.x + warn.x, cy + shake.y + warn.y)
+  ctx.translate(
+    cx + shake.x + warn.x + hole.x,
+    cy + shake.y + warn.y + hole.y,
+  )
 
   const suck = fx ? suckProgress(fx) : 0
-  const near = coreProximity(world.worm.r, world.RCore)
 
   drawOcean(ctx, world.R, world.RCore, t)
   drawVortex(ctx, world.RCore, t, suck, near)
