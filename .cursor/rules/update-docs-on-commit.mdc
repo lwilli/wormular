@@ -1,0 +1,35 @@
+---
+description: Keep README and docs/ in sync with every commit
+alwaysApply: true
+---
+
+# Update docs with every commit
+
+When committing (or preparing a commit), update project docs in the same change if the work affects them. Do not ship a commit that leaves docs stale.
+
+## Where docs live
+
+- `README.md` — play instructions, scripts, design index, status
+- `docs/PLAN.md` — stack, architecture, simulation, phases, non-goals
+- `docs/controls.md` — physics and juice knobs
+- `docs/ios.md` — iOS device / simulator runbook
+- `docs/adr/` — architecture decisions (add a new ADR only for durable choices)
+
+## When to update
+
+Update the matching file(s) in the same commit:
+
+- New or changed npm scripts, play/build/deploy flow → `README.md`
+- Stack, architecture, phases, or non-goals → `docs/PLAN.md`
+- Config knobs, feel, FX timings → `docs/controls.md`
+- Signing, Capacitor, Xcode, device run steps → `docs/ios.md`
+- A lasting technical choice (keep vs rewrite) → new or updated ADR
+- Status that is no longer true (e.g. "not on device yet") → `README.md` Status
+
+Skip docs only when the change is purely internal and nothing a player, builder, or future agent would read has changed (typos in comments, test-only refactors with the same behavior).
+
+## How
+
+- Edit docs in the same commit as the code, not a follow-up.
+- Prefer small factual edits over rewriting the whole file.
+- Do not invent features in docs that the commit does not include.
