@@ -11,6 +11,7 @@ const config: CapacitorConfig = {
     contentInset: 'never',
     preferredContentMode: 'mobile',
     scrollEnabled: false,
+    allowsLinkPreview: false,
   },
 }
 

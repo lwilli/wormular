@@ -11,6 +11,9 @@
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
+  /* Kill iOS long-press loupe / callout (Safari + WKWebView / Capacitor). */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 

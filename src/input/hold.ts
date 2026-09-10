@@ -39,7 +39,32 @@ export function createHoldInput(target: HTMLElement): HoldInput & {
     }
   }
 
+  const onContextMenu = (e: Event) => {
+    e.preventDefault()
+  }
+
+  // Non-passive touch listeners: required for preventDefault to suppress iOS
+  // Safari/Arc loupe / callout. Pointer alone is not enough there.
+  const touchOpts: AddEventListenerOptions = { passive: false }
+  const onTouchStart = (e: TouchEvent) => {
+    e.preventDefault()
+    state.holding = true
+  }
+  const onTouchEnd = (e: TouchEvent) => {
+    e.preventDefault()
+    state.holding = false
+  }
+  const onGesture = (e: Event) => {
+    e.preventDefault()
+  }
+
   target.addEventListener('pointerdown', onDown)
+  target.addEventListener('touchstart', onTouchStart, touchOpts)
+  target.addEventListener('touchmove', onGesture, touchOpts)
+  target.addEventListener('touchend', onTouchEnd, touchOpts)
+  target.addEventListener('touchcancel', onTouchEnd, touchOpts)
+  target.addEventListener('gesturestart', onGesture)
+  target.addEventListener('contextmenu', onContextMenu)
   window.addEventListener('pointerup', onUp)
   window.addEventListener('pointercancel', onUp)
   window.addEventListener('keydown', onKeyDown)
@@ -47,6 +72,12 @@ export function createHoldInput(target: HTMLElement): HoldInput & {
 
   state.destroy = () => {
     target.removeEventListener('pointerdown', onDown)
+    target.removeEventListener('touchstart', onTouchStart, touchOpts)
+    target.removeEventListener('touchmove', onGesture, touchOpts)
+    target.removeEventListener('touchend', onTouchEnd, touchOpts)
+    target.removeEventListener('touchcancel', onTouchEnd, touchOpts)
+    target.removeEventListener('gesturestart', onGesture)
+    target.removeEventListener('contextmenu', onContextMenu)
     window.removeEventListener('pointerup', onUp)
     window.removeEventListener('pointercancel', onUp)
     window.removeEventListener('keydown', onKeyDown)
