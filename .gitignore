@@ -29,3 +29,13 @@ ios/App/App/public
 ios/DerivedData
 *.xcuserstate
 xcuserdata/
+
+# Secrets / credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.p8
+*.mobileprovision
+*.keystore

@@ -20,7 +20,7 @@ npm run ios          # sync web assets + open Xcode
 In Xcode (`ios/App/App.xcodeproj`):
 
 1. Select the **App** target → **Signing & Capabilities**.
-2. Enable **Automatically manage signing**.
+2. Enable **Automatically manage signing**. Xcode keeps certs and provisioning profiles on the machine — `.p12` / `.p8` keys and `.mobileprovision` files are gitignored.
 3. Choose your **Team** (your personal Apple ID team).
 4. Keep bundle id `com.lwilli.wormular` unless it collides — then change it to something unique (e.g. `com.yourname.wormular`).
 5. In the scheme toolbar, pick your **physical iPhone** (not a simulator).
