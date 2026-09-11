@@ -4,14 +4,12 @@ export type TitleUi = {
   setScore: (score: number) => void
   setHudVisible: (visible: boolean) => void
   setSoundEnabled: (enabled: boolean) => void
-  onPlay: (cb: () => void) => void
   onSoundToggle: (cb: () => void) => void
 }
 
 export function bindTitleUi(): TitleUi {
   const title = mustHtml('#title')
   const highScore = mustHtml('#high-score')
-  const play = mustHtml('#play') as HTMLButtonElement
   const soundToggle = mustHtml('#sound-toggle') as HTMLButtonElement
   const hud = mustHtml('#hud')
   const scoreEl = mustHtml('#score')
@@ -39,13 +37,6 @@ export function bindTitleUi(): TitleUi {
         muted ? 'Unmute sound' : 'Mute sound',
       )
       soundToggle.title = muted ? 'Sound off' : 'Sound on'
-    },
-    onPlay(cb) {
-      play.addEventListener('click', (e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        cb()
-      })
     },
     onSoundToggle(cb) {
       soundToggle.addEventListener('click', (e) => {

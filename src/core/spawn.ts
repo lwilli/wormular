@@ -2,9 +2,9 @@ import type { Tunables } from './config'
 import {
   MAX_ROCKS,
   ROCK_SPAWN_CHANCE,
+  ROCK_SPAWN_CLEAR_ARC,
+  ROCK_SPAWN_MAX_GAP,
   SPAWN_EDGE_MARGIN_FRAC,
-  START_RADIUS_FRAC,
-  START_ROCK_CLEAR_ARC,
   START_ROCK_COUNT,
   START_THETA,
 } from './config'
@@ -39,37 +39,6 @@ export function spawnInitialRocks(
   return rocks
 }
 
-/**
- * Two decorative rocks for the title screen: one inside and one outside the
- * attract orbit so a constant-radius flyby never hits them.
- */
-export function spawnAttractRocks(
-  tunables: Tunables,
-  nextId: { value: number },
-): Rock[] {
-  const orbit = START_RADIUS_FRAC * tunables.R
-  const rockRadius = (tunables.rockMin + tunables.rockMax) * 0.5
-  const gap = tunables.wormThickness + rockRadius + SPAWN_EDGE_MARGIN_FRAC * tunables.R
-
-  const innerDist = Math.max(
-    tunables.RCore + rockRadius + SPAWN_EDGE_MARGIN_FRAC * tunables.R,
-    orbit - gap - rockRadius,
-  )
-  const outerDist = Math.min(
-    tunables.R - rockRadius - SPAWN_EDGE_MARGIN_FRAC * tunables.R,
-    orbit + gap + rockRadius,
-  )
-
-  const inner = polarToCart(innerDist, 0.6)
-  const outer = polarToCart(outerDist, 0.6 + Math.PI)
-
-  const rocks: Rock[] = [
-    { id: nextId.value++, x: inner.x, y: inner.y, radius: rockRadius },
-    { id: nextId.value++, x: outer.x, y: outer.y, radius: rockRadius },
-  ]
-  return rocks
-}
-
 export function spawnApple(
   world: World,
   tunables: Tunables,
@@ -98,21 +67,35 @@ export function spawnApple(
   return null
 }
 
+/**
+ * After an eat (score already advanced): always try at score 1–2; from 3+
+ * use ROCK_SPAWN_CHANCE unless pointsSinceLastRock would exceed ROCK_SPAWN_MAX_GAP.
+ */
 export function maybeSpawnRock(
   world: World,
   tunables: Tunables,
   rng: () => number,
 ): Rock | null {
+  world.pointsSinceLastRock += 1
+
   if (world.rocks.length >= MAX_ROCKS) return null
-  if (rng() > ROCK_SPAWN_CHANCE) return null
+
+  const force =
+    world.score <= 2 || world.pointsSinceLastRock >= ROCK_SPAWN_MAX_GAP
+  if (!force && rng() > ROCK_SPAWN_CHANCE) return null
+
   const rock = trySpawnRock(
     tunables,
     world.rocks,
     world.worm.points,
     rng,
     world.nextRockId,
+    world.worm.theta,
   )
-  if (rock) world.nextRockId += 1
+  if (rock) {
+    world.nextRockId += 1
+    world.pointsSinceLastRock = 0
+  }
   return rock
 }
 
@@ -122,14 +105,17 @@ function trySpawnRock(
   wormPoints: Vec2[],
   rng: () => number,
   id: number,
-  /** When set, reject rocks in the forward clear arc from this heading. */
-  startTheta: number | null = null,
+  /** Reject rocks in the forward clear arc from this heading. */
+  clearArcTheta: number | null = null,
 ): Rock | null {
   const radius =
     tunables.rockMin + rng() * (tunables.rockMax - tunables.rockMin)
   for (let i = 0; i < SPAWN_ATTEMPTS; i++) {
     const pos = randomAnnulusPoint(tunables, rng, radius)
-    if (startTheta !== null && inForwardArc(pos, startTheta, START_ROCK_CLEAR_ARC)) {
+    if (
+      clearArcTheta !== null &&
+      inForwardArc(pos, clearArcTheta, ROCK_SPAWN_CLEAR_ARC)
+    ) {
       continue
     }
     if (!clearOfRocks(pos, radius, rocks)) continue
@@ -144,10 +130,10 @@ function trySpawnRock(
   return null
 }
 
-/** True if pos lies within `arc` radians ahead of startTheta (travel direction). */
-function inForwardArc(pos: Vec2, startTheta: number, arc: number): boolean {
+/** True if pos lies within `arc` radians ahead of heading (travel direction). */
+function inForwardArc(pos: Vec2, heading: number, arc: number): boolean {
   const a = Math.atan2(pos.y, pos.x)
-  let delta = a - startTheta
+  let delta = a - heading
   while (delta < 0) delta += Math.PI * 2
   while (delta >= Math.PI * 2) delta -= Math.PI * 2
   return delta < arc

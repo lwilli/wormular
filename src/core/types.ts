@@ -44,6 +44,8 @@ export type World = {
   alive: boolean
   events: GameEvent[]
   nextRockId: number
+  /** Points eaten since a rock last successfully spawned (incl. initial). */
+  pointsSinceLastRock: number
   seed: number
 }
 

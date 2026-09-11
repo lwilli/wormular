@@ -2,11 +2,14 @@
 
 export type HoldInput = {
   holding: boolean
-  /** True once if Play should start (title → playing). Cleared by consumer. */
+  /** True once if a start key was pressed (title → playing). Cleared by consumer. */
   playRequested: boolean
 }
 
-export function createHoldInput(target: HTMLElement): HoldInput & {
+export function createHoldInput(
+  target: HTMLElement,
+  opts?: { onPress?: () => void },
+): HoldInput & {
   destroy: () => void
 } {
   const state: HoldInput & { destroy: () => void } = {
@@ -18,6 +21,8 @@ export function createHoldInput(target: HTMLElement): HoldInput & {
   const onDown = (e: Event) => {
     e.preventDefault()
     state.holding = true
+    state.playRequested = true
+    opts?.onPress?.()
   }
   const onUp = (e: Event) => {
     e.preventDefault()
@@ -30,6 +35,9 @@ export function createHoldInput(target: HTMLElement): HoldInput & {
     }
     if (e.code === 'Enter' || e.code === 'Space') {
       state.playRequested = true
+    }
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'Enter') {
+      opts?.onPress?.()
     }
   }
   const onKeyUp = (e: KeyboardEvent) => {
@@ -49,6 +57,8 @@ export function createHoldInput(target: HTMLElement): HoldInput & {
   const onTouchStart = (e: TouchEvent) => {
     e.preventDefault()
     state.holding = true
+    state.playRequested = true
+    opts?.onPress?.()
   }
   const onTouchEnd = (e: TouchEvent) => {
     e.preventDefault()

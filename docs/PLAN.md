@@ -9,7 +9,7 @@ Wormular is a one-tap arcade mashup of Snake and the gravity helicopter game, pl
 - The worm always crawls **tangentially** around the center (automatic “forward”).
 - **Hold** thrusts **outward**. **Release** lets gravity pull **inward**.
 - Eat apples to grow. Hit rocks, the center rock, the outer wall, or yourself and the run ends.
-- Title screen is a live arena (attract mode) with high score + Play. Death returns to that same screen.
+- Title screen is the **paused starting arena** (same rocks, worm, apple as the run) with high score + a Press & Hold prompt. First hold starts that world. Death returns to a fresh paused arena.
 
 The skill loop is helicopter-style rhythm tapping to hold a radius, plus snake-style growth that makes the annulus harder to fly in.
 
@@ -57,12 +57,12 @@ flowchart LR
 - **Core** (`src/core`): polar physics, worm trail, spawn, collisions, score. Fixed timestep. Deterministic if seeded. Unit-tested with Vitest. Each `step()` returns (or appends) a small event list such as `AteFood` and `Died` so later juice can hook in without the sim knowing about particles or audio.
 - **Renderer** (`src/render`): draws the current `World` to one `<canvas>`. No gameplay decisions.
 - **Input** (`src/input`): pointer/touch/keyboard/tv remote → boolean `holding`.
-- **UI**: real HTML overlay (title, Play, high score). Do not draw the menu in canvas except the live attract-mode arena behind it.
+- **UI**: real HTML overlay (title, Press & Hold prompt, high score). Do not draw the menu in canvas except the paused starting arena behind it.
 - **Platform adapters**: `localStorage` on web; Capacitor Preferences on iOS/Android; UserDefaults if tvOS goes native later.
 
 **Loop:** simulate at 60 Hz (`dt = 1/60`, clamp incoming frame time so a tab-switch does not teleport the worm). Render the latest world each animation frame.
 
-**State machine:** `Title` | `Playing`. Game over is not a third screen — it writes high score and returns to `Title` with attract mode running. Play starts a fresh `World`.
+**State machine:** `Title` | `Playing`. Game over is not a third screen — it writes high score and returns to `Title` with a fresh paused play world. The first hold unpauses that world (no spawn swap).
 
 ## Simulation spec (source of truth)
 
@@ -92,7 +92,7 @@ Constant *linear* speed means the worm does not become a blur at the rim. The ce
 
 **Worm body:** ring buffer of points along the path, spaced ~3px of travel. Total path length = `baseLength + apples * lengthPerApple`. Drop the tail when over budget. Collision uses a circle at the head vs. rocks/food/walls, and vs. body points **excluding a neck window** (~2 body thicknesses) so the head does not eat itself.
 
-**Spawn:** one apple at a time in the annulus, not on the worm or rocks. Start with a few rocks plus the center rock. Each apple has a chance to spawn an additional rock (capped). Never spawn inside the worm’s current polyline.
+**Spawn:** one apple at a time in the annulus, not on the worm or rocks. Start with a few rocks plus the center rock. Rocks never spawn in the ~180° arc ahead of the worm’s heading. After eats 1–2 always add a rock (if under cap); from score 3 onward each apple has a chance, but never more than 3 points without another rock. Never spawn inside the worm’s current polyline.
 
 **Score:** apples eaten this run. High score is max of local best.
 
@@ -134,7 +134,7 @@ UI type: system UI font (San Francisco on Apple, system-ui on web) or one licens
 
 ## Screens and input
 
-**Title:** full-bleed live arena (dummy worm on a scripted tap pattern, or a looping idle sim that resets on death). Overlay: high score (top), **Play** (center/bottom, large hit target). Tap Play *or* tap/hold the canvas to start, then holding becomes thrust.
+**Title:** full-bleed **paused** play arena so the player can find the worm and rocks before time starts. Overlay: wordmark + high score (top), **Press & Hold** (center, over the core; not a click target). Hold anywhere (or Space / ↑) to unpause; that first hold is already thrust. After death, a new paused world appears behind the same overlay.
 
 **Playing:** no HUD except a small current score. Finger/click anywhere is thrust. On death in v1: write high score if needed and return to the title overlay immediately. No freeze, shake, flash, or sound until the juice phase.
 
@@ -142,7 +142,7 @@ UI type: system UI font (San Francisco on Apple, system-ui on web) or one licens
 
 - iOS/web: press/hold anywhere; `pointerdown` / `pointerup` / `pointercancel`. `preventDefault` on touch so the page does not scroll.
 - Keyboard (web/dev): Space or ArrowUp hold.
-- tvOS: Siri Remote **select / click** press-and-hold = thrust. Play is the focused button on title. Do not require the touch surface swipe for v1.
+- tvOS: Siri Remote **select / click** press-and-hold = thrust and also starts from title. Do not require the touch surface swipe for v1.
 
 Respect safe area / tv overscan. The disk is letterboxed; UI sits in the overlay, not inside world coordinates.
 
@@ -191,7 +191,7 @@ If it takes more than a day or starts looking like a particle editor, it is too 
 
 1. **Core + tests** — polar step, trail length, collide, eat/spawn, event list. Vitest. Can run headless.
 2. **Canvas playable in browser** — draw arena, worm stroke, rocks, apples, hold-to-thrust. Death resets world (no UI yet).
-3. **Title overlay + high score** — attract mode, Play, persist best score.
+3. **Title overlay + high score** — paused starting arena, Press & Hold prompt, persist best score.
 
 **After v1:**
 

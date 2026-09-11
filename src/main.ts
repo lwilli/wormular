@@ -6,7 +6,7 @@ import {
   FIXED_DT,
   TITLE_RESTART_COOLDOWN_MS,
 } from './core/config'
-import { createWorld, step, stepAttract } from './core/world'
+import { createWorld, step } from './core/world'
 import type { World } from './core/types'
 import { createFpsMeter } from './debug/fps'
 import {
@@ -42,8 +42,8 @@ if (!ctxRaw) throw new Error('2D context unavailable')
 const ctx: CanvasRenderingContext2D = ctxRaw
 
 const ui = bindTitleUi()
-const input = createHoldInput(canvas)
 const audio = createAudio()
+const input = createHoldInput(canvas, { onPress: () => audio.unlock() })
 const fx = createFx()
 const fps = createFpsMeter()
 
@@ -51,7 +51,7 @@ let mode: Mode = 'title'
 let highScore = loadHighScore()
 let viewW = Math.max(1, window.innerWidth)
 let viewH = Math.max(1, window.innerHeight)
-let world = createAttractWorld()
+let world = createPlayWorld()
 let accum = 0
 let lastTs = performance.now()
 /** After death, ignore start until cooldown elapses and the player fully releases. */
@@ -64,10 +64,6 @@ ui.setVisible(true)
 ui.setHudVisible(false)
 ui.setSoundEnabled(audio.isEnabled())
 
-ui.onPlay(() => {
-  audio.unlock()
-  requestStart()
-})
 ui.onSoundToggle(() => {
   const enabled = audio.toggle()
   ui.setSoundEnabled(enabled)
@@ -85,17 +81,13 @@ function arenaRadius(): number {
   return Math.max(80, side * 0.5 - pad)
 }
 
-function createAttractWorld(): World {
-  return createWorld(arenaRadius(), 42, { attract: true })
-}
-
 function createPlayWorld(): World {
   return createWorld(arenaRadius(), Date.now())
 }
 
 function startGame(): void {
   mode = 'playing'
-  world = createPlayWorld()
+  // Keep the paused arena the player already surveyed — first hold is thrust.
   clearFx(fx)
   awaitReleaseBeforeStart = false
   // Leave input.holding as-is (true only while finger/key is actually down).
@@ -111,7 +103,7 @@ function returnToTitle(): void {
   highScore = recordScore(world.score)
   ui.setHighScore(highScore)
   mode = 'title'
-  world = createAttractWorld()
+  world = createPlayWorld()
   clearFx(fx)
   input.holding = false
   input.playRequested = false
@@ -153,7 +145,7 @@ function resize(): void {
 
   const R = arenaRadius()
   if (Math.abs(world.R - R) > 2) {
-    world = mode === 'title' ? createAttractWorld() : createPlayWorld()
+    world = createPlayWorld()
   }
 }
 
@@ -172,7 +164,7 @@ function frame(ts: number): void {
 
   if (mode === 'title') {
     if (awaitReleaseBeforeStart) {
-      // Swallow held taps / Play spam from the death mash; arm only after release.
+      // Swallow held taps from the death mash; arm only after release.
       input.playRequested = false
       if (ts >= titleReadyAt && !input.holding) {
         awaitReleaseBeforeStart = false
@@ -185,9 +177,7 @@ function frame(ts: number): void {
   const t0 = performance.now()
   while (accum >= FIXED_DT) {
     accum -= FIXED_DT
-    if (mode === 'title') {
-      stepAttract(world, FIXED_DT)
-    } else if (mode === 'playing' && !isFreezing(fx)) {
+    if (mode === 'playing' && !isFreezing(fx)) {
       step(world, { holding: input.holding }, FIXED_DT)
       for (const ev of world.events) {
         handleGameEvent(fx, ev)
@@ -211,7 +201,7 @@ function frame(ts: number): void {
   const t1 = performance.now()
 
   drawWorld(ctx, world, viewW, viewH, fx, {
-    dim: mode === 'title' ? 0.22 : 0,
+    dim: mode === 'title' ? 0.14 : 0,
     time: ts * 0.001,
   })
   const t2 = performance.now()

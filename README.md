@@ -15,6 +15,8 @@ npm run dev
 
 Hold anywhere (or Space / ↑) to thrust outward. Release to fall toward the center. Eat apples; avoid rocks, walls, and yourself.
 
+The title screen shows the **starting arena paused**. Press & hold when you are ready — the run begins on that first press, with no layout swap.
+
 ```bash
 npm test      # core simulation tests
 npm run build # production bundle (GitHub Pages base /wormular/)

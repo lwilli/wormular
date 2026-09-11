@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { FIXED_DT, tunablesForRadius } from '../../src/core/config'
+import {
+  FIXED_DT,
+  ROCK_SPAWN_CLEAR_ARC,
+  ROCK_SPAWN_MAX_GAP,
+  tunablesForRadius,
+} from '../../src/core/config'
 import { checkCollisions } from '../../src/core/collide'
 import { createWorld, step } from '../../src/core/world'
 import { trailLength } from '../../src/core/worm'
-import type { World } from '../../src/core/types'
+import type { Rock, World } from '../../src/core/types'
 
 const R = 200
 
@@ -15,6 +20,24 @@ function run(
   for (let i = 0; i < ticks; i++) {
     step(world, { holding }, FIXED_DT)
   }
+}
+
+/** Place head on the current apple and step once so the eat resolves. */
+function eatApple(world: World): void {
+  const apple = world.apple
+  expect(apple).not.toBeNull()
+  world.worm.r = Math.hypot(apple!.x, apple!.y)
+  world.worm.theta = Math.atan2(apple!.y, apple!.x)
+  world.worm.points = [{ x: apple!.x, y: apple!.y }]
+  world.worm.vr = 0
+  step(world, { holding: false }, FIXED_DT)
+}
+
+function forwardDelta(rock: Rock, theta: number): number {
+  let delta = Math.atan2(rock.y, rock.x) - theta
+  while (delta < 0) delta += Math.PI * 2
+  while (delta >= Math.PI * 2) delta -= Math.PI * 2
+  return delta
 }
 
 describe('wormular core', () => {
@@ -154,10 +177,63 @@ describe('wormular core', () => {
     for (let seed = 1; seed <= 20; seed++) {
       const world = createWorld(R, seed)
       for (const rock of world.rocks) {
-        let delta = Math.atan2(rock.y, rock.x) - world.worm.theta
-        while (delta < 0) delta += Math.PI * 2
-        while (delta >= Math.PI * 2) delta -= Math.PI * 2
-        expect(delta).toBeGreaterThanOrEqual(Math.PI)
+        expect(forwardDelta(rock, world.worm.theta)).toBeGreaterThanOrEqual(
+          ROCK_SPAWN_CLEAR_ARC,
+        )
+      }
+    }
+  })
+
+  it('does not place mid-game rocks in the forward clear arc of worm.theta', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const world = createWorld(R, seed, { rockCount: 0 })
+      for (let eat = 0; eat < 4; eat++) {
+        const apple = world.apple!
+        // eatApple aligns theta to the apple; spawn uses that heading.
+        const heading = Math.atan2(apple.y, apple.x)
+        const beforeIds = new Set(world.rocks.map((r) => r.id))
+        eatApple(world)
+        expect(world.alive).toBe(true)
+        for (const rock of world.rocks) {
+          if (beforeIds.has(rock.id)) continue
+          expect(forwardDelta(rock, heading)).toBeGreaterThanOrEqual(
+            ROCK_SPAWN_CLEAR_ARC,
+          )
+        }
+      }
+    }
+  })
+
+  it('always spawns a rock after score 1 and 2 when under cap', () => {
+    for (let seed = 1; seed <= 15; seed++) {
+      const world = createWorld(R, seed, { rockCount: 0 })
+      expect(world.rocks.length).toBe(0)
+
+      eatApple(world)
+      expect(world.score).toBe(1)
+      expect(world.rocks.length).toBe(1)
+
+      eatApple(world)
+      expect(world.score).toBe(2)
+      expect(world.rocks.length).toBe(2)
+    }
+  })
+
+  it('never goes more than ROCK_SPAWN_MAX_GAP points without a mid-game rock', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const world = createWorld(R, seed, { rockCount: 0 })
+      let scoreAtLastRock = 0
+
+      for (let i = 0; i < 12; i++) {
+        const before = world.rocks.length
+        eatApple(world)
+        expect(world.alive).toBe(true)
+        if (world.rocks.length > before) {
+          scoreAtLastRock = world.score
+        }
+        expect(world.score - scoreAtLastRock).toBeLessThanOrEqual(
+          ROCK_SPAWN_MAX_GAP,
+        )
       }
     }
   })

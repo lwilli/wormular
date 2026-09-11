@@ -21,11 +21,12 @@ Simple map of where to tweak feel. Most gameplay numbers live as fractions of ar
 | `ROCK_MIN_FRAC` / `ROCK_MAX_FRAC` | `0.04` / `0.07` | Hazard size range |
 | `START_ROCK_COUNT` | `2` | Rocks at start |
 | `MAX_ROCKS` | `12` | Rock cap |
-| `ROCK_SPAWN_CHANCE` | `0.35` | Chance of a new rock after eat |
+| `ROCK_SPAWN_CHANCE` | `0.35` | Chance of a new rock after eat (score ≥ 3) |
+| `ROCK_SPAWN_MAX_GAP` | `3` | Force a rock if this many points pass without one |
 | `SPAWN_EDGE_MARGIN_FRAC` | `0.06` | Spawn clearance from core / wall |
-| `START_RADIUS_FRAC` | `0.45` | Spawn / title orbit radius |
+| `START_RADIUS_FRAC` | `0.45` | Spawn radius (title shows this paused) |
 | `START_THETA` | `0` | Launch heading |
-| `START_ROCK_CLEAR_ARC` | `π` | No start rocks in this forward arc |
+| `ROCK_SPAWN_CLEAR_ARC` | `π` | No rocks in this forward arc from worm heading |
 | `ARENA_PADDING_PX` | `24` | Viewport inset to arena rim |
 | `ARENA_PADDING_NARROW_PX` | `12` | Narrow-phone inset |
 | `ARENA_NARROW_SIDE_PX` | `400` | When to use narrow padding |

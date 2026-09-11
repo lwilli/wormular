@@ -19,6 +19,8 @@ export const ROCK_MAX_FRAC = 0.07
 export const START_ROCK_COUNT = 2
 export const MAX_ROCKS = 12
 export const ROCK_SPAWN_CHANCE = 0.35
+/** Force a mid-game rock if this many points pass without one (score ≥ 3). */
+export const ROCK_SPAWN_MAX_GAP = 3
 /** Extra clearance from center rock / outer wall when spawning apples & rocks. */
 export const SPAWN_EDGE_MARGIN_FRAC = 0.06
 /** Inset from the short viewport edge to the arena rim (each side). */
@@ -30,8 +32,8 @@ export const ARENA_NARROW_SIDE_PX = 400
 export const START_RADIUS_FRAC = 0.45
 /** Fixed launch heading (radians). 0 = +x; worm always starts here. */
 export const START_THETA = 0
-/** No initial rocks in this forward arc from START_THETA (radians). */
-export const START_ROCK_CLEAR_ARC = Math.PI
+/** No rocks in this forward arc from worm heading at spawn time (radians). */
+export const ROCK_SPAWN_CLEAR_ARC = Math.PI
 /** Ignore restart attempts for this long after death → title. */
 export const TITLE_RESTART_COOLDOWN_MS = 500
 

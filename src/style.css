@@ -4,8 +4,6 @@
   --text: #f2f4f8;
   --muted: #9aa3b5;
   --accent: #ff7a18;
-  --btn: #c43b6f;
-  --btn-text: #fff;
 }
 
 * {
@@ -52,8 +50,8 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 1.25rem;
+  justify-content: flex-start;
+  gap: 0.5rem;
   padding: max(1.5rem, env(safe-area-inset-top))
     max(1.5rem, env(safe-area-inset-right))
     max(2rem, env(safe-area-inset-bottom))
@@ -61,13 +59,21 @@ body {
   /* No translucent backdrop — blending a full-screen CSS layer over an
      animating canvas tanks Retina FPS. Title dim is drawn on the canvas. */
   background: transparent;
-  /* Let canvas receive hold/tap; only the Play button captures clicks. */
+  /* Let canvas receive hold; only the sound toggle captures clicks. */
   pointer-events: none;
 }
 
 .overlay.hidden,
 .overlay[hidden] {
   display: none;
+}
+
+.title-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  padding-top: 0.25rem;
 }
 
 .title-wordmark {
@@ -85,27 +91,51 @@ body {
   font-size: clamp(1rem, 3.5vw, 1.35rem);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
 }
 
-.play {
-  appearance: none;
-  border: none;
-  cursor: pointer;
-  pointer-events: auto;
-  min-width: 10rem;
-  min-height: 3.25rem;
-  padding: 0.85rem 2.25rem;
-  border-radius: 999px;
-  background: var(--btn);
-  color: var(--btn-text);
-  font-size: 1.35rem;
+.hold-prompt {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  animation: hold-prompt-pulse 1.8s ease-in-out infinite;
+}
+
+.hold-prompt-main {
+  font-size: clamp(1.35rem, 5vw, 1.85rem);
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
 }
 
-.play:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
+.hold-prompt-sub {
+  font-size: clamp(0.9rem, 2.8vw, 1.05rem);
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+
+@keyframes hold-prompt-pulse {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hold-prompt {
+    animation: none;
+  }
 }
 
 .sound-toggle {

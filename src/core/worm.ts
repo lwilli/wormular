@@ -1,5 +1,4 @@
 import type { Tunables } from './config'
-import { START_RADIUS_FRAC } from './config'
 import type { Vec2, Worm } from './types'
 import { polarToCart } from './types'
 
@@ -28,22 +27,6 @@ export function advanceWorm(
   worm.r += worm.vr * dt
   worm.theta += (speed / Math.max(worm.r, tunables.RCore)) * dt
 
-  const head = polarToCart(worm.r, worm.theta)
-  depositAlongPath(worm.points, head, tunables.pointSpacing)
-  trimTrail(worm.points, targetLength(tunables, apples))
-}
-
-/** Title-screen motion: fixed radius, constant tangential crawl. */
-export function advanceWormCircular(
-  worm: Worm,
-  tunables: Tunables,
-  speed: number,
-  apples: number,
-  dt: number,
-): void {
-  worm.vr = 0
-  worm.r = START_RADIUS_FRAC * tunables.R
-  worm.theta += (speed / Math.max(worm.r, tunables.RCore)) * dt
   const head = polarToCart(worm.r, worm.theta)
   depositAlongPath(worm.points, head, tunables.pointSpacing)
   trimTrail(worm.points, targetLength(tunables, apples))
