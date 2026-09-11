@@ -330,6 +330,8 @@ export function drawWorm(
   danger: number,
   /** 0–1 black-hole swallow. 0 = normal. */
   suck = 0,
+  /** 0–1 head→tail digest glow, or null when idle. */
+  eatGlow: number | null = null,
 ): void {
   const deposited = world.worm.points
   if (deposited.length === 0) return
@@ -371,6 +373,11 @@ export function drawWorm(
   strokeWormPath(ctx, head, body, th + 4 * thickScale, outline)
   strokeWormPath(ctx, head, body, th, fill)
   strokeWormPath(ctx, head, body, th * 0.38, gloss)
+
+  // Starfruit digest: yellow glow sweeps head → tail under the gloss.
+  if (eatGlow !== null && !flash && !sucking) {
+    drawEatGlow(ctx, head, body, th, eatGlow, alpha)
+  }
 
   // Once deep in the hole, drop the face — it's already swallowed.
   if (u < 0.82) {
@@ -509,6 +516,90 @@ function strokeWormPath(
   ctx.strokeStyle = color
   ctx.lineWidth = width
   ctx.stroke()
+}
+
+/**
+ * Soft yellow blob that travels head→tail — reads as starfruit moving inside.
+ * `progress` 0 = head, 1 = tail exit. lead 0 = tail, 1 = head (same as suck).
+ */
+function drawEatGlow(
+  ctx: CanvasRenderingContext2D,
+  head: { x: number; y: number },
+  deposited: { x: number; y: number }[],
+  thickness: number,
+  progress: number,
+  alpha: number,
+): void {
+  const newest = deposited[deposited.length - 1]!
+  const headGap = Math.hypot(head.x - newest.x, head.y - newest.y)
+  const includeHead = headGap >= 0.05
+  const n = deposited.length + (includeHead ? 1 : 0)
+  if (n < 1) return
+
+  // Wave center: head at start, exits past the tip of the tail at the end.
+  const wavePos = 1 - progress
+  const envelope = progress < 0.85 ? 1 : 1 - (progress - 0.85) / 0.15
+  const band = 0.14
+  const band2 = band * band
+
+  // Sample a few bright spots along the wave instead of every trail point.
+  const samples = Math.max(5, Math.min(18, Math.floor(n * band * 3)))
+  ctx.save()
+  ctx.globalCompositeOperation = 'lighter'
+
+  for (let s = 0; s <= samples; s++) {
+    const lead = s / samples
+    const d = lead - wavePos
+    const w = Math.exp((-d * d) / (2 * band2))
+    if (w < 0.05) continue
+
+    const p = pointAlongWorm(head, deposited, includeHead, lead)
+    const intensity = w * envelope * alpha
+    const r = thickness * (0.5 + 0.65 * w)
+
+    ctx.globalAlpha = intensity * 0.7
+    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 1.55)
+    g.addColorStop(0, 'rgba(255, 244, 200, 0.95)')
+    g.addColorStop(0.4, 'rgba(255, 210, 74, 0.5)')
+    g.addColorStop(1, 'rgba(255, 210, 74, 0)')
+    ctx.fillStyle = g
+    ctx.beginPath()
+    ctx.arc(p.x, p.y, r * 1.55, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  ctx.restore()
+}
+
+/** Interpolate a point along the worm polyline by lead (0 = tail, 1 = head). */
+function pointAlongWorm(
+  head: { x: number; y: number },
+  deposited: { x: number; y: number }[],
+  includeHead: boolean,
+  lead: number,
+): { x: number; y: number } {
+  const n = deposited.length + (includeHead ? 1 : 0)
+  if (n <= 1) return head
+  const t = lead * (n - 1)
+  const i0 = Math.floor(t)
+  const i1 = Math.min(n - 1, i0 + 1)
+  const frac = t - i0
+  const a = wormPointAt(head, deposited, includeHead, i0)
+  const b = wormPointAt(head, deposited, includeHead, i1)
+  return {
+    x: a.x + (b.x - a.x) * frac,
+    y: a.y + (b.y - a.y) * frac,
+  }
+}
+
+function wormPointAt(
+  head: { x: number; y: number },
+  deposited: { x: number; y: number }[],
+  includeHead: boolean,
+  index: number,
+): { x: number; y: number } {
+  if (includeHead && index >= deposited.length) return head
+  return deposited[Math.min(index, deposited.length - 1)]!
 }
 
 function drawEye(

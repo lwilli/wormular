@@ -65,12 +65,13 @@ Collision ring stays at exact `RCore` (thin stroke in `drawVortex`).
 |------|---------|--------------|
 | `EAT_LIFE` | `0.15` | Eat pop duration (s) |
 | `PLUS_LIFE` | `0.45` | “+1” float duration |
+| `EAT_GLOW_LIFE` | `0.42` | Head→tail yellow digest glow duration |
 | `DEATH_FREEZE` | `0.18` | Crash death freeze before title |
 | `SHAKE_LIFE` / `SHAKE_PX` | `0.22` / `3.5` | Crash death camera shake |
 | `FLASH_LIFE` | `0.18` | Crash worm flash |
 | `SUCK_LIFE` | `0.62` | Black-hole swallow length (= freeze) |
 
-Suck worm morph (ease, thin, fade): `src/render/entities.ts` (`suckEase`, `suckPoint`, `thickScale`). Suck SFX: `playWoosh` in `src/platform/audio.ts`.
+Eat digest glow band / softness: `drawEatGlow` in `src/render/entities.ts`. Suck worm morph (ease, thin, fade): same file (`suckEase`, `suckPoint`, `thickScale`). Suck SFX: `playWoosh` in `src/platform/audio.ts`.
 
 ## Camera shake stack — `src/render/draw.ts`
 

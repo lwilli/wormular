@@ -5,6 +5,8 @@ const FOOD_HOT = '#FFF4C8'
 
 const EAT_LIFE = 0.15
 const PLUS_LIFE = 0.45
+/** How long the head→tail digest glow runs after an eat. */
+const EAT_GLOW_LIFE = 0.42
 const DEATH_FREEZE = 0.18
 const SUCK_LIFE = 0.62
 const SHAKE_LIFE = 0.22
@@ -48,6 +50,9 @@ export type FxState = {
   shakeLife: number
   flashAge: number
   flashLife: number
+  /** Head→tail yellow digest wave after eating. */
+  eatGlowAge: number
+  eatGlowLife: number
   freezeLeft: number
   deathPending: boolean
   deathFx: DeathFx | null
@@ -66,6 +71,8 @@ export function createFx(): FxState {
     shakeLife: 0,
     flashAge: 0,
     flashLife: 0,
+    eatGlowAge: 0,
+    eatGlowLife: 0,
     freezeLeft: 0,
     deathPending: false,
     deathFx: null,
@@ -82,6 +89,8 @@ export function clearFx(fx: FxState): void {
   fx.shakeLife = 0
   fx.flashAge = 0
   fx.flashLife = 0
+  fx.eatGlowAge = 0
+  fx.eatGlowLife = 0
   fx.freezeLeft = 0
   fx.deathPending = false
   fx.deathFx = null
@@ -96,7 +105,8 @@ export function fxActive(fx: FxState): boolean {
     fx.plusOnes.length > 0 ||
     fx.deathPending ||
     fx.shakeAge < fx.shakeLife ||
-    fx.flashAge < fx.flashLife
+    fx.flashAge < fx.flashLife ||
+    fx.eatGlowAge < fx.eatGlowLife
   )
 }
 
@@ -116,6 +126,8 @@ function spawnEat(
 ): void {
   fx.pops.push({ x, y, radius, color: FOOD_GOLD, life: EAT_LIFE, age: 0 })
   fx.plusOnes.push({ x, y, life: PLUS_LIFE, age: 0 })
+  fx.eatGlowLife = EAT_GLOW_LIFE
+  fx.eatGlowAge = 0
 
   const n = 5 + Math.floor(Math.random() * 4)
   for (let i = 0; i < n; i++) {
@@ -215,6 +227,7 @@ export function updateFx(fx: FxState, dt: number): boolean {
 
   if (fx.shakeLife > 0) fx.shakeAge += dt
   if (fx.flashLife > 0) fx.flashAge += dt
+  if (fx.eatGlowLife > 0) fx.eatGlowAge += dt
   if (fx.suckLife > 0) fx.suckAge += dt
 
   let deathDone = false
@@ -237,6 +250,15 @@ export function isFreezing(fx: FxState): boolean {
 export function suckProgress(fx: FxState): number {
   if (fx.deathFx !== 'suck' || fx.suckLife <= 0) return 0
   return Math.min(1, fx.suckAge / fx.suckLife)
+}
+
+/**
+ * 0–1 progress of the eat digest glow (0 = at head, 1 = leaving the tail),
+ * or `null` when inactive.
+ */
+export function eatGlowProgress(fx: FxState): number | null {
+  if (fx.eatGlowLife <= 0 || fx.eatGlowAge >= fx.eatGlowLife) return null
+  return Math.min(1, fx.eatGlowAge / fx.eatGlowLife)
 }
 
 export function shakeOffset(fx: FxState): { x: number; y: number } {

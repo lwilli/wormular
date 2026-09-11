@@ -2,6 +2,7 @@ import { tunablesForRadius } from '../core/config'
 import type { World } from '../core/types'
 import {
   drawFx,
+  eatGlowProgress,
   fxActive,
   shakeOffset,
   suckProgress,
@@ -75,7 +76,8 @@ export function drawWorld(
   if (world.apple) drawStarFruit(ctx, world.apple, t)
 
   const flash = fx ? wormFlashOn(fx) : false
-  drawWorm(ctx, world, tunables.wormThickness, flash, danger, suck)
+  const eatGlow = fx ? eatGlowProgress(fx) : null
+  drawWorm(ctx, world, tunables.wormThickness, flash, danger, suck, eatGlow)
 
   // Occlude the swallowed tip under the event horizon.
   if (suck > 0.02) drawVortexCore(ctx, world.RCore, suck, near)
