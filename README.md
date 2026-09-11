@@ -2,7 +2,7 @@
 
 One-tap arcade game: Snake meets the gravity helicopter game, played in a circular arena.
 
-**Hold** to thrust outward. **Release** and gravity pulls toward the center. Eat apples, grow, avoid rocks.
+**Hold** to move outward. **Release** and gravity pulls toward the center. Eat apples, grow, avoid rocks.
 
 ## Play (web)
 
@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-Hold anywhere (or Space / ↑) to thrust outward. Release to fall toward the center. Eat apples; avoid rocks, walls, and yourself.
+Hold anywhere (or Space / ↑) to move outward. Release to fall toward the center. Eat apples; avoid rocks, walls, and yourself.
 
 The title screen shows the **starting arena paused**. Press & hold when you are ready — the run begins on that first press, with no layout swap.
 
