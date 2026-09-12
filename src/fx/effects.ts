@@ -312,7 +312,7 @@ export function drawFx(ctx: CanvasRenderingContext2D, fx: FxState): void {
   if (fx.plusOnes.length > 0) {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.font = 'bold 18px system-ui, -apple-system, sans-serif'
+    ctx.font = '600 18px Fredoka, system-ui, -apple-system, sans-serif'
     ctx.fillStyle = '#F2F4F8'
     for (let i = 0; i < fx.plusOnes.length; i++) {
       const p = fx.plusOnes[i]!

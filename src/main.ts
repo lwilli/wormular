@@ -1,3 +1,6 @@
+import '@fontsource/fredoka/500.css'
+import '@fontsource/fredoka/600.css'
+import '@fontsource/fredoka/700.css'
 import './style.css'
 import {
   ARENA_NARROW_SIDE_PX,

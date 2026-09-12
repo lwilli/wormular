@@ -130,11 +130,11 @@ Apples: circle + tiny stem + leaf (a few `arc` / `lineTo` calls). Rocks: circle 
 
 **Assets we *will* need later, not for gameplay:** App Icon, tvOS App Icon / Top Shelf, store screenshots. Those can be a 512 canvas export of the worm + apple, or a one-page design pass. Do not block implementation on them.
 
-UI type: system UI font (San Francisco on Apple, system-ui on web) or one licensed/open font later. Title wordmark can be CSS text **WORMULAR**. Keep it sparse.
+UI type: **Fredoka** (via `@fontsource/fredoka`) with system-ui fallback. Title uses optimized `assets/images/wormular.webp` (full-res `wormular-source.png` kept for edits). Keep it sparse.
 
 ## Screens and input
 
-**Title:** full-bleed **paused** play arena so the player can find the worm and rocks before time starts. Overlay: wordmark + high score (top), **Press & Hold** (center, over the core; not a click target). Hold anywhere (or Space / ↑) to unpause; that first hold is already thrust. After death, a new paused world appears behind the same overlay.
+**Title:** full-bleed **paused** play arena so the player can find the worm and rocks before time starts. Overlay: logo + high score (top), **Press & Hold** (center, over the core; not a click target). Hold anywhere (or Space / ↑) to unpause; that first hold is already thrust. After death, a new paused world appears behind the same overlay.
 
 **Playing:** no HUD except a small current score. Finger/click anywhere is thrust. On death in v1: write high score if needed and return to the title overlay immediately. No freeze, shake, flash, or sound until the juice phase.
 

@@ -23,6 +23,7 @@ body {
   overflow: hidden;
   background: var(--bg);
   font-family:
+    'Fredoka',
     system-ui,
     -apple-system,
     'Segoe UI',
@@ -76,15 +77,12 @@ body {
   padding-top: 0.25rem;
 }
 
-.title-wordmark {
-  font-size: clamp(2.5rem, 10vw, 4.5rem);
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  color: var(--accent);
-  /* Hard shadow only — blur shadows over an animating canvas are costly. */
-  text-shadow:
-    0 2px 0 #c45a10,
-    3px 3px 0 #3a2466;
+.title-logo {
+  display: block;
+  width: min(88vw, 26rem);
+  height: auto;
+  /* Keep transparent PNG crisp; no blur filters over the live canvas. */
+  image-rendering: auto;
 }
 
 .high-score {
@@ -109,8 +107,8 @@ body {
 
 .hold-prompt-main {
   font-size: clamp(1.35rem, 5vw, 1.85rem);
-  font-weight: 700;
-  letter-spacing: 0.1em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
