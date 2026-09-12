@@ -103,7 +103,8 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 0.35rem;
-  animation: hold-prompt-pulse 1.8s ease-in-out infinite;
+  transform-origin: center center;
+  animation: hold-prompt-pulse 2s ease-in-out infinite;
 }
 
 .hold-prompt-main {
@@ -125,10 +126,10 @@ body {
 @keyframes hold-prompt-pulse {
   0%,
   100% {
-    opacity: 0.72;
+    transform: translate(-50%, -50%) scale(0.96);
   }
   50% {
-    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.06);
   }
 }
 

@@ -73,6 +73,12 @@ Collision ring stays at exact `RCore` (thin stroke in `drawVortex`).
 
 Eat digest glow band / softness: `drawEatGlow` in `src/render/entities.ts`. Suck worm morph (ease, thin, fade): same file (`suckEase`, `suckPoint`, `thickScale`). Suck SFX: `playWoosh` in `src/platform/audio.ts`.
 
+## Title overlay — `src/style.css`
+
+| Knob | Default | What it does |
+|------|---------|--------------|
+| Hold prompt pulse | `2s` ease-in-out, scale `0.96`–`1.06` | Grow/shrink on Press & Hold copy |
+
 ## Camera shake stack — `src/render/draw.ts`
 
 Per frame: death `shakeOffset(fx)` + wall `voidShake(t, danger)` + hole `voidShake(t + 1.7, near)`.
