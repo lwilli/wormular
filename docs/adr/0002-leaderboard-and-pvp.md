@@ -40,7 +40,9 @@ Costs must stay near $0.
 - No player accounts / OAuth in v1 — nicknames only
 - Leaderboard scores are cheatable; acceptable for casual free play
 - PvP desync risk is mitigated by deterministic `FIXED_DT` + shared seed; reconnect = forfeit
-- Production needs a deployed Worker URL in `VITE_API_URL`
+- Production needs a deployed Worker URL in `VITE_API_URL` (GitHub Actions secret for Pages builds)
+- Clients send `{ type: 'finish' }` before closing so a normal death is not treated as a disconnect forfeit
+- Online clients mirror the view so each player sees themselves as orange
 - Free-tier Cloudflare is enough for hobby traffic; cost is mostly engineering time
 
 ## Alternatives considered

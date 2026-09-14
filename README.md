@@ -26,6 +26,23 @@ npm run dev:all # Vite + local leaderboard/PvP API (proxied at /api)
 
 Set `VITE_API_URL` to your Cloudflare Worker URL for production leaderboard/online play (see `.env.example`). Locally, leave it empty and use `npm run dev:all`.
 
+## Production (leaderboard + online PvP)
+
+GitHub Pages only hosts the static game. The API is a **Cloudflare Worker** (D1 + Durable Objects).
+
+1. **Cloudflare login** (once): `cd worker && npx wrangler login`
+2. **Create D1** and paste the real id into `worker/wrangler.toml` → `database_id`:
+   ```bash
+   cd worker && npx wrangler d1 create wormular
+   ```
+3. **Apply schema** (remote): `npm run db:init:remote` (from `worker/`)
+4. **Deploy API**: from repo root `npm run worker:deploy`  
+   Note the URL, e.g. `https://wormular-api.<account>.workers.dev`
+5. **Point the web build at it**: GitHub repo → Settings → Secrets → Actions → add `VITE_API_URL` = that Worker URL (no trailing slash). The Pages workflow passes it into `npm run build`.
+6. **Ship the client**: merge this branch to `main` (or push `main`) so Pages redeploys.
+
+`ALLOWED_ORIGINS` in `worker/wrangler.toml` already includes `https://lwilli.github.io`. Add more origins there if you use another host.
+
 ## iOS (Capacitor)
 
 Same web build in a native shell. Bundle id: `com.lwilli.wormular`.
