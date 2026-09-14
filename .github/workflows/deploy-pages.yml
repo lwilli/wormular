@@ -27,7 +27,7 @@ jobs:
       - run: npm test
       - name: Build
         env:
-          # Cloudflare Worker URL for leaderboard + online PvP (set in repo Actions secrets).
+          # Cloudflare Worker URL — repository Actions secret (not Environment).
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
         run: npm run build
       - uses: actions/upload-pages-artifact@v3

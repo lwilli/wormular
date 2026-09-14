@@ -32,18 +32,41 @@ Set `VITE_API_URL` to your Cloudflare Worker URL for production leaderboard/onli
 
 GitHub Pages only hosts the static game. The API is a **Cloudflare Worker** (D1 + Durable Objects).
 
-1. **Cloudflare login** (once): `cd worker && npx wrangler login`
-2. **Create D1** and paste the real id into `worker/wrangler.toml` → `database_id`:
-   ```bash
-   cd worker && npx wrangler d1 create wormular
-   ```
-3. **Apply schema** (remote): `npm run db:init:remote` (from `worker/`)
-4. **Deploy API**: from repo root `npm run worker:deploy`  
-   Note the URL, e.g. `https://wormular-api.<account>.workers.dev`
-5. **Point the web build at it**: GitHub repo → Settings → Secrets → Actions → add `VITE_API_URL` = that Worker URL (no trailing slash). The Pages workflow passes it into `npm run build`.
-6. **Ship the client**: merge this branch to `main` (or push `main`) so Pages redeploys.
+**Live API (this account):** `https://wormular-api.lwilli.workers.dev`  
+Smoke-check: `GET /health` → `{"ok":true}`; `GET /scores` → JSON list.
 
-`ALLOWED_ORIGINS` in `worker/wrangler.toml` already includes `https://lwilli.github.io`. Add more origins there if you use another host.
+### First-time Cloudflare setup
+
+From `worker/` (scripts use `npx wrangler`, so a local `wrangler` binary on PATH is not required):
+
+```bash
+cd worker && npm install
+npx wrangler login          # browser OAuth; verify the Cloudflare account email if prompted
+```
+
+1. **Create D1** (skip if `database_id` in `wrangler.toml` is already a UUID, not a placeholder):
+   ```bash
+   npx wrangler d1 create wormular
+   ```
+   Paste the printed id into `worker/wrangler.toml` → `database_id`.
+2. **Apply schema** (remote): `npm run db:init:remote`
+3. **Deploy API**: from repo root `npm run worker:deploy` (or `npm run deploy` inside `worker/`).  
+   Note the URL, e.g. `https://wormular-api.<subdomain>.workers.dev`.  
+   First Workers use may ask you to register a `*.workers.dev` subdomain.
+4. **Point the web build at it**: GitHub → Settings → Secrets and variables → Actions → **Repository** secret (not an Environment secret):
+   - Name: `VITE_API_URL`
+   - Value: Worker URL, no trailing slash  
+   The Pages workflow injects this into `npm run build` on pushes to `main`. The `build` job has no `environment:`, so Environment secrets are invisible to it.
+5. **Ship the client**: merge to `main` (or push `main`) so Pages redeploys with the baked-in API URL.
+
+`ALLOWED_ORIGINS` in `worker/wrangler.toml` must list every browser origin that calls the Worker (CORS). It already includes local Vite and `https://lwilli.github.io`. Redeploy the Worker after changing it.
+
+### Pitfalls we hit
+
+- **Email verification** — Cloudflare rejects Worker deploys until the account email is verified ([docs](https://developers.cloudflare.com/fundamentals/setup/account/verify-email-address/)).
+- **Free-plan Durable Objects** — migrations must use `new_sqlite_classes` (not `new_classes`) for `MatchRoom`.
+- **`wrangler: command not found`** — use the npm scripts (`npx wrangler`); run `npm install` in `worker/` first.
+- **Redeploy after Worker code or `ALLOWED_ORIGINS` changes**: `npm run worker:deploy`.
 
 ## iOS (Capacitor)
 
@@ -71,7 +94,7 @@ Short version: Apple ID in Xcode → plug in phone → select your Team on the A
 
 ## Status
 
-Web playable with juice (FX + audio), **global leaderboard**, **local 1v1**, and **online 1v1** (Cloudflare Workers + D1 + Durable Objects; local API via `npm run dev:all`). Deployed to GitHub Pages on push to `main`.
+Web playable with juice (FX + audio), **global leaderboard**, **local 1v1**, and **online 1v1**. Client on GitHub Pages (`main`); API on Cloudflare Worker + D1 + Durable Objects (`wormular-api.lwilli.workers.dev`). Local stack: `npm run dev:all`.
 
 iOS Capacitor shell works on simulator; physical device needs your Apple ID signing (see [docs/ios.md](docs/ios.md)). Store / TestFlight still phase 8.
 

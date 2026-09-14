@@ -200,8 +200,8 @@ If it takes more than a day or starts looking like a particle editor, it is too 
 6. **tvOS** — same web build in a tvOS WKWebView shell + remote hold mapping; fallback plan is Swift port of `src/core` + SpriteKit stroke.
 7. **Android later** — Capacitor Android, no game changes.
 8. **Store** — icons, screenshots, Game Center later (not v1).
-9. **Global leaderboard** — Cloudflare Worker + D1; nickname submit on death; title-screen top N. Soft trust client scores.
-10. **1v1 battle** — dual-worm sim (opposite starts, 2 apples, first death loses); local split-input; online lockstep via Durable Objects.
+9. **Global leaderboard** — Cloudflare Worker + D1; nickname submit on death; title-screen top N. Soft trust client scores. **Done:** Worker + remote D1; Pages builds bake `VITE_API_URL`; local mirror via `npm run dev:all`. Deploy runbook in [README.md](../README.md#production-leaderboard--online-pvp). ADR: [adr/0002-leaderboard-and-pvp.md](adr/0002-leaderboard-and-pvp.md).
+10. **1v1 battle** — dual-worm sim (opposite starts, 2 apples, first death loses); local split-input; online lockstep via Durable Objects. **Done:** local + online; `MatchRoom` DO; finish-before-close; view mirror; match countdown; input pipelining.
 
 ## Quality bar (what “done” means)
 

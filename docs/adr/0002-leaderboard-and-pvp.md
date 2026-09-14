@@ -40,9 +40,11 @@ Costs must stay near $0.
 - No player accounts / OAuth in v1 — nicknames only
 - Leaderboard scores are cheatable; acceptable for casual free play
 - PvP desync risk is mitigated by deterministic `FIXED_DT` + shared seed; reconnect = forfeit
-- Production needs a deployed Worker URL in `VITE_API_URL` (GitHub Actions secret for Pages builds)
+- Production needs a deployed Worker URL in `VITE_API_URL` as a **repository** Actions secret (Pages `build` job; not an Environment secret). Runbook: [README.md](../../README.md#production-leaderboard--online-pvp)
+- Worker CORS is an allowlist (`ALLOWED_ORIGINS` in `worker/wrangler.toml`); Pages origin must be listed and the Worker redeployed after edits
+- Free-plan Durable Objects require `new_sqlite_classes` in wrangler migrations (not `new_classes`)
 - Clients send `{ type: 'finish' }` before closing so a normal death is not treated as a disconnect forfeit
-- Online clients mirror the view so each player sees themselves as orange
+- Online clients mirror the full arena so each player sees themselves as orange; match countdown + input pipelining keep lockstep playable at uneven FPS
 - Free-tier Cloudflare is enough for hobby traffic; cost is mostly engineering time
 
 ## Alternatives considered
