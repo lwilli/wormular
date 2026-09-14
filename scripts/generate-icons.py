@@ -4,7 +4,10 @@
 Requires: pip install Pillow numpy
 
 Usage (from repo root):
-  python3 scripts/generate-icons.py
+  npm run icons
+  # or: python3 scripts/generate-icons.py
+
+Full regen notes (inputs/outputs, when to re-run): docs/icons.md
 """
 
 from __future__ import annotations

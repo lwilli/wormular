@@ -24,7 +24,7 @@ npm run preview # serve dist locally
 npm run icons # regenerate favicon / app icons from the title W (needs Pillow + numpy)
 ```
 
-Favicons and PWA icons live in `public/` (copied into `dist/` on build). The iOS App Icon is `ios/.../AppIcon.appiconset/`. Source extracts: `assets/images/wormular-w.png` and `icon-1024.png`.
+**→ [docs/icons.md](docs/icons.md)** — how to regenerate favicons / PWA icons / iOS App Icon from the title-art W.
 
 ## iOS (Capacitor)
 
@@ -46,6 +46,7 @@ Short version: Apple ID in Xcode → plug in phone → select your Team on the A
 
 - **[docs/PLAN.md](docs/PLAN.md)** — stack, architecture, simulation, phases, and non-goals.
 - **[docs/controls.md](docs/controls.md)** — physics & juice knobs (danger, swell, shake, FX timings).
+- **[docs/icons.md](docs/icons.md)** — favicon / app icon regen from the title W.
 - **[docs/adr/0001-capacitor-ios-shell.md](docs/adr/0001-capacitor-ios-shell.md)** — why Capacitor and how the iOS shell is wired.
 - **[docs/ios.md](docs/ios.md)** — device / simulator runbook.
 

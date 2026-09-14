@@ -128,7 +128,7 @@ Optional taper: overlapping circles along the path with radius falling toward th
 
 Apples: circle + tiny stem + leaf (a few `arc` / `lineTo` calls). Rocks: circle with 1–2 shaded inner blobs, or a short irregular polygon from a seeded hash of rock id (still code, not files).
 
-**Icons (web + iOS):** Favicon / PWA icons in `public/` and the iOS `AppIcon` use the eyed **W** cropped from `assets/images/wormular-source.png` (extract + mark masters: `wormular-w.png`, `wormular-w-mark.png`, `icon-1024.png`). Regenerate with `npm run icons` (`scripts/generate-icons.py`). Still later for store: screenshots, tvOS App Icon / Top Shelf.
+**Icons (web + iOS):** Favicon / PWA icons in `public/` and the iOS `AppIcon` use the eyed **W** cropped from `assets/images/wormular-source.png`. Regen runbook: [icons.md](icons.md) (`npm run icons`). Still later for store: screenshots, tvOS App Icon / Top Shelf.
 
 UI type: **Fredoka** (via `@fontsource/fredoka`) with system-ui fallback. Title uses optimized `assets/images/wormular.webp` (full-res `wormular-source.png` kept for edits). Keep it sparse.
 

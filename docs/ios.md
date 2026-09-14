@@ -48,7 +48,7 @@ Then Run again in Xcode (or `npx cap run ios --target <device>` if you prefer CL
 
 ## App icon
 
-The App Icon is the title-art **W** on `#05060E`, in `App/Assets.xcassets/AppIcon.appiconset/`. Regenerate with `npm run icons` after editing `assets/images/wormular-source.png`.
+The App Icon is the title-art **W** on `#05060E`, in `App/Assets.xcassets/AppIcon.appiconset/`. After editing `assets/images/wormular-source.png`, regenerate with `npm run icons` — full steps in **[icons.md](icons.md)**.
 
 ## Not yet (plan phase 8)
 
