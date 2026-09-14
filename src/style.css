@@ -221,27 +221,6 @@ body {
   opacity: 0.75;
 }
 
-.music-icon {
-  font-size: 1.15rem;
-  line-height: 1;
-  display: block;
-  grid-area: 1 / 1;
-}
-
-.music-toggle.is-muted .music-icon {
-  opacity: 0.45;
-}
-
-.music-toggle.is-muted::after {
-  content: '';
-  position: absolute;
-  width: 1.35rem;
-  height: 2px;
-  background: currentColor;
-  transform: rotate(-45deg);
-  border-radius: 1px;
-}
-
 .hud {
   position: absolute;
   top: max(0.75rem, env(safe-area-inset-top));

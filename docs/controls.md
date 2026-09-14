@@ -76,7 +76,7 @@ Eat digest glow band / softness: `drawEatGlow` in `src/render/entities.ts`. Suck
 
 ## Audio — `src/platform/audio.ts`
 
-SFX and BGM are independent mutes (title buttons: speaker + 🎵). Both route through Web Audio so iOS mix stays consistent — HTMLAudio alone was overpowering BufferSource SFX on mobile.
+SFX and BGM are independent mutes (title buttons: speaker + music note). Both route through Web Audio so iOS mix stays consistent — HTMLAudio alone was overpowering BufferSource SFX on mobile.
 
 | Knob | Default | What it does |
 |------|---------|--------------|
