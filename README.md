@@ -21,7 +21,10 @@ The title screen shows the **starting arena paused**. Press & hold when you are 
 npm test      # core simulation tests
 npm run build # production bundle (GitHub Pages base /wormular/)
 npm run preview # serve dist locally
+npm run icons # regenerate favicon / app icons from the title W (needs Pillow + numpy)
 ```
+
+Favicons and PWA icons live in `public/` (copied into `dist/` on build). The iOS App Icon is `ios/.../AppIcon.appiconset/`. Source extracts: `assets/images/wormular-w.png` and `icon-1024.png`.
 
 ## iOS (Capacitor)
 
@@ -48,6 +51,6 @@ Short version: Apple ID in Xcode → plug in phone → select your Team on the A
 
 ## Status
 
-v1 web playable with juice (FX + audio). Deployed to GitHub Pages on push to `main`.
+v1 web playable with juice (FX + audio). Deployed to GitHub Pages on push to `main`. Favicon / web icons and iOS App Icon use the title-art W.
 
-iOS Capacitor shell works on simulator; physical device needs your Apple ID signing (see [docs/ios.md](docs/ios.md)). Store / TestFlight still phase 8.
+iOS Capacitor shell works on simulator; physical device needs your Apple ID signing (see [docs/ios.md](docs/ios.md)). Store screenshots / TestFlight still phase 8.

@@ -128,7 +128,7 @@ Optional taper: overlapping circles along the path with radius falling toward th
 
 Apples: circle + tiny stem + leaf (a few `arc` / `lineTo` calls). Rocks: circle with 1–2 shaded inner blobs, or a short irregular polygon from a seeded hash of rock id (still code, not files).
 
-**Assets we *will* need later, not for gameplay:** App Icon, tvOS App Icon / Top Shelf, store screenshots. Those can be a 512 canvas export of the worm + apple, or a one-page design pass. Do not block implementation on them.
+**Icons (web + iOS):** Favicon / PWA icons in `public/` and the iOS `AppIcon` use the eyed **W** cropped from `assets/images/wormular-source.png` (extract + mark masters: `wormular-w.png`, `wormular-w-mark.png`, `icon-1024.png`). Regenerate with `npm run icons` (`scripts/generate-icons.py`). Still later for store: screenshots, tvOS App Icon / Top Shelf.
 
 UI type: **Fredoka** (via `@fontsource/fredoka`) with system-ui fallback. Title uses optimized `assets/images/wormular.webp` (full-res `wormular-source.png` kept for edits). Keep it sparse.
 
@@ -199,7 +199,7 @@ If it takes more than a day or starts looking like a particle editor, it is too 
 5. **iOS shell** — Vite build + Capacitor, safe areas, standalone, 60fps on device. **Done for local packaging:** `capacitor.config.ts`, `ios/`, Preferences storage, edge-to-edge insets, Web Audio SFX. Simulator verified. Physical device: see [ios.md](ios.md). Decisions: [adr/0001-capacitor-ios-shell.md](adr/0001-capacitor-ios-shell.md).
 6. **tvOS** — same web build in a tvOS WKWebView shell + remote hold mapping; fallback plan is Swift port of `src/core` + SpriteKit stroke.
 7. **Android later** — Capacitor Android, no game changes.
-8. **Store** — icons, screenshots, Game Center later (not v1).
+8. **Store** — screenshots, Game Center later (not v1). Web + iOS app icons already ship from the title W.
 
 ## Quality bar (what “done” means)
 
