@@ -5,6 +5,17 @@ export type TitleUi = {
   setHudVisible: (visible: boolean) => void
   setSoundEnabled: (enabled: boolean) => void
   onSoundToggle: (cb: () => void) => void
+  setNickname: (name: string) => void
+  getNickname: () => string
+  onNicknameChange: (cb: (name: string) => void) => void
+  setLeaderboard: (rows: { name: string; score: number }[], status?: string) => void
+  setMenuVisible: (visible: boolean) => void
+  setStatus: (text: string) => void
+  onSolo: (cb: () => void) => void
+  onBattleLocal: (cb: () => void) => void
+  onBattleOnline: (cb: () => void) => void
+  setBattleHud: (p0: number, p1: number, label?: string) => void
+  setResult: (text: string | null) => void
 }
 
 export function bindTitleUi(): TitleUi {
@@ -13,6 +24,19 @@ export function bindTitleUi(): TitleUi {
   const soundToggle = mustHtml('#sound-toggle') as HTMLButtonElement
   const hud = mustHtml('#hud')
   const scoreEl = mustHtml('#score')
+  const nickname = mustHtml('#nickname') as HTMLInputElement
+  const boardList = mustHtml('#leaderboard-list')
+  const boardStatus = mustHtml('#leaderboard-status')
+  const menu = mustHtml('#menu')
+  const status = mustHtml('#menu-status')
+  const soloBtn = mustHtml('#btn-solo') as HTMLButtonElement
+  const localBtn = mustHtml('#btn-battle-local') as HTMLButtonElement
+  const onlineBtn = mustHtml('#btn-battle-online') as HTMLButtonElement
+  const battleHud = mustHtml('#battle-hud')
+  const battleP0 = mustHtml('#battle-p0')
+  const battleP1 = mustHtml('#battle-p1')
+  const battleLabel = mustHtml('#battle-label')
+  const result = mustHtml('#result')
 
   return {
     setVisible(visible) {
@@ -44,6 +68,70 @@ export function bindTitleUi(): TitleUi {
         e.stopPropagation()
         cb()
       })
+    },
+    setNickname(name) {
+      nickname.value = name
+    },
+    getNickname() {
+      return nickname.value
+    },
+    onNicknameChange(cb) {
+      const fire = () => cb(nickname.value)
+      nickname.addEventListener('change', fire)
+      nickname.addEventListener('blur', fire)
+    },
+    setLeaderboard(rows, statusText) {
+      boardList.replaceChildren()
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i]!
+        const li = document.createElement('li')
+        li.textContent = `${i + 1}. ${row.name} — ${row.score}`
+        boardList.appendChild(li)
+      }
+      boardStatus.textContent = statusText ?? (rows.length ? '' : 'No scores yet')
+    },
+    setMenuVisible(visible) {
+      menu.hidden = !visible
+    },
+    setStatus(text) {
+      status.textContent = text
+      status.hidden = !text
+    },
+    onSolo(cb) {
+      soloBtn.addEventListener('click', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        cb()
+      })
+    },
+    onBattleLocal(cb) {
+      localBtn.addEventListener('click', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        cb()
+      })
+    },
+    onBattleOnline(cb) {
+      onlineBtn.addEventListener('click', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        cb()
+      })
+    },
+    setBattleHud(p0, p1, label) {
+      battleHud.hidden = false
+      battleP0.textContent = String(p0)
+      battleP1.textContent = String(p1)
+      battleLabel.textContent = label ?? 'Battle'
+    },
+    setResult(text) {
+      if (!text) {
+        result.hidden = true
+        result.textContent = ''
+        return
+      }
+      result.hidden = false
+      result.textContent = text
     },
   }
 }

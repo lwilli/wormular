@@ -94,7 +94,7 @@ Constant *linear* speed means the worm does not become a blur at the rim. The ce
 
 **Spawn:** one apple at a time in the annulus, not on the worm or rocks. Start with a few rocks plus the center rock. Rocks never spawn in the ~180° arc ahead of the worm’s heading. After eats 1–2 always add a rock (if under cap); from score 3 onward each apple has a chance, but never more than 3 points without another rock. Never spawn inside the worm’s current polyline.
 
-**Score:** apples eaten this run. High score is max of local best.
+**Score:** apples eaten this run. High score is max of local best; optional global leaderboard submit after death.
 
 Starting constants (v1 baseline):
 
@@ -200,6 +200,8 @@ If it takes more than a day or starts looking like a particle editor, it is too 
 6. **tvOS** — same web build in a tvOS WKWebView shell + remote hold mapping; fallback plan is Swift port of `src/core` + SpriteKit stroke.
 7. **Android later** — Capacitor Android, no game changes.
 8. **Store** — icons, screenshots, Game Center later (not v1).
+9. **Global leaderboard** — Cloudflare Worker + D1; nickname submit on death; title-screen top N. Soft trust client scores.
+10. **1v1 battle** — dual-worm sim (opposite starts, 2 apples, first death loses); local split-input; online lockstep via Durable Objects.
 
 ## Quality bar (what “done” means)
 
@@ -211,4 +213,4 @@ If it takes more than a day or starts looking like a particle editor, it is too 
 
 ## Explicit non-goals (v1)
 
-No eat/death VFX, no sound, no particle engine, no audio files, no multiplayer, power-ups, physics engine, React, account systems, or asset pipeline. No Unity project “just in case.” Juice (phase 4) is planned, not forgotten.
+Historical v1 non-goals (many now shipped): juice/SFX, particle engine, audio files, power-ups, physics engine, React, full account systems, asset pipeline, Unity. **Multiplayer and a global leaderboard are now in scope** (see phases 9–10 and ADR 0002). Still non-goals: heavy auth/OAuth, ranked ELO, authoritative physics server, Unity.

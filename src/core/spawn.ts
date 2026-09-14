@@ -19,7 +19,8 @@ export function spawnInitialRocks(
   nextId: { value: number },
   count: number = START_ROCK_COUNT,
   wormPoints: Vec2[] = [],
-  startTheta: number = START_THETA,
+  /** Pass null to skip the forward clear-arc filter (e.g. 1v1 opposite starts). */
+  startTheta: number | null = START_THETA,
 ): Rock[] {
   const rocks: Rock[] = []
   for (let i = 0; i < count; i++) {
@@ -175,4 +176,73 @@ function clearOfWorm(
 
 export function rngFromSeed(seed: number): () => number {
   return createRng(seed)
+}
+
+/** Spawn an apple clear of rocks, both worms, and existing apples (battle mode). */
+export function spawnBattleApple(
+  rocks: Rock[],
+  wormPoints: Vec2[],
+  apples: readonly (Apple | null)[],
+  tunables: Tunables,
+  rng: () => number,
+): Apple | null {
+  const color: AppleColor = rng() < 0.5 ? 'red' : 'green'
+  for (let i = 0; i < SPAWN_ATTEMPTS; i++) {
+    const pos = randomAnnulusPoint(tunables, rng, tunables.appleRadius)
+    if (!clearOfRocks(pos, tunables.appleRadius, rocks)) continue
+    if (!clearOfWorm(pos, tunables.appleRadius, wormPoints, tunables.wormThickness)) {
+      continue
+    }
+    let clearApples = true
+    for (const a of apples) {
+      if (a && dist(pos, a) < tunables.appleRadius * 2 + 10) {
+        clearApples = false
+        break
+      }
+    }
+    if (!clearApples) continue
+    return {
+      x: pos.x,
+      y: pos.y,
+      radius: tunables.appleRadius,
+      color,
+    }
+  }
+  return null
+}
+
+/**
+ * Battle rock spawn after either player eats.
+ * `combinedScore` is the sum of both player scores (already includes this eat).
+ */
+export function maybeSpawnBattleRock(
+  rocks: Rock[],
+  wormPoints: Vec2[],
+  nextRockId: { value: number },
+  pointsSinceLastRock: { value: number },
+  combinedScore: number,
+  heading: number | null,
+  tunables: Tunables,
+  rng: () => number,
+): Rock | null {
+  pointsSinceLastRock.value += 1
+  if (rocks.length >= MAX_ROCKS) return null
+
+  const force =
+    combinedScore <= 2 || pointsSinceLastRock.value >= ROCK_SPAWN_MAX_GAP
+  if (!force && rng() > ROCK_SPAWN_CHANCE) return null
+
+  const rock = trySpawnRock(
+    tunables,
+    rocks,
+    wormPoints,
+    rng,
+    nextRockId.value,
+    heading,
+  )
+  if (rock) {
+    nextRockId.value += 1
+    pointsSinceLastRock.value = 0
+  }
+  return rock
 }

@@ -21,7 +21,10 @@ The title screen shows the **starting arena paused**. Press & hold when you are 
 npm test      # core simulation tests
 npm run build # production bundle (GitHub Pages base /wormular/)
 npm run preview # serve dist locally
+npm run dev:all # Vite + local leaderboard/PvP API (proxied at /api)
 ```
+
+Set `VITE_API_URL` to your Cloudflare Worker URL for production leaderboard/online play (see `.env.example`). Locally, leave it empty and use `npm run dev:all`.
 
 ## iOS (Capacitor)
 
@@ -44,10 +47,13 @@ Short version: Apple ID in Xcode → plug in phone → select your Team on the A
 - **[docs/PLAN.md](docs/PLAN.md)** — stack, architecture, simulation, phases, and non-goals.
 - **[docs/controls.md](docs/controls.md)** — physics & juice knobs (danger, swell, shake, FX timings).
 - **[docs/adr/0001-capacitor-ios-shell.md](docs/adr/0001-capacitor-ios-shell.md)** — why Capacitor and how the iOS shell is wired.
+- **[docs/adr/0002-leaderboard-and-pvp.md](docs/adr/0002-leaderboard-and-pvp.md)** — Cloudflare leaderboard + lockstep PvP.
 - **[docs/ios.md](docs/ios.md)** — device / simulator runbook.
 
 ## Status
 
-v1 web playable with juice (FX + audio). Deployed to GitHub Pages on push to `main`.
+Web playable with juice (FX + audio), **global leaderboard**, **local 1v1**, and **online 1v1** (Cloudflare Workers + D1 + Durable Objects; local API via `npm run dev:all`). Deployed to GitHub Pages on push to `main`.
 
 iOS Capacitor shell works on simulator; physical device needs your Apple ID signing (see [docs/ios.md](docs/ios.md)). Store / TestFlight still phase 8.
+
+Design notes: [docs/adr/0002-leaderboard-and-pvp.md](docs/adr/0002-leaderboard-and-pvp.md).

@@ -8,4 +8,13 @@ export default defineConfig(({ command, mode }) => ({
   test: {
     environment: 'node',
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8787',
+        changeOrigin: true,
+        ws: true,
+      },
+    },
+  },
 }))

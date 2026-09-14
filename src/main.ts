@@ -9,8 +9,9 @@ import {
   FIXED_DT,
   TITLE_RESTART_COOLDOWN_MS,
 } from './core/config'
+import { createBattleWorld, stepBattle } from './core/battle'
 import { createWorld, step } from './core/world'
-import type { World } from './core/types'
+import type { BattleWorld, World } from './core/types'
 import { createFpsMeter } from './debug/fps'
 import {
   clearFx,
@@ -19,13 +20,29 @@ import {
   isFreezing,
   updateFx,
 } from './fx/effects'
+import { createDualHoldInput } from './input/dualHold'
 import { createHoldInput } from './input/hold'
+import { connectMatch, type MatchClient } from './net/matchClient'
 import { createAudio } from './platform/audio'
+import { fetchLeaderboard, submitScore } from './platform/leaderboard'
+import {
+  initNickname,
+  loadNickname,
+  saveNickname,
+} from './platform/nickname'
 import { initStorage, recordScore, loadHighScore } from './platform/storage'
-import { drawWorld } from './render/draw'
+import { drawBattleWorld, drawWorld } from './render/draw'
 import { bindTitleUi } from './ui/title'
+import { Capacitor } from '@capacitor/core'
 
-type Mode = 'title' | 'playing' | 'dying'
+type Mode =
+  | 'title'
+  | 'playing'
+  | 'dying'
+  | 'battleLocal'
+  | 'battleOnline'
+  | 'matchmaking'
+  | 'battleResult'
 
 /** Survives Vite HMR so stale rAF loops can self-terminate. */
 type BootState = { gen: number }
@@ -46,7 +63,8 @@ const ctx: CanvasRenderingContext2D = ctxRaw
 
 const ui = bindTitleUi()
 const audio = createAudio()
-const input = createHoldInput(canvas, { onPress: () => audio.unlock() })
+const soloInput = createHoldInput(canvas, { onPress: () => audio.unlock() })
+const dualInput = createDualHoldInput(canvas, { onPress: () => audio.unlock() })
 const fx = createFx()
 const fps = createFpsMeter()
 
@@ -55,21 +73,37 @@ let highScore = loadHighScore()
 let viewW = Math.max(1, window.innerWidth)
 let viewH = Math.max(1, window.innerHeight)
 let world = createPlayWorld()
+let battle: BattleWorld | null = null
 let accum = 0
 let lastTs = performance.now()
-/** After death, ignore start until cooldown elapses and the player fully releases. */
 let awaitReleaseBeforeStart = false
 let titleReadyAt = 0
 let lastHudScore = -1
+let matchClient: MatchClient | null = null
+let onlineRole: 0 | 1 = 0
+let onlineTick = 0
+let pendingOnlineHolding: boolean | null = null
+const onlineInputQueue = new Map<number, [boolean, boolean]>()
+let resultClearAt = 0
 
 ui.setHighScore(highScore)
 ui.setVisible(true)
 ui.setHudVisible(false)
 ui.setSoundEnabled(audio.isEnabled())
+ui.setNickname(loadNickname() || 'Player')
+ui.setMenuVisible(true)
+ui.setStatus('')
+ui.setResult(null)
+document.getElementById('battle-hud')?.setAttribute('hidden', '')
 
 ui.onSoundToggle(() => {
   const enabled = audio.toggle()
   ui.setSoundEnabled(enabled)
+})
+
+ui.onNicknameChange((raw) => {
+  const saved = saveNickname(raw)
+  if (saved) ui.setNickname(saved)
 })
 
 void initStorage().then(() => {
@@ -77,10 +111,35 @@ void initStorage().then(() => {
   ui.setHighScore(highScore)
 })
 
+void initNickname().then(() => {
+  const n = loadNickname()
+  if (n) ui.setNickname(n)
+})
+
+void refreshLeaderboard()
+
+ui.onSolo(() => {
+  if (mode !== 'title') return
+  audio.unlock()
+  startSolo()
+})
+
+ui.onBattleLocal(() => {
+  if (mode !== 'title') return
+  audio.unlock()
+  startBattleLocal()
+})
+
+ui.onBattleOnline(() => {
+  if (mode !== 'title' && mode !== 'matchmaking') return
+  audio.unlock()
+  startMatchmaking()
+})
+
 function arenaRadius(): number {
   const side = Math.min(viewW, viewH)
-  // Portrait phones are width-limited; 24px L/R leaves unused space. Tighten a bit.
-  const pad = side < ARENA_NARROW_SIDE_PX ? ARENA_PADDING_NARROW_PX : ARENA_PADDING_PX
+  const pad =
+    side < ARENA_NARROW_SIDE_PX ? ARENA_PADDING_NARROW_PX : ARENA_PADDING_PX
   return Math.max(80, side * 0.5 - pad)
 }
 
@@ -88,49 +147,152 @@ function createPlayWorld(): World {
   return createWorld(arenaRadius(), Date.now())
 }
 
-function startGame(): void {
-  mode = 'playing'
-  // Keep the paused arena the player already surveyed — first hold is thrust.
-  clearFx(fx)
-  awaitReleaseBeforeStart = false
-  // Leave input.holding as-is (true only while finger/key is actually down).
-  input.playRequested = false
-  audio.unlock()
-  lastHudScore = -1
-  ui.setVisible(false)
-  ui.setHudVisible(true)
-  ui.setScore(0)
+function platformTag(): string {
+  return Capacitor.isNativePlatform() ? 'ios' : 'web'
 }
 
-function returnToTitle(): void {
-  highScore = recordScore(world.score)
-  ui.setHighScore(highScore)
+async function refreshLeaderboard(): Promise<void> {
+  ui.setLeaderboard([], 'Loading…')
+  try {
+    const rows = await fetchLeaderboard()
+    ui.setLeaderboard(
+      rows.map((r) => ({ name: r.name, score: r.score })),
+      rows.length ? '' : 'No scores yet',
+    )
+  } catch {
+    ui.setLeaderboard([], 'Leaderboard offline')
+  }
+}
+
+async function submitRunScore(score: number): Promise<void> {
+  if (score <= 0) return
+  const name = saveNickname(ui.getNickname()) ?? loadNickname() ?? 'Player'
+  try {
+    await submitScore(name, score, platformTag())
+    void refreshLeaderboard()
+  } catch {
+    // Soft-fail — local high score still saved.
+  }
+}
+
+function stopMatchClient(): void {
+  matchClient?.close()
+  matchClient = null
+  onlineInputQueue.clear()
+  pendingOnlineHolding = null
+  onlineTick = 0
+}
+
+function showTitle(): void {
   mode = 'title'
+  battle = null
+  stopMatchClient()
   world = createPlayWorld()
   clearFx(fx)
-  input.holding = false
-  input.playRequested = false
+  soloInput.holding = false
+  soloInput.playRequested = false
+  dualInput.holding[0] = false
+  dualInput.holding[1] = false
+  dualInput.playRequested = false
   awaitReleaseBeforeStart = true
   titleReadyAt = performance.now() + TITLE_RESTART_COOLDOWN_MS
   ui.setVisible(true)
+  ui.setMenuVisible(true)
   ui.setHudVisible(false)
+  ui.setStatus('')
+  ui.setResult(null)
+  document.getElementById('battle-hud')?.setAttribute('hidden', '')
 }
 
-/** Start only on a fresh intentional press after death cooldown + release. */
-function requestStart(): void {
-  if (mode !== 'title') return
-  if (awaitReleaseBeforeStart) return
-  if (performance.now() < titleReadyAt) return
-  startGame()
+function startSolo(): void {
+  mode = 'playing'
+  clearFx(fx)
+  awaitReleaseBeforeStart = false
+  soloInput.playRequested = false
+  lastHudScore = -1
+  ui.setVisible(false)
+  ui.setMenuVisible(false)
+  ui.setHudVisible(true)
+  ui.setScore(0)
+  ui.setStatus('')
+}
+
+function startBattleLocal(): void {
+  mode = 'battleLocal'
+  battle = createBattleWorld(arenaRadius(), Date.now())
+  clearFx(fx)
+  dualInput.holding[0] = false
+  dualInput.holding[1] = false
+  dualInput.playRequested = false
+  ui.setVisible(false)
+  ui.setMenuVisible(false)
+  ui.setHudVisible(false)
+  ui.setBattleHud(0, 0, 'Local')
+  document.getElementById('battle-hud')?.removeAttribute('hidden')
+}
+
+function startMatchmaking(): void {
+  stopMatchClient()
+  mode = 'matchmaking'
+  ui.setStatus('Finding opponent…')
+  ui.setMenuVisible(true)
+  const name = saveNickname(ui.getNickname()) ?? 'Player'
+  matchClient = connectMatch(name, {
+    onQueued: () => ui.setStatus('Waiting for opponent…'),
+    onStart: ({ seed, you, opponentName }) => {
+      onlineRole = you
+      onlineTick = 0
+      onlineInputQueue.clear()
+      battle = createBattleWorld(arenaRadius(), seed)
+      mode = 'battleOnline'
+      clearFx(fx)
+      ui.setVisible(false)
+      ui.setMenuVisible(false)
+      ui.setHudVisible(false)
+      ui.setStatus('')
+      ui.setBattleHud(0, 0, `vs ${opponentName}`)
+      document.getElementById('battle-hud')?.removeAttribute('hidden')
+    },
+    onInputs: (tick, holding) => {
+      onlineInputQueue.set(tick, holding)
+    },
+    onForfeit: (winner) => {
+      endBattle(winner === onlineRole ? 'You win (forfeit)' : 'You lose (disconnect)')
+    },
+    onError: (message) => {
+      ui.setStatus(message)
+      mode = 'title'
+      stopMatchClient()
+    },
+    onClose: () => {
+      if (mode === 'matchmaking') {
+        ui.setStatus('Connection closed')
+        mode = 'title'
+      }
+    },
+  })
+}
+
+function endBattle(message: string): void {
+  mode = 'battleResult'
+  ui.setResult(message)
+  resultClearAt = performance.now() + 2200
+  stopMatchClient()
+}
+
+function returnToTitleFromSolo(): void {
+  const score = world.score
+  highScore = recordScore(score)
+  ui.setHighScore(highScore)
+  void submitRunScore(score)
+  showTitle()
 }
 
 function resize(): void {
-  // Prefer visualViewport when present (iOS WKWebView / browser chrome).
   const vv = window.visualViewport
   viewW = Math.max(1, Math.round(vv?.width ?? window.innerWidth))
   viewH = Math.max(1, Math.round(vv?.height ?? window.innerHeight))
   const dpr = Math.min(window.devicePixelRatio || 1, 2)
-  // Cap backing-store size — full Retina desktop canvases are expensive in Canvas2D.
   const maxMajor = 900
   const major = Math.max(viewW, viewH) * dpr
   const scale = major > maxMajor ? maxMajor / major : 1
@@ -147,8 +309,8 @@ function resize(): void {
   ctx.setTransform(bufScale, 0, 0, bufScale, 0, 0)
 
   const R = arenaRadius()
-  if (Math.abs(world.R - R) > 2) {
-    world = createPlayWorld()
+  if (mode === 'title' || mode === 'playing' || mode === 'dying') {
+    if (Math.abs(world.R - R) > 2) world = createPlayWorld()
   }
 }
 
@@ -157,8 +319,44 @@ window.visualViewport?.addEventListener('resize', resize)
 window.visualViewport?.addEventListener('scroll', resize)
 resize()
 
+function handleBattleEvents(b: BattleWorld): void {
+  for (const ev of b.events) {
+    if (ev.type === 'AteFood') {
+      handleGameEvent(fx, {
+        type: 'AteFood',
+        x: ev.x,
+        y: ev.y,
+        color: ev.color,
+        radius: ev.radius,
+      })
+      audio.playEat()
+    } else if (ev.type === 'Died') {
+      handleGameEvent(fx, {
+        type: 'Died',
+        x: ev.x,
+        y: ev.y,
+        cause: ev.cause,
+      })
+      if (ev.cause === 'center') audio.playWoosh()
+      else audio.playCrash()
+    }
+  }
+  if (b.winner !== null && mode !== 'battleResult') {
+    const youWin =
+      mode === 'battleOnline' ? b.winner === onlineRole : b.winner === 0
+    const label =
+      mode === 'battleOnline'
+        ? youWin
+          ? 'You win!'
+          : 'You lose'
+        : b.winner === 0
+          ? 'Orange wins!'
+          : 'Teal wins!'
+    endBattle(label)
+  }
+}
+
 function frame(ts: number): void {
-  // A newer module boot (Vite HMR) supersedes this loop.
   if (myGen !== boot.gen) return
 
   const rawDt = Math.min(0.05, (ts - lastTs) / 1000)
@@ -167,21 +365,24 @@ function frame(ts: number): void {
 
   if (mode === 'title') {
     if (awaitReleaseBeforeStart) {
-      // Swallow held taps from the death mash; arm only after release.
-      input.playRequested = false
-      if (ts >= titleReadyAt && !input.holding) {
+      soloInput.playRequested = false
+      if (ts >= titleReadyAt && !soloInput.holding) {
         awaitReleaseBeforeStart = false
       }
-    } else if (input.playRequested || input.holding) {
-      requestStart()
     }
+  }
+
+  if (mode === 'battleResult' && ts >= resultClearAt) {
+    showTitle()
+    void refreshLeaderboard()
   }
 
   const t0 = performance.now()
   while (accum >= FIXED_DT) {
     accum -= FIXED_DT
+
     if (mode === 'playing' && !isFreezing(fx)) {
-      step(world, { holding: input.holding }, FIXED_DT)
+      step(world, { holding: soloInput.holding }, FIXED_DT)
       for (const ev of world.events) {
         handleGameEvent(fx, ev)
         if (ev.type === 'AteFood') audio.playEat()
@@ -196,17 +397,57 @@ function frame(ts: number): void {
         ui.setScore(world.score)
       }
     }
+
+    if (mode === 'battleLocal' && battle && !isFreezing(fx)) {
+      stepBattle(
+        battle,
+        { holding: [dualInput.holding[0], dualInput.holding[1]] },
+        FIXED_DT,
+      )
+      handleBattleEvents(battle)
+      ui.setBattleHud(battle.players[0].score, battle.players[1].score, 'Local')
+    }
+
+    if (mode === 'battleOnline' && battle && matchClient && !isFreezing(fx)) {
+      const holding = soloInput.holding
+      if (pendingOnlineHolding === null || pendingOnlineHolding !== holding) {
+        matchClient.sendInput(onlineTick, holding)
+        pendingOnlineHolding = holding
+      } else {
+        matchClient.sendInput(onlineTick, holding)
+      }
+      const pair = onlineInputQueue.get(onlineTick)
+      if (pair) {
+        onlineInputQueue.delete(onlineTick)
+        stepBattle(battle, { holding: pair }, FIXED_DT)
+        handleBattleEvents(battle)
+        ui.setBattleHud(
+          battle.players[0].score,
+          battle.players[1].score,
+          onlineRole === 0 ? 'You · Orange' : 'You · Teal',
+        )
+        onlineTick += 1
+        pendingOnlineHolding = null
+      }
+    }
   }
 
   if (updateFx(fx, rawDt) && mode === 'dying') {
-    returnToTitle()
+    returnToTitleFromSolo()
   }
   const t1 = performance.now()
 
-  drawWorld(ctx, world, viewW, viewH, fx, {
-    dim: mode === 'title' ? 0.14 : 0,
-    time: ts * 0.001,
-  })
+  if (battle && (mode === 'battleLocal' || mode === 'battleOnline' || mode === 'battleResult')) {
+    drawBattleWorld(ctx, battle, viewW, viewH, fx, {
+      dim: mode === 'battleResult' ? 0.2 : 0,
+      time: ts * 0.001,
+    })
+  } else {
+    drawWorld(ctx, world, viewW, viewH, fx, {
+      dim: mode === 'title' || mode === 'matchmaking' ? 0.14 : 0,
+      time: ts * 0.001,
+    })
+  }
   const t2 = performance.now()
 
   fps.frame(ts, {
@@ -221,12 +462,13 @@ rafId = requestAnimationFrame(frame)
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
-    // Only cancel THIS module's rAF — never bump gen here (new module owns that).
     cancelAnimationFrame(rafId)
     window.removeEventListener('resize', resize)
     window.visualViewport?.removeEventListener('resize', resize)
     window.visualViewport?.removeEventListener('scroll', resize)
-    input.destroy()
+    soloInput.destroy()
+    dualInput.destroy()
+    stopMatchClient()
     fps.dispose()
   })
 }

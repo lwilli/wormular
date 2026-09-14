@@ -1,10 +1,56 @@
 export type Vec2 = { x: number; y: number }
 
-export type DeathCause = 'rock' | 'wall' | 'center' | 'self'
+export type DeathCause = 'rock' | 'wall' | 'center' | 'self' | 'opponent'
 
 export type GameEvent =
   | { type: 'AteFood'; x: number; y: number; color: AppleColor; radius: number }
   | { type: 'Died'; x: number; y: number; cause: DeathCause }
+
+export type BattlePlayerId = 0 | 1
+
+export type BattleEvent =
+  | {
+      type: 'AteFood'
+      player: BattlePlayerId
+      x: number
+      y: number
+      color: AppleColor
+      radius: number
+    }
+  | {
+      type: 'Died'
+      player: BattlePlayerId
+      x: number
+      y: number
+      cause: DeathCause
+    }
+
+export type BattlePlayer = {
+  worm: Worm
+  score: number
+  speed: number
+  alive: boolean
+}
+
+export type BattleWorld = {
+  R: number
+  RCore: number
+  players: [BattlePlayer, BattlePlayer]
+  rocks: Rock[]
+  /** Always try to keep two apples in play. */
+  apples: [Apple | null, Apple | null]
+  events: BattleEvent[]
+  nextRockId: number
+  pointsSinceLastRock: number
+  seed: number
+  tick: number
+  /** Winner once someone dies; null while the match is live. */
+  winner: BattlePlayerId | null
+}
+
+export type BattleStepInput = {
+  holding: [boolean, boolean]
+}
 
 export type AppleColor = 'red' | 'green'
 

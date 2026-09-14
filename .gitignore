@@ -39,3 +39,7 @@ xcuserdata/
 *.p8
 *.mobileprovision
 *.keystore
+
+# Cloudflare
+.wrangler
+.dev.vars
