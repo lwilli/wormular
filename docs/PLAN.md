@@ -9,7 +9,7 @@ Wormular is a one-tap arcade mashup of Snake and the gravity helicopter game, pl
 - The worm always crawls **tangentially** around the center (automatic “forward”).
 - **Hold** thrusts **outward**. **Release** lets gravity pull **inward**.
 - Eat apples to grow. Hit rocks, the center rock, the outer wall, or yourself and the run ends.
-- Title screen is the **paused starting arena** (same rocks, worm, apple as the run) with high score + a Press & Hold prompt. First hold starts that world. Death returns to a fresh paused arena.
+- Title screen is the **paused starting arena** (same rocks, worm, apple as the run) with high score, mode tabs (Solo / Local 1v1 / Online 1v1), contextual hints, and a Press & Hold prompt. Mode tabs only select; first hold starts the selected mode. Death returns to a fresh paused arena with the last mode still selected.
 
 The skill loop is helicopter-style rhythm tapping to hold a radius, plus snake-style growth that makes the annulus harder to fly in.
 
@@ -134,7 +134,7 @@ UI type: **Fredoka** (via `@fontsource/fredoka`) with system-ui fallback. Title 
 
 ## Screens and input
 
-**Title:** full-bleed **paused** play arena so the player can find the worm and rocks before time starts. Overlay: logo + high score (top), **Press & Hold** (center, over the core; not a click target). Hold anywhere (or Space / ↑) to unpause; that first hold is already thrust. After death, a new paused world appears behind the same overlay.
+**Title:** full-bleed **paused** play arena so the player can find the worm and rocks before time starts. Overlay: logo + high score (top), **Press & Hold** (center, over the core; not a click target), mode tabs + nickname/leaderboard (bottom). Tabs select the mode and swap the hold/hint copy; they do not start a run. Solo shows the solo start pose; Local/Online 1v1 show both worms opposite at equal radius (local reuses that layout on start). Hold anywhere (or Space / ↑) to start the selected mode. After death, a new paused world appears behind the same overlay with the mode selection preserved.
 
 **Playing:** no HUD except a small current score. Finger/click anywhere is thrust. On death in v1: write high score if needed and return to the title overlay immediately. No freeze, shake, flash, or sound until the juice phase.
 

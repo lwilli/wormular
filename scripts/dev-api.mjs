@@ -27,7 +27,7 @@ function clampScore(score) {
 
 
 const PORT = Number(process.env.PORT || 8787)
-const RATE_MS = 30_000
+const RATE_MS = 5_000
 const recentPosts = new Map()
 
 /** @type {{ id: number, name: string, score: number, createdAt: string, platform?: string }[]} */

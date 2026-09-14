@@ -34,6 +34,11 @@ export const START_RADIUS_FRAC = 0.45
 export const START_THETA = 0
 /** No rocks in this forward arc from worm heading at spawn time (radians). */
 export const ROCK_SPAWN_CLEAR_ARC = Math.PI
+/**
+ * Per-worm forward clear arc for 1v1 initial rocks (narrower so opposite
+ * hemispheres do not cover the whole arena).
+ */
+export const BATTLE_START_CLEAR_ARC = Math.PI * 0.55
 /** Ignore restart attempts for this long after death → title. */
 export const TITLE_RESTART_COOLDOWN_MS = 500
 

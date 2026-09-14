@@ -15,7 +15,7 @@ export interface Env {
   ALLOWED_ORIGINS: string
 }
 
-const RATE_MS = 30_000
+const RATE_MS = 3_000
 const recentPosts = new Map<string, number>()
 
 export default {

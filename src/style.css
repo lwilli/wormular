@@ -274,7 +274,7 @@ body {
   cursor: pointer;
 }
 
-.menu-btn-primary {
+.menu-btn.is-selected {
   border-color: rgba(255, 122, 24, 0.55);
   background: rgba(255, 122, 24, 0.18);
   color: #ffd7b0;

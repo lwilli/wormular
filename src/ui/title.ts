@@ -1,3 +1,5 @@
+export type PlayMode = 'solo' | 'local' | 'online'
+
 export type TitleUi = {
   setVisible: (visible: boolean) => void
   setHighScore: (score: number) => void
@@ -8,14 +10,35 @@ export type TitleUi = {
   setNickname: (name: string) => void
   getNickname: () => string
   onNicknameChange: (cb: (name: string) => void) => void
-  setLeaderboard: (rows: { name: string; score: number }[], status?: string) => void
+  setLeaderboard: (
+    rows: { name: string; score: number }[],
+    status?: string,
+  ) => void
   setMenuVisible: (visible: boolean) => void
   setStatus: (text: string) => void
-  onSolo: (cb: () => void) => void
-  onBattleLocal: (cb: () => void) => void
-  onBattleOnline: (cb: () => void) => void
+  setPlayMode: (mode: PlayMode) => void
+  getPlayMode: () => PlayMode
+  onPlayModeChange: (cb: (mode: PlayMode) => void) => void
   setBattleHud: (p0: number, p1: number, label?: string) => void
   setResult: (text: string | null) => void
+}
+
+const MODE_COPY: Record<
+  PlayMode,
+  { holdSub: string; hint: string }
+> = {
+  solo: {
+    holdSub: 'to move out · release to fall in',
+    hint: 'Hold anywhere to start · thrust out · release to fall in',
+  },
+  local: {
+    holdSub: 'to start local 1v1',
+    hint: 'Hold to start · release · then P0 hold / P1 hold W · first death loses',
+  },
+  online: {
+    holdSub: 'to find an opponent',
+    hint: 'Hold to queue · release when matched · then thrust as usual · first death loses',
+  },
 }
 
 export function bindTitleUi(): TitleUi {
@@ -29,14 +52,49 @@ export function bindTitleUi(): TitleUi {
   const boardStatus = mustHtml('#leaderboard-status')
   const menu = mustHtml('#menu')
   const status = mustHtml('#menu-status')
+  const hint = mustHtml('#menu-hint')
+  const holdSub = mustHtml('#hold-prompt-sub')
   const soloBtn = mustHtml('#btn-solo') as HTMLButtonElement
   const localBtn = mustHtml('#btn-battle-local') as HTMLButtonElement
   const onlineBtn = mustHtml('#btn-battle-online') as HTMLButtonElement
+  const modeButtons: { mode: PlayMode; btn: HTMLButtonElement }[] = [
+    { mode: 'solo', btn: soloBtn },
+    { mode: 'local', btn: localBtn },
+    { mode: 'online', btn: onlineBtn },
+  ]
   const battleHud = mustHtml('#battle-hud')
   const battleP0 = mustHtml('#battle-p0')
   const battleP1 = mustHtml('#battle-p1')
   const battleLabel = mustHtml('#battle-label')
   const result = mustHtml('#result')
+
+  let playMode: PlayMode = 'solo'
+  const modeListeners: Array<(mode: PlayMode) => void> = []
+
+  function applyPlayMode(mode: PlayMode): void {
+    playMode = mode
+    for (const { mode: m, btn } of modeButtons) {
+      const selected = m === mode
+      btn.classList.toggle('is-selected', selected)
+      btn.setAttribute('aria-selected', selected ? 'true' : 'false')
+    }
+    const copy = MODE_COPY[mode]
+    holdSub.textContent = copy.holdSub
+    hint.textContent = copy.hint
+  }
+
+  // Default until main restores the sticky selection via setPlayMode.
+  applyPlayMode('solo')
+
+  for (const { mode, btn } of modeButtons) {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      if (playMode === mode) return
+      applyPlayMode(mode)
+      for (const cb of modeListeners) cb(mode)
+    })
+  }
 
   return {
     setVisible(visible) {
@@ -88,7 +146,8 @@ export function bindTitleUi(): TitleUi {
         li.textContent = `${i + 1}. ${row.name} — ${row.score}`
         boardList.appendChild(li)
       }
-      boardStatus.textContent = statusText ?? (rows.length ? '' : 'No scores yet')
+      boardStatus.textContent =
+        statusText ?? (rows.length ? '' : 'No scores yet')
     },
     setMenuVisible(visible) {
       menu.hidden = !visible
@@ -97,26 +156,14 @@ export function bindTitleUi(): TitleUi {
       status.textContent = text
       status.hidden = !text
     },
-    onSolo(cb) {
-      soloBtn.addEventListener('click', (e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        cb()
-      })
+    setPlayMode(mode) {
+      applyPlayMode(mode)
     },
-    onBattleLocal(cb) {
-      localBtn.addEventListener('click', (e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        cb()
-      })
+    getPlayMode() {
+      return playMode
     },
-    onBattleOnline(cb) {
-      onlineBtn.addEventListener('click', (e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        cb()
-      })
+    onPlayModeChange(cb) {
+      modeListeners.push(cb)
     },
     setBattleHud(p0, p1, label) {
       battleHud.hidden = false

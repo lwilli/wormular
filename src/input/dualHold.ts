@@ -1,5 +1,7 @@
 /** Local 1v1: P0 = pointer/Space, P1 = KeyW. */
 
+import { blurTextField, typingInField } from './textFocus'
+
 export type DualHoldInput = {
   holding: [boolean, boolean]
   playRequested: boolean
@@ -18,6 +20,7 @@ export function createDualHoldInput(
 
   const onPointerDown = (e: Event) => {
     e.preventDefault()
+    blurTextField()
     state.holding[0] = true
     state.playRequested = true
     opts?.onPress?.()
@@ -29,6 +32,7 @@ export function createDualHoldInput(
   const touchOpts: AddEventListenerOptions = { passive: false }
   const onTouchStart = (e: TouchEvent) => {
     e.preventDefault()
+    blurTextField()
     state.holding[0] = true
     state.playRequested = true
     opts?.onPress?.()
@@ -38,6 +42,7 @@ export function createDualHoldInput(
     state.holding[0] = false
   }
   const onKeyDown = (e: KeyboardEvent) => {
+    if (typingInField()) return
     if (e.code === 'Space' || e.code === 'ArrowUp') {
       e.preventDefault()
       state.holding[0] = true
@@ -52,6 +57,7 @@ export function createDualHoldInput(
     }
   }
   const onKeyUp = (e: KeyboardEvent) => {
+    if (typingInField()) return
     if (e.code === 'Space' || e.code === 'ArrowUp') {
       e.preventDefault()
       state.holding[0] = false

@@ -15,7 +15,7 @@ npm run dev
 
 Hold anywhere (or Space / ↑) to move outward. Release to fall toward the center. Eat apples; avoid rocks, walls, and yourself.
 
-The title screen shows the **starting arena paused**. Press & hold when you are ready — the run begins on that first press, with no layout swap.
+The title screen shows the **starting arena paused**. Pick **Solo**, **Local 1v1**, or **Online 1v1** (selection sticks), then **Press & Hold** to start that mode — mode tabs only select; they do not launch the run.
 
 ```bash
 npm test      # core simulation tests

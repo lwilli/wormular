@@ -19,7 +19,7 @@ Costs must stay near $0.
 
 - **Cloudflare Worker** HTTP API: `GET/POST /scores`
 - **Cloudflare D1** for score rows
-- Client submits final run score with a nickname (soft trust; rate-limited)
+- Client submits final run score with a nickname (soft trust; ~3s per-IP rate limit so short arcade runs can post)
 - Local high score remains in `localStorage` / Preferences
 
 ### PvP

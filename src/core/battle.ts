@@ -1,4 +1,5 @@
 import {
+  BATTLE_START_CLEAR_ARC,
   START_RADIUS_FRAC,
   START_ROCK_COUNT,
   START_THETA,
@@ -30,23 +31,28 @@ export function createBattleWorld(
   const tunables = tunablesForRadius(R)
   const rng = rngFromSeed(seed)
   const nextId = { value: 1 }
-  const r = START_RADIUS_FRAC * R
+  // Use tunables.R so both heads share the exact play radius.
+  const r = START_RADIUS_FRAC * tunables.R
+  const theta0 = START_THETA
+  const theta1 = START_THETA + Math.PI
 
   const players: [BattlePlayer, BattlePlayer] = [
-    makePlayer(r, START_THETA, tunables.baseLength, tunables.pointSpacing, tunables.speed),
-    makePlayer(
-      r,
-      START_THETA + Math.PI,
-      tunables.baseLength,
-      tunables.pointSpacing,
-      tunables.speed,
-    ),
+    makePlayer(r, theta0, tunables.baseLength, tunables.pointSpacing, tunables.speed),
+    makePlayer(r, theta1, tunables.baseLength, tunables.pointSpacing, tunables.speed),
   ]
 
   const allPoints = [...players[0].worm.points, ...players[1].worm.points]
   const rocks =
     rockCount > 0
-      ? spawnInitialRocks(tunables, rng, nextId, rockCount, allPoints, null)
+      ? spawnInitialRocks(
+          tunables,
+          rng,
+          nextId,
+          rockCount,
+          allPoints,
+          [theta0, theta1],
+          BATTLE_START_CLEAR_ARC,
+        )
       : []
 
   const world: BattleWorld = {

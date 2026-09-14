@@ -19,8 +19,12 @@ export function spawnInitialRocks(
   nextId: { value: number },
   count: number = START_ROCK_COUNT,
   wormPoints: Vec2[] = [],
-  /** Pass null to skip the forward clear-arc filter (e.g. 1v1 opposite starts). */
-  startTheta: number | null = START_THETA,
+  /**
+   * Headings whose forward arcs stay rock-free. Pass `null` to disable.
+   * Default: solo start heading.
+   */
+  clearHeadings: readonly number[] | null = [START_THETA],
+  clearArcRadians: number = ROCK_SPAWN_CLEAR_ARC,
 ): Rock[] {
   const rocks: Rock[] = []
   for (let i = 0; i < count; i++) {
@@ -30,7 +34,8 @@ export function spawnInitialRocks(
       wormPoints,
       rng,
       nextId.value,
-      startTheta,
+      clearHeadings,
+      clearArcRadians,
     )
     if (rock) {
       nextId.value += 1
@@ -91,7 +96,7 @@ export function maybeSpawnRock(
     world.worm.points,
     rng,
     world.nextRockId,
-    world.worm.theta,
+    [world.worm.theta],
   )
   if (rock) {
     world.nextRockId += 1
@@ -106,18 +111,23 @@ function trySpawnRock(
   wormPoints: Vec2[],
   rng: () => number,
   id: number,
-  /** Reject rocks in the forward clear arc from this heading. */
-  clearArcTheta: number | null = null,
+  /** Reject rocks in the forward clear arc from these headings. */
+  clearHeadings: readonly number[] | null = null,
+  clearArcRadians: number = ROCK_SPAWN_CLEAR_ARC,
 ): Rock | null {
   const radius =
     tunables.rockMin + rng() * (tunables.rockMax - tunables.rockMin)
   for (let i = 0; i < SPAWN_ATTEMPTS; i++) {
     const pos = randomAnnulusPoint(tunables, rng, radius)
-    if (
-      clearArcTheta !== null &&
-      inForwardArc(pos, clearArcTheta, ROCK_SPAWN_CLEAR_ARC)
-    ) {
-      continue
+    if (clearHeadings) {
+      let blocked = false
+      for (const heading of clearHeadings) {
+        if (inForwardArc(pos, heading, clearArcRadians)) {
+          blocked = true
+          break
+        }
+      }
+      if (blocked) continue
     }
     if (!clearOfRocks(pos, radius, rocks)) continue
     if (
@@ -238,11 +248,20 @@ export function maybeSpawnBattleRock(
     wormPoints,
     rng,
     nextRockId.value,
-    heading,
+    heading === null ? null : [heading],
   )
   if (rock) {
     nextRockId.value += 1
     pointsSinceLastRock.value = 0
   }
   return rock
+}
+
+/** Exported for tests — forward-arc check used by initial rock spawn. */
+export function rockInForwardArc(
+  pos: Vec2,
+  heading: number,
+  arc: number,
+): boolean {
+  return inForwardArc(pos, heading, arc)
 }

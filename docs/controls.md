@@ -26,7 +26,8 @@ Simple map of where to tweak feel. Most gameplay numbers live as fractions of ar
 | `SPAWN_EDGE_MARGIN_FRAC` | `0.06` | Spawn clearance from core / wall |
 | `START_RADIUS_FRAC` | `0.45` | Spawn radius (title shows this paused) |
 | `START_THETA` | `0` | Launch heading |
-| `ROCK_SPAWN_CLEAR_ARC` | `π` | No rocks in this forward arc from worm heading |
+| `ROCK_SPAWN_CLEAR_ARC` | `π` | No rocks in this forward arc from worm heading (solo) |
+| `BATTLE_START_CLEAR_ARC` | `0.55π` | Per-worm forward clear arc for 1v1 initial rocks |
 | `ARENA_PADDING_PX` | `24` | Viewport inset to arena rim |
 | `ARENA_PADDING_NARROW_PX` | `12` | Narrow-phone inset |
 | `ARENA_NARROW_SIDE_PX` | `400` | When to use narrow padding |
