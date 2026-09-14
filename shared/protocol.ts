@@ -33,6 +33,8 @@ export type SubmitScoreResponse = {
 export type ClientMsg =
   | { type: 'hello'; name: string }
   | { type: 'input'; tick: number; holding: boolean }
+  /** Match already ended locally (death) — closing must not count as a forfeit. */
+  | { type: 'finish' }
   | { type: 'ping' }
 
 /** Room → client */

@@ -34,6 +34,11 @@ export type DrawOpts = {
   dim?: number
   /** Seconds. Drives vortex, currents, pulses. */
   time?: number
+  /**
+   * Online: which seat is "you". You are always drawn orange on the +x side;
+   * the opponent is teal. Local / title omit this (absolute P0 orange / P1 teal).
+   */
+  viewAs?: 0 | 1
 }
 
 export function drawWorld(
@@ -174,29 +179,39 @@ export function drawBattleWorld(
     if (apple) drawStarFruit(ctx, apple, t)
   }
 
+  // Online: you are always the warm orange worm on the right (+x).
+  const viewAs = opts?.viewAs
+  const mirror = viewAs === 1
+  if (mirror) ctx.rotate(Math.PI)
+
+  const you = viewAs ?? 0
+  const foe = (1 - you) as 0 | 1
+  const youStyle = P0_STYLE
+  const foeStyle = P1_STYLE
+
   const flash = fx ? wormFlashOn(fx) : false
   const eatGlow = fx ? eatGlowProgress(fx) : null
   drawWorm(
     ctx,
     shell,
     tunables.wormThickness,
-    flash && battle.winner === 1,
-    danger0,
-    battle.winner === 1 ? suck : 0,
+    flash && battle.winner === foe,
+    you === 0 ? danger0 : danger1,
+    battle.winner === foe ? suck : 0,
     eatGlow,
-    P0_STYLE,
-    battle.players[0].worm,
+    youStyle,
+    battle.players[you].worm,
   )
   drawWorm(
     ctx,
     shell,
     tunables.wormThickness,
-    flash && battle.winner === 0,
-    danger1,
-    battle.winner === 0 ? suck : 0,
+    flash && battle.winner === you,
+    foe === 0 ? danger0 : danger1,
+    battle.winner === you ? suck : 0,
     null,
-    P1_STYLE,
-    battle.players[1].worm,
+    foeStyle,
+    battle.players[foe].worm,
   )
 
   if (suck > 0.02) drawVortexCore(ctx, battle.RCore, suck, near)

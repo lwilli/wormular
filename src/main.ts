@@ -102,6 +102,9 @@ let titleReadyAt = 0
 let lastHudScore = -1
 let matchClient: MatchClient | null = null
 let onlineRole: 0 | 1 = 0
+let onlineOpponentName = 'Opponent'
+/** Keep online you=orange mirroring through the result flash. */
+let onlineViewActive = false
 let onlineTick = 0
 let pendingOnlineHolding: boolean | null = null
 const onlineInputQueue = new Map<number, [boolean, boolean]>()
@@ -241,6 +244,7 @@ function armTitleStartGate(): void {
 
 function showTitle(): void {
   mode = 'title'
+  onlineViewActive = false
   stopMatchClient()
   world = createPlayWorld()
   battle = null
@@ -286,6 +290,7 @@ function startSolo(): void {
 
 function startBattleLocal(): void {
   mode = 'battleLocal'
+  onlineViewActive = false
   // Reuse the paused title battle so layout does not pop on start.
   if (!battle || battle.tick > 0 || battle.winner !== null) {
     battle = createTitleBattle()
@@ -317,6 +322,8 @@ function startMatchmaking(): void {
     onQueued: () => ui.setStatus('Waiting for opponent…'),
     onStart: ({ seed, you, opponentName }) => {
       onlineRole = you
+      onlineOpponentName = opponentName
+      onlineViewActive = true
       onlineTick = 0
       onlineInputQueue.clear()
       battle = createBattleWorld(arenaRadius(), seed)
@@ -329,6 +336,7 @@ function startMatchmaking(): void {
       ui.setMenuVisible(false)
       ui.setHudVisible(false)
       ui.setStatus('')
+      // You = orange (left score); opponent = teal (right).
       ui.setBattleHud(0, 0, `vs ${opponentName}`)
       document.getElementById('battle-hud')?.removeAttribute('hidden')
     },
@@ -336,6 +344,8 @@ function startMatchmaking(): void {
       onlineInputQueue.set(tick, holding)
     },
     onForfeit: (winner) => {
+      // Ignore disconnect noise after a normal death already ended the match.
+      if (mode === 'battleResult') return
       endBattle(winner === onlineRole ? 'You win (forfeit)' : 'You lose (disconnect)')
     },
     onError: (message) => {
@@ -357,9 +367,13 @@ function startMatchmaking(): void {
 }
 
 function endBattle(message: string): void {
+  if (mode === 'battleResult') return
   mode = 'battleResult'
   ui.setResult(message)
   resultClearAt = performance.now() + 2200
+  // Tell the room the match is over before closing, otherwise the peer gets a
+  // bogus "win (forfeit)" when this socket drops.
+  matchClient?.finish()
   stopMatchClient()
 }
 
@@ -536,9 +550,9 @@ function frame(ts: number): void {
           stepBattle(battle, { holding: pair }, FIXED_DT)
           handleBattleEvents(battle)
           ui.setBattleHud(
-            battle.players[0].score,
-            battle.players[1].score,
-            onlineRole === 0 ? 'You · Orange' : 'You · Teal',
+            battle.players[onlineRole].score,
+            battle.players[1 - onlineRole].score,
+            `vs ${onlineOpponentName}`,
           )
           onlineTick += 1
           pendingOnlineHolding = null
@@ -568,6 +582,7 @@ function frame(ts: number): void {
             ? 0.14
             : 0,
       time: ts * 0.001,
+      viewAs: onlineViewActive ? onlineRole : undefined,
     })
   } else {
     drawWorld(ctx, world, viewW, viewH, fx, {

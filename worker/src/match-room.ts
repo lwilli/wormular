@@ -64,6 +64,10 @@ export class MatchRoom implements DurableObject {
     }
     if (msg.type === 'input') {
       this.onInput(ws, msg.tick, msg.holding)
+      return
+    }
+    if (msg.type === 'finish') {
+      this.finished = true
     }
   }
 

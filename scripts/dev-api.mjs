@@ -263,6 +263,12 @@ wss.on('connection', (ws) => {
       const seat = /** @type {Seat | undefined} */ (ws.__seat)
       if (!match || !seat) return
       onInput(match, msg.tick, msg.holding, seat)
+      return
+    }
+
+    if (msg.type === 'finish') {
+      const match = /** @type {Match | undefined} */ (ws.__match)
+      if (match) match.finished = true
     }
   })
 

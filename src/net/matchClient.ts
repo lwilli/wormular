@@ -16,6 +16,8 @@ export type MatchHandlers = {
 
 export type MatchClient = {
   sendInput: (tick: number, holding: boolean) => void
+  /** Mark the match finished before close so the peer is not forfeited. */
+  finish: () => void
   close: () => void
 }
 
@@ -83,6 +85,15 @@ export function connectMatch(name: string, handlers: MatchHandlers): MatchClient
       if (ws.readyState !== WebSocket.OPEN) return
       const msg: ClientMsg = { type: 'input', tick, holding }
       ws.send(JSON.stringify(msg))
+    },
+    finish() {
+      if (ws.readyState !== WebSocket.OPEN) return
+      const msg: ClientMsg = { type: 'finish' }
+      try {
+        ws.send(JSON.stringify(msg))
+      } catch {
+        // ignore
+      }
     },
     close() {
       closed = true
