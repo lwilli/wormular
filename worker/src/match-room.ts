@@ -133,8 +133,10 @@ export class MatchRoom implements DurableObject {
     const seat = this.seats.find((s) => s.ws === ws)
     if (!seat) return
     seat.lastSeen = Date.now()
-    if (seat.inputs.has(tick)) return
-    seat.inputs.set(tick, !!holding)
+    // Overwrite until committed so clients can pipeline ahead.
+    if (tick >= this.nextTickExpected) {
+      seat.inputs.set(tick, !!holding)
+    }
 
     if (this.seats.length < 2) return
     const a = this.seats[0]!

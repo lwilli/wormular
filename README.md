@@ -11,6 +11,8 @@ One-tap arcade game: Snake meets the gravity helicopter game, played in a circul
 ```bash
 npm install
 npm run dev
+# Phone on same Wi‑Fi: open http://<your-lan-ip>:5173/ (Vite prints Network URL).
+# For leaderboard + online PvP: npm run dev:all
 ```
 
 Hold anywhere (or Space / ↑) to move outward. Release to fall toward the center. Eat apples; avoid rocks, walls, and yourself.

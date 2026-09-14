@@ -21,6 +21,8 @@ export type TitleUi = {
   onPlayModeChange: (cb: (mode: PlayMode) => void) => void
   setBattleHud: (p0: number, p1: number, label?: string) => void
   setResult: (text: string | null) => void
+  /** Matchmaking / countdown overlay. Pass null to hide. */
+  setMatchBanner: (title: string | null, count?: string | null) => void
 }
 
 const MODE_COPY: Record<
@@ -37,7 +39,7 @@ const MODE_COPY: Record<
   },
   online: {
     holdSub: 'to find an opponent',
-    hint: 'Hold to queue · release when matched · then thrust as usual · first death loses',
+    hint: 'Hold to queue · matched countdown 5…1 · hold through Go to thrust · first death loses',
   },
 }
 
@@ -67,6 +69,9 @@ export function bindTitleUi(): TitleUi {
   const battleP1 = mustHtml('#battle-p1')
   const battleLabel = mustHtml('#battle-label')
   const result = mustHtml('#result')
+  const matchBanner = mustHtml('#match-banner')
+  const matchBannerTitle = mustHtml('#match-banner-title')
+  const matchBannerCount = mustHtml('#match-banner-count')
 
   let playMode: PlayMode = 'solo'
   const modeListeners: Array<(mode: PlayMode) => void> = []
@@ -179,6 +184,18 @@ export function bindTitleUi(): TitleUi {
       }
       result.hidden = false
       result.textContent = text
+    },
+    setMatchBanner(title, count) {
+      if (!title) {
+        matchBanner.hidden = true
+        matchBannerTitle.textContent = ''
+        matchBannerCount.textContent = ''
+        return
+      }
+      matchBanner.hidden = false
+      matchBannerTitle.textContent = title
+      matchBannerCount.textContent = count ?? ''
+      matchBannerCount.hidden = !count
     },
   }
 }

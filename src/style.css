@@ -394,3 +394,40 @@ body {
 .result[hidden] {
   display: none;
 }
+
+.match-banner {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 1rem 1.5rem;
+  border-radius: 0.55rem;
+  background: rgba(5, 6, 14, 0.78);
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+}
+
+.match-banner[hidden] {
+  display: none;
+}
+
+.match-banner-title {
+  color: var(--text);
+  font-size: clamp(1.05rem, 3.8vw, 1.35rem);
+  font-weight: 600;
+}
+
+.match-banner-count {
+  color: var(--accent);
+  font-size: clamp(2.2rem, 10vw, 3.25rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  min-height: 1em;
+}

@@ -9,6 +9,8 @@ export default defineConfig(({ command, mode }) => ({
     environment: 'node',
   },
   server: {
+    // Listen on LAN so a phone on the same Wi‑Fi can hit http://<your-ip>:5173/
+    host: true,
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8787',

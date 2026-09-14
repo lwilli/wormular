@@ -170,6 +170,12 @@ export function drawBattleWorld(
   )
 
   const suck = fx ? suckProgress(fx) : 0
+
+  // Online: mirror the whole arena so you sit on +x as orange. Rocks/apples
+  // must rotate with the worms or collisions look wrong on screen.
+  const viewAs = opts?.viewAs
+  if (viewAs === 1) ctx.rotate(Math.PI)
+
   drawOcean(ctx, battle.R, battle.RCore, t)
   drawVortex(ctx, battle.RCore, t, suck, near)
   syncSpawnPops(shell, t)
@@ -179,15 +185,8 @@ export function drawBattleWorld(
     if (apple) drawStarFruit(ctx, apple, t)
   }
 
-  // Online: you are always the warm orange worm on the right (+x).
-  const viewAs = opts?.viewAs
-  const mirror = viewAs === 1
-  if (mirror) ctx.rotate(Math.PI)
-
   const you = viewAs ?? 0
   const foe = (1 - you) as 0 | 1
-  const youStyle = P0_STYLE
-  const foeStyle = P1_STYLE
 
   const flash = fx ? wormFlashOn(fx) : false
   const eatGlow = fx ? eatGlowProgress(fx) : null
@@ -199,7 +198,7 @@ export function drawBattleWorld(
     you === 0 ? danger0 : danger1,
     battle.winner === foe ? suck : 0,
     eatGlow,
-    youStyle,
+    P0_STYLE,
     battle.players[you].worm,
   )
   drawWorm(
@@ -210,7 +209,7 @@ export function drawBattleWorld(
     foe === 0 ? danger0 : danger1,
     battle.winner === you ? suck : 0,
     null,
-    foeStyle,
+    P1_STYLE,
     battle.players[foe].worm,
   )
 

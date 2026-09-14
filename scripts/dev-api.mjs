@@ -94,7 +94,11 @@ function attach(seat, match) {
 function onInput(match, tick, holding, seat) {
   if (match.finished) return
   if (!Number.isInteger(tick) || tick < 0 || tick > 1_000_000) return
-  if (!seat.inputs.has(tick)) seat.inputs.set(tick, !!holding)
+  // Allow overwrite until the tick is committed so clients can pipeline
+  // ahead and correct holding if it changes before broadcast.
+  if (tick >= match.nextTick) {
+    seat.inputs.set(tick, !!holding)
+  }
   const [p0, p1] = match.seats
   while (p0.inputs.has(match.nextTick) && p1.inputs.has(match.nextTick)) {
     const t = match.nextTick

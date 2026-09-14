@@ -105,12 +105,16 @@ let onlineRole: 0 | 1 = 0
 let onlineOpponentName = 'Opponent'
 /** Keep online you=orange mirroring through the result flash. */
 let onlineViewActive = false
+/** Wall-clock ms when online countdown ends; null when not counting. */
+let onlineCountdownUntil: number | null = null
+let lastCountdownSec = -1
 let onlineTick = 0
-let pendingOnlineHolding: boolean | null = null
 const onlineInputQueue = new Map<number, [boolean, boolean]>()
 let resultClearAt = 0
-/** After Press & Hold starts a battle, freeze until release so both worms stay equal. */
+/** After Press & Hold starts a local battle, freeze until release so both worms stay equal. */
 let battleFrozenUntilRelease = false
+/** How many lockstep ticks to pipeline ahead (masks Wi‑Fi / 30fps peer stalls). */
+const ONLINE_INPUT_AHEAD = 3
 
 ui.setHighScore(highScore)
 ui.setVisible(true)
@@ -121,6 +125,7 @@ ui.setMenuVisible(true)
 ui.setPlayMode(selectedPlayMode)
 ui.setStatus('')
 ui.setResult(null)
+ui.setMatchBanner(null)
 document.getElementById('battle-hud')?.setAttribute('hidden', '')
 ensureTitlePreview()
 
@@ -230,7 +235,6 @@ function stopMatchClient(): void {
   matchClient?.close()
   matchClient = null
   onlineInputQueue.clear()
-  pendingOnlineHolding = null
   onlineTick = 0
 }
 
@@ -260,6 +264,9 @@ function showTitle(): void {
   ui.setHudVisible(false)
   ui.setStatus('')
   ui.setResult(null)
+  ui.setMatchBanner(null)
+  onlineCountdownUntil = null
+  lastCountdownSec = -1
   document.getElementById('battle-hud')?.setAttribute('hidden', '')
 }
 
@@ -329,16 +336,19 @@ function startMatchmaking(): void {
       battle = createBattleWorld(arenaRadius(), seed)
       mode = 'battleOnline'
       clearFx(fx)
-      battleFrozenUntilRelease = true
+      // 5 → 1 → Go — hold during countdown is fine; that press is already thrust.
+      onlineCountdownUntil = performance.now() + 5000
+      lastCountdownSec = -1
+      battleFrozenUntilRelease = false
       dualInput.holding[1] = false
       dualInput.playRequested = false
       ui.setVisible(false)
       ui.setMenuVisible(false)
       ui.setHudVisible(false)
       ui.setStatus('')
-      // You = orange (left score); opponent = teal (right).
       ui.setBattleHud(0, 0, `vs ${opponentName}`)
       document.getElementById('battle-hud')?.removeAttribute('hidden')
+      ui.setMatchBanner(`Matched vs ${opponentName}`, '5')
     },
     onInputs: (tick, holding) => {
       onlineInputQueue.set(tick, holding)
@@ -369,6 +379,8 @@ function startMatchmaking(): void {
 function endBattle(message: string): void {
   if (mode === 'battleResult') return
   mode = 'battleResult'
+  onlineCountdownUntil = null
+  ui.setMatchBanner(null)
   ui.setResult(message)
   resultClearAt = performance.now() + 2200
   // Tell the room the match is over before closing, otherwise the peer gets a
@@ -467,6 +479,10 @@ function frame(ts: number): void {
   const rawDt = Math.min(0.05, (ts - lastTs) / 1000)
   lastTs = ts
   accum += rawDt
+  // Avoid banking a huge catch-up debt while lockstep waits on the peer.
+  if (mode === 'battleOnline') {
+    accum = Math.min(accum, FIXED_DT * 5)
+  }
 
   if (mode === 'title') {
     if (awaitReleaseBeforeStart) {
@@ -490,8 +506,65 @@ function frame(ts: number): void {
     void refreshLeaderboard()
   }
 
+  // Online pre-match countdown (matched → 5..1 → Go).
+  if (mode === 'battleOnline' && onlineCountdownUntil !== null) {
+    const left = onlineCountdownUntil - ts
+    if (left <= 0) {
+      onlineCountdownUntil = null
+      ui.setMatchBanner(null)
+      lastCountdownSec = -1
+      // Seed a few ticks so lockstep does not stall on the first frames.
+      if (matchClient) {
+        const holding = soloInput.holding
+        for (let t = 0; t <= ONLINE_INPUT_AHEAD; t++) {
+          matchClient.sendInput(t, holding)
+        }
+      }
+    } else if (left <= 450) {
+      if (lastCountdownSec !== 0) {
+        lastCountdownSec = 0
+        ui.setMatchBanner(`Matched vs ${onlineOpponentName}`, 'Go!')
+      }
+    } else {
+      const sec = Math.max(1, Math.ceil(left / 1000))
+      if (sec !== lastCountdownSec) {
+        lastCountdownSec = sec
+        ui.setMatchBanner(`Matched vs ${onlineOpponentName}`, String(sec))
+      }
+    }
+  }
+
   const t0 = performance.now()
   while (accum >= FIXED_DT) {
+    // Online lockstep: pipeline inputs ahead; only wait when the queue is dry.
+    if (mode === 'battleOnline' && battle && matchClient) {
+      if (onlineCountdownUntil !== null || isFreezing(fx)) {
+        accum = Math.min(accum, FIXED_DT)
+        break
+      }
+      const holding = soloInput.holding
+      for (let t = onlineTick; t <= onlineTick + ONLINE_INPUT_AHEAD; t++) {
+        matchClient.sendInput(t, holding)
+      }
+      const pair = onlineInputQueue.get(onlineTick)
+      if (!pair) {
+        // Don't burn sim time, but keep accum from exploding while we wait.
+        accum = Math.min(accum, FIXED_DT)
+        break
+      }
+      accum -= FIXED_DT
+      onlineInputQueue.delete(onlineTick)
+      stepBattle(battle, { holding: pair }, FIXED_DT)
+      handleBattleEvents(battle)
+      ui.setBattleHud(
+        battle.players[onlineRole].score,
+        battle.players[1 - onlineRole].score,
+        `vs ${onlineOpponentName}`,
+      )
+      onlineTick += 1
+      continue
+    }
+
     accum -= FIXED_DT
 
     if (mode === 'playing' && !isFreezing(fx)) {
@@ -530,35 +603,6 @@ function frame(ts: number): void {
         )
       }
     }
-
-    if (mode === 'battleOnline' && battle && matchClient && !isFreezing(fx)) {
-      if (battleFrozenUntilRelease) {
-        if (!soloInput.holding && !dualInput.holding[0]) {
-          battleFrozenUntilRelease = false
-        }
-      } else {
-        const holding = soloInput.holding
-        if (pendingOnlineHolding === null || pendingOnlineHolding !== holding) {
-          matchClient.sendInput(onlineTick, holding)
-          pendingOnlineHolding = holding
-        } else {
-          matchClient.sendInput(onlineTick, holding)
-        }
-        const pair = onlineInputQueue.get(onlineTick)
-        if (pair) {
-          onlineInputQueue.delete(onlineTick)
-          stepBattle(battle, { holding: pair }, FIXED_DT)
-          handleBattleEvents(battle)
-          ui.setBattleHud(
-            battle.players[onlineRole].score,
-            battle.players[1 - onlineRole].score,
-            `vs ${onlineOpponentName}`,
-          )
-          onlineTick += 1
-          pendingOnlineHolding = null
-        }
-      }
-    }
   }
 
   if (updateFx(fx, rawDt) && mode === 'dying') {
@@ -580,7 +624,9 @@ function frame(ts: number): void {
           ? 0.2
           : mode === 'title' || mode === 'matchmaking'
             ? 0.14
-            : 0,
+            : onlineCountdownUntil !== null
+              ? 0.18
+              : 0,
       time: ts * 0.001,
       viewAs: onlineViewActive ? onlineRole : undefined,
     })
