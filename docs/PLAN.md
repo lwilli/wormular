@@ -165,7 +165,7 @@ src/input/hold.ts
 src/ui/title.ts
 src/platform/storage.ts
 src/fx/effects.ts       // eat/death VFX driven by core events
-src/platform/audio.ts  // Web Audio SFX + HTMLAudio BGM
+src/platform/audio.ts  // Web Audio SFX + BGM (MediaElementSource); separate mutes
 tests/core/*.test.ts
 ```
 

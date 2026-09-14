@@ -73,6 +73,18 @@ Collision ring stays at exact `RCore` (thin stroke in `drawVortex`).
 
 Eat digest glow band / softness: `drawEatGlow` in `src/render/entities.ts`. Suck worm morph (ease, thin, fade): same file (`suckEase`, `suckPoint`, `thickScale`). Suck SFX: `playWoosh` in `src/platform/audio.ts`.
 
+## Audio — `src/platform/audio.ts`
+
+SFX and BGM are independent mutes (title buttons: speaker + 🎵). Both route through Web Audio so iOS mix stays consistent — HTMLAudio alone was overpowering BufferSource SFX on mobile.
+
+| Knob | Default | What it does |
+|------|---------|--------------|
+| `SFX_MASTER` | `1.55` | Multiplier on all SFX gain nodes |
+| `MUSIC_GAIN` | `0.055` | BGM GainNode level (element volume stays 1) |
+| `EAT_VOL` / `CRASH_VOL` / `WOOSH_VOL` | `1` / `0.95` / `1` | Per-SFX relative gains |
+
+Prefs: `wormular.sfxEnabled`, `wormular.musicEnabled` (legacy `wormular.soundEnabled` migrates into both once).
+
 ## Title overlay — `src/style.css`
 
 | Knob | Default | What it does |

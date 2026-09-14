@@ -65,11 +65,14 @@ let lastHudScore = -1
 ui.setHighScore(highScore)
 ui.setVisible(true)
 ui.setHudVisible(false)
-ui.setSoundEnabled(audio.isEnabled())
+ui.setSfxEnabled(audio.isSfxEnabled())
+ui.setMusicEnabled(audio.isMusicEnabled())
 
-ui.onSoundToggle(() => {
-  const enabled = audio.toggle()
-  ui.setSoundEnabled(enabled)
+ui.onSfxToggle(() => {
+  ui.setSfxEnabled(audio.toggleSfx())
+})
+ui.onMusicToggle(() => {
+  ui.setMusicEnabled(audio.toggleMusic())
 })
 
 void initStorage().then(() => {

@@ -16,7 +16,7 @@ Ship iOS as a thin [Capacitor](https://capacitorjs.com/) WKWebView shell around 
 - **Web assets:** Vite `dist/` via `webDir`; native builds use `vite build --mode capacitor` (`base: '/'`). GitHub Pages keeps `base: '/wormular/'`.
 - **Layout:** `ios.contentInset: 'never'` so the arena is edge-to-edge and centered; UI uses `env(safe-area-inset-*)`.
 - **Storage:** Capacitor Preferences on native; `localStorage` on web.
-- **SFX:** Web Audio `AudioBuffer` (low latency); BGM stays on `HTMLAudioElement`.
+- **SFX:** Web Audio `AudioBuffer` (low latency). **BGM:** `HTMLAudioElement` routed through `MediaElementSource` → `GainNode` so SFX/music share one mix graph (iOS HTMLAudio alone was overpowering SFX).
 - **Scripts:** `npm run ios` / `cap:sync` / `cap:open` (see [ios.md](../ios.md)).
 
 ## Consequences

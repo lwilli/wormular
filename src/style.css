@@ -60,7 +60,7 @@ body {
   /* No translucent backdrop — blending a full-screen CSS layer over an
      animating canvas tanks Retina FPS. Title dim is drawn on the canvas. */
   background: transparent;
-  /* Let canvas receive hold; only the sound toggle captures clicks. */
+  /* Let canvas receive hold; only the audio toggles capture clicks. */
   pointer-events: none;
 }
 
@@ -143,12 +143,20 @@ body {
   }
 }
 
-.sound-toggle {
-  appearance: none;
+.audio-toggles {
   position: absolute;
   top: max(0.75rem, env(safe-area-inset-top));
   right: max(0.75rem, env(safe-area-inset-right));
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  pointer-events: none;
+}
+
+.sound-toggle {
+  appearance: none;
+  position: relative;
   pointer-events: auto;
   display: grid;
   place-items: center;
@@ -195,6 +203,27 @@ body {
 .sound-toggle[aria-pressed='true'] {
   color: var(--muted);
   opacity: 0.75;
+}
+
+.music-icon {
+  font-size: 1.15rem;
+  line-height: 1;
+  display: block;
+  grid-area: 1 / 1;
+}
+
+.music-toggle.is-muted .music-icon {
+  opacity: 0.45;
+}
+
+.music-toggle.is-muted::after {
+  content: '';
+  position: absolute;
+  width: 1.35rem;
+  height: 2px;
+  background: currentColor;
+  transform: rotate(-45deg);
+  border-radius: 1px;
 }
 
 .hud {
