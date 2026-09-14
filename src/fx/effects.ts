@@ -7,11 +7,11 @@ const EAT_LIFE = 0.15
 const PLUS_LIFE = 0.45
 /** How long the head→tail digest glow runs after an eat. */
 const EAT_GLOW_LIFE = 0.42
-const DEATH_FREEZE = 0.18
-const SUCK_LIFE = 0.62
-const SHAKE_LIFE = 0.22
+const DEATH_FREEZE = 0.55
+const SUCK_LIFE = 0.85
+const SHAKE_LIFE = 0.5
 const SHAKE_PX = 3.5
-const FLASH_LIFE = 0.18
+const FLASH_LIFE = 0.45
 
 type Speck = {
   x: number
@@ -54,6 +54,8 @@ export type FxState = {
   eatGlowAge: number
   eatGlowLife: number
   freezeLeft: number
+  /** Initial freeze duration for the active death (for progress / dim). */
+  deathFreezeLife: number
   deathPending: boolean
   deathFx: DeathFx | null
   suckAge: number
@@ -74,6 +76,7 @@ export function createFx(): FxState {
     eatGlowAge: 0,
     eatGlowLife: 0,
     freezeLeft: 0,
+    deathFreezeLife: 0,
     deathPending: false,
     deathFx: null,
     suckAge: 0,
@@ -92,6 +95,7 @@ export function clearFx(fx: FxState): void {
   fx.eatGlowAge = 0
   fx.eatGlowLife = 0
   fx.freezeLeft = 0
+  fx.deathFreezeLife = 0
   fx.deathPending = false
   fx.deathFx = null
   fx.suckAge = 0
@@ -153,6 +157,7 @@ function spawnDeath(fx: FxState, cause: DeathCause): void {
     fx.suckLife = SUCK_LIFE
     fx.suckAge = 0
     fx.freezeLeft = SUCK_LIFE
+    fx.deathFreezeLife = SUCK_LIFE
     fx.shakeLife = 0
     fx.shakeAge = 0
     fx.flashLife = 0
@@ -165,6 +170,7 @@ function spawnDeath(fx: FxState, cause: DeathCause): void {
   fx.suckLife = 0
   fx.suckAge = 0
   fx.freezeLeft = DEATH_FREEZE
+  fx.deathFreezeLife = DEATH_FREEZE
   fx.shakeLife = SHAKE_LIFE
   fx.shakeAge = 0
   fx.flashLife = FLASH_LIFE
@@ -244,6 +250,12 @@ export function updateFx(fx: FxState, dt: number): boolean {
 
 export function isFreezing(fx: FxState): boolean {
   return fx.deathPending && fx.freezeLeft > 0
+}
+
+/** 0–1 progress through the death freeze, or 0 when inactive. */
+export function deathProgress(fx: FxState): number {
+  if (!fx.deathPending || fx.deathFreezeLife <= 0) return 0
+  return Math.min(1, 1 - fx.freezeLeft / fx.deathFreezeLife)
 }
 
 /** 0–1 progress of the black-hole swallow, or 0 when inactive. */

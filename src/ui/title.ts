@@ -19,8 +19,26 @@ export function bindTitleUi(): TitleUi {
 
   return {
     setVisible(visible) {
-      title.hidden = !visible
-      title.classList.toggle('hidden', !visible)
+      if (visible) {
+        const needsFade = title.hidden || title.classList.contains('hidden')
+        title.hidden = false
+        title.classList.remove('hidden')
+        if (needsFade) {
+          // Death → title: start transparent, then fade chrome in.
+          title.classList.remove('is-shown')
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              if (!title.hidden) title.classList.add('is-shown')
+            })
+          })
+        } else {
+          title.classList.add('is-shown')
+        }
+      } else {
+        title.classList.remove('is-shown')
+        title.hidden = true
+        title.classList.add('hidden')
+      }
     },
     setHighScore(score) {
       highScore.textContent = `High Score: ${score}`

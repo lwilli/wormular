@@ -31,7 +31,8 @@ Simple map of where to tweak feel. Most gameplay numbers live as fractions of ar
 | `ARENA_PADDING_NARROW_PX` | `12` | Narrow-phone inset |
 | `ARENA_NARROW_SIDE_PX` | `400` | When to use narrow padding |
 | `FIXED_DT` | `1/60` | Physics step |
-| `TITLE_RESTART_COOLDOWN_MS` | `500` | Ignore restart right after death |
+| `TITLE_RESTART_COOLDOWN_MS` | `700` | Ignore restart right after death |
+| `TITLE_DIM` | `0.14` | Canvas darken on title / end of death fade |
 
 Motion math: `src/core/worm.ts`. Hits: `src/core/collide.ts` (center = `r - half ≤ RCore`, wall = `r + half ≥ R`).
 
@@ -66,10 +67,10 @@ Collision ring stays at exact `RCore` (thin stroke in `drawVortex`).
 | `EAT_LIFE` | `0.15` | Eat pop duration (s) |
 | `PLUS_LIFE` | `0.45` | “+1” float duration |
 | `EAT_GLOW_LIFE` | `0.42` | Head→tail yellow digest glow duration |
-| `DEATH_FREEZE` | `0.18` | Crash death freeze before title |
-| `SHAKE_LIFE` / `SHAKE_PX` | `0.22` / `3.5` | Crash death camera shake |
-| `FLASH_LIFE` | `0.18` | Crash worm flash |
-| `SUCK_LIFE` | `0.62` | Black-hole swallow length (= freeze) |
+| `DEATH_FREEZE` | `0.55` | Crash death freeze before title |
+| `SHAKE_LIFE` / `SHAKE_PX` | `0.5` / `3.5` | Crash death camera shake |
+| `FLASH_LIFE` | `0.45` | Crash worm flash |
+| `SUCK_LIFE` | `0.85` | Black-hole swallow length (= freeze) |
 
 Eat digest glow band / softness: `drawEatGlow` in `src/render/entities.ts`. Suck worm morph (ease, thin, fade): same file (`suckEase`, `suckPoint`, `thickScale`). Suck SFX: `playWoosh` in `src/platform/audio.ts`.
 
@@ -90,6 +91,7 @@ Prefs: `wormular.sfxEnabled`, `wormular.musicEnabled` (legacy `wormular.soundEna
 | Knob | Default | What it does |
 |------|---------|--------------|
 | Hold prompt pulse | `2s` ease-in-out, scale `0.96`–`1.06` | Grow/shrink on Press & Hold copy |
+| Title fade-in | `0.45s` opacity | Overlay chrome fades in after death |
 
 ## Camera shake stack — `src/render/draw.ts`
 

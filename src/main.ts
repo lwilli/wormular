@@ -7,6 +7,7 @@ import {
   ARENA_PADDING_NARROW_PX,
   ARENA_PADDING_PX,
   FIXED_DT,
+  TITLE_DIM,
   TITLE_RESTART_COOLDOWN_MS,
 } from './core/config'
 import { createWorld, step } from './core/world'
@@ -15,9 +16,11 @@ import { createFpsMeter } from './debug/fps'
 import {
   clearFx,
   createFx,
+  deathProgress,
   handleGameEvent,
   isFreezing,
   updateFx,
+  type FxState,
 } from './fx/effects'
 import { createHoldInput } from './input/hold'
 import { createAudio } from './platform/audio'
@@ -207,7 +210,7 @@ function frame(ts: number): void {
   const t1 = performance.now()
 
   drawWorld(ctx, world, viewW, viewH, fx, {
-    dim: mode === 'title' ? 0.14 : 0,
+    dim: titleDimForMode(mode, fx),
     time: ts * 0.001,
   })
   const t2 = performance.now()
@@ -218,6 +221,19 @@ function frame(ts: number): void {
     extra: `${world.worm.points.length}p ${canvas.width}x${canvas.height}`,
   })
   rafId = requestAnimationFrame(frame)
+}
+
+/** Ease the arena into title dim during death, then hold that dim on title. */
+function titleDimForMode(m: Mode, fxState: FxState): number {
+  if (m === 'title') return TITLE_DIM
+  if (m === 'dying') {
+    const u = deathProgress(fxState)
+    // Hold death readable, then ramp dim in the back half before title.
+    const fade = u < 0.45 ? 0 : (u - 0.45) / 0.55
+    const eased = fade * fade
+    return TITLE_DIM * Math.min(1, eased)
+  }
+  return 0
 }
 
 rafId = requestAnimationFrame(frame)

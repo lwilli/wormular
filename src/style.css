@@ -62,11 +62,19 @@ body {
   background: transparent;
   /* Let canvas receive hold; only the audio toggles capture clicks. */
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+.overlay.is-shown {
+  opacity: 1;
 }
 
 .overlay.hidden,
 .overlay[hidden] {
   display: none;
+  opacity: 0;
+  transition: none;
 }
 
 .title-header {
@@ -140,6 +148,10 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .hold-prompt {
     animation: none;
+  }
+
+  .overlay {
+    transition: none;
   }
 }
 
