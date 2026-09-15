@@ -1,8 +1,15 @@
+![Wormular logo](/assets/images/wormular.webp)
+
 # Wormular
 
-One-tap arcade game: Snake meets the gravity helicopter game, played in a circular arena.
+A gravitational twist on the classic Snake game!
 
-**Hold** to move outward. **Release** and gravity pulls toward the center. Eat apples, grow, avoid rocks.
+Navigate around the galaxy, munching on delectable starfruit while avoiding space rocks, the outer void, and the black hole!
+
+**Hold** to move outward.
+**Release** and gravity pulls toward the center.
+
+Game modes: Solo or Online 1v1
 
 ## Play (web)
 
