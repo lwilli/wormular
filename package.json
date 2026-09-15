@@ -23,15 +23,16 @@
     "@capacitor/core": "^8.5.1",
     "@capacitor/ios": "^8.5.1",
     "@capacitor/preferences": "^8.0.1",
-    "@fontsource/fredoka": "^5.3.0"
+    "@fontsource/fredoka": "^5.3.0",
+    "obscenity": "^0.4.6"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.1",
+    "@types/ws": "^8.18.1",
+    "concurrently": "^9.2.1",
     "typescript": "~5.9.3",
     "vite": "^7.1.7",
     "vitest": "^3.2.4",
-    "ws": "^8.18.3",
-    "@types/ws": "^8.18.1",
-    "concurrently": "^9.2.1"
+    "ws": "^8.18.3"
   }
 }

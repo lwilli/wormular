@@ -1,9 +1,20 @@
 /** Shared client ↔ API / WebSocket protocol for leaderboard + PvP. */
 
+import {
+  RegExpMatcher,
+  englishDataset,
+  englishRecommendedTransformers,
+} from 'obscenity'
+
 export const MAX_SCORE = 10_000
 export const NAME_MIN = 3
 export const NAME_MAX = 12
 export const LEADERBOARD_LIMIT = 10
+
+const profanityMatcher = new RegExpMatcher({
+  ...englishDataset.build(),
+  ...englishRecommendedTransformers,
+})
 
 export type ScoreRow = {
   id: number
@@ -79,6 +90,7 @@ export function sanitizeName(raw: string): string | null {
   const name = raw.trim().replace(/\s+/g, ' ')
   if (name.length < NAME_MIN || name.length > NAME_MAX) return null
   if (!/^[a-zA-Z0-9 _.-]+$/.test(name)) return null
+  if (profanityMatcher.hasMatch(name)) return null
   return name
 }
 

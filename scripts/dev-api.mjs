@@ -6,15 +6,27 @@
  */
 import http from 'node:http'
 import { WebSocketServer } from 'ws'
-const LEADERBOARD_LIMIT = 50
+import {
+  RegExpMatcher,
+  englishDataset,
+  englishRecommendedTransformers,
+} from 'obscenity'
+
+const LEADERBOARD_LIMIT = 10
 const NAME_MIN = 3
 const NAME_MAX = 12
 const MAX_SCORE = 10_000
+
+const profanityMatcher = new RegExpMatcher({
+  ...englishDataset.build(),
+  ...englishRecommendedTransformers,
+})
 
 function sanitizeName(raw) {
   const name = String(raw ?? '').trim().replace(/\s+/g, ' ')
   if (name.length < NAME_MIN || name.length > NAME_MAX) return null
   if (!/^[a-zA-Z0-9 _.-]+$/.test(name)) return null
+  if (profanityMatcher.hasMatch(name)) return null
   return name
 }
 
