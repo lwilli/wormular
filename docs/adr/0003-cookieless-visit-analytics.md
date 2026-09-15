@@ -15,6 +15,7 @@ We want a rough sense of how many people open the web game and how often each mo
   - `POST /play?mode=solo|local|online|online_queue` increments `counters.plays_*`
   - `GET /stats` returns `{ visits, plays: { solo, local, online, online_queue } }`
 - Client fires keepalive `fetch` on boot (visit) and when a run actually starts (play) — no cookies, no `localStorage`, no third-party script.
+- A static `public/stats.html` dashboard polls `GET /stats` (noindex; not part of the game UI).
 - Online plays are counted when a match starts. `online_queue` counts each time a player enters the waiting state. Each client counts once per event (~2 online plays per match).
 - IP is used only for a short in-memory rate limit (same pattern as score submit) and is **never stored**.
 
