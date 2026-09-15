@@ -4,6 +4,8 @@ import {
   RegExpMatcher,
   englishDataset,
   englishRecommendedTransformers,
+  pattern,
+  DataSet,
 } from 'obscenity'
 
 export const MAX_SCORE = 10_000
@@ -11,8 +13,15 @@ export const NAME_MIN = 3
 export const NAME_MAX = 12
 export const LEADERBOARD_LIMIT = 10
 
+const customDataset = new DataSet()
+  .addAll(englishDataset)
+  .addPhrase((phrase) => phrase.setMetadata({ originalWord: 'hell' }).addPattern(pattern`|hell|`))
+  .addPhrase((phrase) => phrase.setMetadata({ originalWord: 'damn' }).addPattern(pattern`|damn|`))
+  .addPhrase((phrase) => phrase.setMetadata({ originalWord: 'crap' }).addPattern(pattern`|crap|`))
+  .addPhrase((phrase) => phrase.setMetadata({ originalWord: 'ass' }).addPattern(pattern`|ass|`))
+
 const profanityMatcher = new RegExpMatcher({
-  ...englishDataset.build(),
+  ...customDataset.build(),
   ...englishRecommendedTransformers,
 })
 
