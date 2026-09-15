@@ -24,7 +24,7 @@ Simple map of where to tweak feel. Most gameplay numbers live as fractions of ar
 | `ROCK_SPAWN_CHANCE` | `0.35` | Chance of a new rock after eat (score ≥ 3) |
 | `ROCK_SPAWN_MAX_GAP` | `3` | Force a rock if this many points pass without one |
 | `SPAWN_EDGE_MARGIN_FRAC` | `0.06` | Spawn clearance from core / wall |
-| `START_RADIUS_FRAC` | `0.45` | Spawn radius (title shows this paused) |
+| `START_RADIUS_FRAC` | `0.55` | Spawn radius (title shows this paused) |
 | `START_THETA` | `0` | Launch heading |
 | `ROCK_SPAWN_CLEAR_ARC` | `π` | No rocks in this forward arc from worm heading (solo) |
 | `BATTLE_START_CLEAR_ARC` | `0.55π` | Per-worm forward clear arc for 1v1 initial rocks |

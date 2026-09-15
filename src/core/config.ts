@@ -29,7 +29,7 @@ export const ARENA_PADDING_PX = 24
 export const ARENA_PADDING_NARROW_PX = 12
 /** Use narrow padding when min(viewW, viewH) is below this. */
 export const ARENA_NARROW_SIDE_PX = 400
-export const START_RADIUS_FRAC = 0.45
+export const START_RADIUS_FRAC = 0.55
 /** Fixed launch heading (radians). 0 = +x; worm always starts here. */
 export const START_THETA = 0
 /** No rocks in this forward arc from worm heading at spawn time (radians). */
