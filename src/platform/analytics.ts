@@ -9,7 +9,7 @@ export function trackVisit(): void {
   ping(`${apiBase()}/visit`)
 }
 
-/** Count a started run: solo / local 1v1 / online 1v1. */
+/** Count a started run, or online_queue when entering the waiting state. */
 export function trackPlay(mode: PlayModeStat): void {
   ping(`${apiBase()}/play?mode=${mode}`)
 }

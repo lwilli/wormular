@@ -30,9 +30,14 @@ export type SubmitScoreResponse = {
 }
 
 /** Cookieless aggregate counters (`POST /visit`, `POST /play`, `GET /stats`). */
-export type PlayModeStat = 'solo' | 'local' | 'online'
+export type PlayModeStat = 'solo' | 'local' | 'online' | 'online_queue'
 
-export const PLAY_MODE_STATS: readonly PlayModeStat[] = ['solo', 'local', 'online']
+export const PLAY_MODE_STATS: readonly PlayModeStat[] = [
+  'solo',
+  'local',
+  'online',
+  'online_queue',
+]
 
 export type VisitResponse = {
   ok: true
@@ -48,6 +53,8 @@ export type StatsResponse = {
     solo: number
     local: number
     online: number
+    /** Times a player entered the online waiting/queue state. */
+    online_queue: number
   }
 }
 

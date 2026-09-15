@@ -20,3 +20,4 @@ INSERT OR IGNORE INTO counters (name, value) VALUES ('plays_solo', 0);
 INSERT OR IGNORE INTO counters (name, value) VALUES ('plays_local', 0);
 INSERT OR IGNORE INTO counters (name, value) VALUES ('plays_online', 0);
 
+INSERT OR IGNORE INTO counters (name, value) VALUES ('plays_online_queue', 0);

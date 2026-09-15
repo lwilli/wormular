@@ -406,7 +406,10 @@ function startMatchmaking(): void {
   const name = saveNickname(ui.getNickname()) ?? 'Player'
   onlinePlayerName = name
   matchClient = connectMatch(name, {
-    onQueued: () => ui.setMatchStatus('waiting'),
+    onQueued: () => {
+      trackPlay('online_queue')
+      ui.setMatchStatus('waiting')
+    },
     onStart: ({ seed, you, opponentName }) => {
       trackPlay('online')
       onlineRole = you

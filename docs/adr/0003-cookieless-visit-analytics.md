@@ -12,10 +12,10 @@ We want a rough sense of how many people open the web game and how often each mo
 
 - **First-party only** on the existing Wormular API:
   - `POST /visit` increments `counters.visits`
-  - `POST /play?mode=solo|local|online` increments `counters.plays_*`
-  - `GET /stats` returns `{ visits, plays: { solo, local, online } }`
+  - `POST /play?mode=solo|local|online|online_queue` increments `counters.plays_*`
+  - `GET /stats` returns `{ visits, plays: { solo, local, online, online_queue } }`
 - Client fires keepalive `fetch` on boot (visit) and when a run actually starts (play) — no cookies, no `localStorage`, no third-party script.
-- Online plays are counted when a match starts (not when entering the queue). Each client that starts counts once (~2 per online match).
+- Online plays are counted when a match starts. `online_queue` counts each time a player enters the waiting state. Each client counts once per event (~2 online plays per match).
 - IP is used only for a short in-memory rate limit (same pattern as score submit) and is **never stored**.
 
 No cookie banner: aggregate server-side counters with no identifiers persisted. Unique/day hashing is intentionally out of scope.

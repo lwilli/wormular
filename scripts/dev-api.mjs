@@ -35,7 +35,7 @@ const scores = []
 let nextId = 1
 let visits = 0
 /** @type {{ solo: number, local: number, online: number }} */
-const plays = { solo: 0, local: 0, online: 0 }
+const plays = { solo: 0, local: 0, online: 0, online_queue: 0 }
 const VISIT_RATE_MS = 2_000
 const PLAY_RATE_MS = 1_000
 /** @type {Map<string, number>} */
@@ -214,7 +214,12 @@ const server = http.createServer(async (req, res) => {
   if (path === '/play' && req.method === 'POST') {
     const urlObj = new URL(req.url || '/', `http://127.0.0.1:${PORT}`)
     const mode = urlObj.searchParams.get('mode')
-    if (mode !== 'solo' && mode !== 'local' && mode !== 'online') {
+    if (
+      mode !== 'solo' &&
+      mode !== 'local' &&
+      mode !== 'online' &&
+      mode !== 'online_queue'
+    ) {
       json(req, res, 400, { error: 'invalid mode' })
       return
     }

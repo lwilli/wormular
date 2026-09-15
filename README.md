@@ -76,8 +76,8 @@ npx wrangler login          # browser OAuth; verify the Cloudflare account email
 The API keeps aggregate counters — no cookies, no stored IPs, no third-party script, so no cookie banner.
 
 - Each web load fires `POST /visit`.
-- Each started run fires `POST /play?mode=solo|local|online` (online counts when a match starts, not in queue).
-- Check totals: `curl https://wormular-api.lwilli.workers.dev/stats` → `{"visits":N,"plays":{"solo":N,"local":N,"online":N}}`.
+- Each started run fires `POST /play?mode=solo|local|online` (online = match start). Entering the online waiting state fires `POST /play?mode=online_queue`.
+- Check totals: `curl https://wormular-api.lwilli.workers.dev/stats` → `{"visits":N,"plays":{"solo":N,"local":N,"online":N,"online_queue":N}}`.
 
 After pulling schema changes, apply them remotely (`cd worker && npm run db:init:remote`) and redeploy the Worker.
 

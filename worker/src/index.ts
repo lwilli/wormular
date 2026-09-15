@@ -195,7 +195,7 @@ async function postVisit(
   return json(body, cors)
 }
 
-/** Cookieless mode-play ping: increments plays_solo / plays_local / plays_online. */
+/** Cookieless mode-play ping: increments plays_solo / plays_local / plays_online / plays_online_queue. */
 async function postPlay(
   request: Request,
   env: Env,
@@ -235,7 +235,7 @@ async function postPlay(
 async function getStats(env: Env, cors: HeadersInit): Promise<Response> {
   const { results } = await env.DB.prepare(
     `SELECT name, value FROM counters
-     WHERE name IN ('visits', 'plays_solo', 'plays_local', 'plays_online')`,
+     WHERE name IN ('visits', 'plays_solo', 'plays_local', 'plays_online', 'plays_online_queue')`,
   ).all<{ name: string; value: number }>()
 
   const map = new Map<string, number>()
@@ -249,6 +249,7 @@ async function getStats(env: Env, cors: HeadersInit): Promise<Response> {
       solo: map.get('plays_solo') ?? 0,
       local: map.get('plays_local') ?? 0,
       online: map.get('plays_online') ?? 0,
+      online_queue: map.get('plays_online_queue') ?? 0,
     },
   }
   return json(body, cors)
