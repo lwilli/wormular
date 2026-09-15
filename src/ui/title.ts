@@ -59,6 +59,8 @@ export function bindTitleUi(): TitleUi {
   const status = mustHtml('#menu-status')
   const hint = mustHtml('#menu-hint')
   const holdSub = mustHtml('#hold-prompt-sub')
+  const menuActions = mustHtml('#menu-actions')
+  const menuCarousel = mustHtml('#menu-carousel')
   const soloBtn = mustHtml('#btn-solo') as HTMLButtonElement
   const localBtn = mustHtml('#btn-battle-local') as HTMLButtonElement
   const onlineBtn = mustHtml('#btn-battle-online') as HTMLButtonElement
@@ -67,6 +69,9 @@ export function bindTitleUi(): TitleUi {
     { mode: 'local', btn: localBtn },
     { mode: 'online', btn: onlineBtn },
   ]
+  const indicators = Array.from(
+    document.querySelectorAll('.menu-indicator'),
+  ) as HTMLElement[]
   const battleHud = mustHtml('#battle-hud')
   const battleP0 = mustHtml('#battle-p0')
   const battleP1 = mustHtml('#battle-p1')
@@ -77,15 +82,29 @@ export function bindTitleUi(): TitleUi {
   const matchBannerCount = mustHtml('#match-banner-count')
 
   let playMode: PlayMode = 'solo'
+  let currentIndex = 0
   const modeListeners: Array<(mode: PlayMode) => void> = []
 
   function applyPlayMode(mode: PlayMode): void {
     playMode = mode
-    for (const { mode: m, btn } of modeButtons) {
+    currentIndex = modeButtons.findIndex((m) => m.mode === mode)
+    
+    // Update carousel position
+    menuCarousel.style.transform = `translateX(-${currentIndex * 100}%)`
+    
+    // Update button states
+    for (let i = 0; i < modeButtons.length; i++) {
+      const { mode: m, btn } = modeButtons[i]!
       const selected = m === mode
       btn.classList.toggle('is-selected', selected)
       btn.setAttribute('aria-selected', selected ? 'true' : 'false')
     }
+    
+    // Update indicators
+    for (let i = 0; i < indicators.length; i++) {
+      indicators[i]!.classList.toggle('is-active', i === currentIndex)
+    }
+    
     const copy = MODE_COPY[mode]
     holdSub.replaceChildren(
       ...copy.holdLines.map((line) => {
@@ -100,27 +119,80 @@ export function bindTitleUi(): TitleUi {
   // Default until main restores the sticky selection via setPlayMode.
   applyPlayMode('solo')
 
-  for (const { mode, btn } of modeButtons) {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-      if (playMode === mode) return
-      applyPlayMode(mode)
-      for (const cb of modeListeners) cb(mode)
-    })
-    
-    // Stop pointer and touch events from reaching the canvas.
-    // This prevents swipes on mode buttons from triggering game start.
-    const stopEvent = (e: Event) => {
-      e.preventDefault()
-      e.stopPropagation()
-    }
-    btn.addEventListener('pointerdown', stopEvent)
-    btn.addEventListener('touchstart', stopEvent, { passive: false })
-    btn.addEventListener('touchmove', stopEvent, { passive: false })
-    btn.addEventListener('touchend', stopEvent, { passive: false })
-    btn.addEventListener('touchcancel', stopEvent, { passive: false })
+  // Swipe gesture handling for carousel
+  let touchStartX = 0
+  let touchStartY = 0
+  let isDragging = false
+  let startTransform = 0
+
+  const handleTouchStart = (e: TouchEvent) => {
+    e.stopPropagation()
+    const touch = e.touches[0]
+    if (!touch) return
+    touchStartX = touch.clientX
+    touchStartY = touch.clientY
+    isDragging = true
+    startTransform = currentIndex * -100
+    menuCarousel.style.transition = 'none'
   }
+
+  const handleTouchMove = (e: TouchEvent) => {
+    if (!isDragging) return
+    e.preventDefault()
+    e.stopPropagation()
+    
+    const touch = e.touches[0]
+    if (!touch) return
+    
+    const deltaX = touch.clientX - touchStartX
+    const deltaY = touch.clientY - touchStartY
+    
+    // Only handle horizontal swipes (not vertical scrolling)
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      const containerWidth = menuActions.offsetWidth
+      const translatePercent = (deltaX / containerWidth) * 100
+      const newTransform = startTransform + translatePercent
+      menuCarousel.style.transform = `translateX(${newTransform}%)`
+    }
+  }
+
+  const handleTouchEnd = (e: TouchEvent) => {
+    if (!isDragging) return
+    e.stopPropagation()
+    isDragging = false
+    menuCarousel.style.transition = ''
+    
+    const touch = e.changedTouches[0]
+    if (!touch) return
+    
+    const deltaX = touch.clientX - touchStartX
+    const threshold = 50 // pixels
+    
+    let newIndex = currentIndex
+    if (deltaX > threshold && currentIndex > 0) {
+      // Swipe right (previous)
+      newIndex = currentIndex - 1
+    } else if (deltaX < -threshold && currentIndex < modeButtons.length - 1) {
+      // Swipe left (next)
+      newIndex = currentIndex + 1
+    }
+    
+    if (newIndex !== currentIndex) {
+      const newMode = modeButtons[newIndex]?.mode
+      if (newMode) {
+        applyPlayMode(newMode)
+        for (const cb of modeListeners) cb(newMode)
+      }
+    } else {
+      // Snap back to current position
+      applyPlayMode(playMode)
+    }
+  }
+
+  menuActions.addEventListener('touchstart', handleTouchStart, { passive: false })
+  menuActions.addEventListener('touchmove', handleTouchMove, { passive: false })
+  menuActions.addEventListener('touchend', handleTouchEnd, { passive: false })
+  menuActions.addEventListener('touchcancel', handleTouchEnd, { passive: false })
 
   return {
     setVisible(visible) {

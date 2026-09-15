@@ -113,40 +113,48 @@
             />
           </label>
           <div
+            id="menu-actions"
             class="menu-actions"
             role="tablist"
             aria-label="Game mode"
           >
-            <button
-              id="btn-solo"
-              class="menu-btn is-selected"
-              type="button"
-              role="tab"
-              aria-selected="true"
-              data-mode="solo"
-            >
-              Solo
-            </button>
-            <button
-              id="btn-battle-local"
-              class="menu-btn"
-              type="button"
-              role="tab"
-              aria-selected="false"
-              data-mode="local"
-            >
-              Local 1v1
-            </button>
-            <button
-              id="btn-battle-online"
-              class="menu-btn"
-              type="button"
-              role="tab"
-              aria-selected="false"
-              data-mode="online"
-            >
-              Online 1v1
-            </button>
+            <div id="menu-carousel" class="menu-carousel">
+              <button
+                id="btn-solo"
+                class="menu-btn is-selected"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                data-mode="solo"
+              >
+                Solo
+              </button>
+              <button
+                id="btn-battle-local"
+                class="menu-btn"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                data-mode="local"
+              >
+                Local 1v1
+              </button>
+              <button
+                id="btn-battle-online"
+                class="menu-btn"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                data-mode="online"
+              >
+                Online 1v1
+              </button>
+            </div>
+            <div class="menu-indicators">
+              <div class="menu-indicator is-active" data-index="0"></div>
+              <div class="menu-indicator" data-index="1"></div>
+              <div class="menu-indicator" data-index="2"></div>
+            </div>
           </div>
           <p id="menu-status" class="menu-status" hidden></p>
           <p id="menu-hint" class="menu-hint">
