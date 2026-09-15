@@ -13,7 +13,11 @@
     "cap:sync": "npm run build:ios && npx cap sync ios",
     "cap:open": "npx cap open ios",
     "ios": "npm run cap:sync && npx cap open ios",
-    "icons": "python3 scripts/generate-icons.py"
+    "icons": "python3 scripts/generate-icons.py",
+    "dev:api": "node scripts/dev-api.mjs",
+    "dev:all": "concurrently -k -n api,web -c cyan,magenta \"npm run dev:api\" \"npm run dev\"",
+    "worker:dev": "npm --prefix worker run dev",
+    "worker:deploy": "npm --prefix worker run deploy"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.1",
@@ -25,6 +29,9 @@
     "@capacitor/cli": "^8.5.1",
     "typescript": "~5.9.3",
     "vite": "^7.1.7",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "ws": "^8.18.3",
+    "@types/ws": "^8.18.1",
+    "concurrently": "^9.2.1"
   }
 }

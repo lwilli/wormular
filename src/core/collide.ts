@@ -14,6 +14,27 @@ export function checkCollisions(
   apple: Apple | null,
   tunables: Tunables,
 ): CollisionResult {
+  return checkInner(worm, rocks, apple ? [apple] : [], null, tunables)
+}
+
+/** Battle: multiple apples + optional opponent body (head-vs-body = death). */
+export function checkBattleCollisions(
+  worm: Worm,
+  rocks: Rock[],
+  apples: readonly (Apple | null)[],
+  opponentPoints: Vec2[],
+  tunables: Tunables,
+): CollisionResult {
+  return checkInner(worm, rocks, apples, opponentPoints, tunables)
+}
+
+function checkInner(
+  worm: Worm,
+  rocks: Rock[],
+  apples: readonly (Apple | null)[],
+  opponentPoints: Vec2[] | null,
+  tunables: Tunables,
+): CollisionResult {
   const head = headPos(worm)
   const half = tunables.wormThickness * 0.5
 
@@ -34,8 +55,16 @@ export function checkCollisions(
     return { kind: 'death', cause: 'self' }
   }
 
-  if (apple && dist(head, apple) < half + apple.radius) {
-    return { kind: 'food', apple }
+  if (opponentPoints && opponentPoints.length > 0) {
+    if (hitsPolyline(head, opponentPoints, half)) {
+      return { kind: 'death', cause: 'opponent' }
+    }
+  }
+
+  for (const apple of apples) {
+    if (apple && dist(head, apple) < half + apple.radius) {
+      return { kind: 'food', apple }
+    }
   }
 
   return { kind: 'none' }
@@ -49,7 +78,6 @@ function hitsSelf(
 ): boolean {
   if (points.length === 0) return false
 
-  // Walk head → newest → older. Skip the neck window.
   let along = 0
   let prevX = head.x
   let prevY = head.y
@@ -61,6 +89,14 @@ function hitsSelf(
     prevY = b.y
     if (along < neckWindow) continue
     if (dist(head, b) < hitR) return true
+  }
+  return false
+}
+
+function hitsPolyline(head: Vec2, points: Vec2[], headRadius: number): boolean {
+  const hitR = headRadius + headRadius * 0.85
+  for (let i = 0; i < points.length; i++) {
+    if (dist(head, points[i]!) < hitR) return true
   }
   return false
 }

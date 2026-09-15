@@ -19,7 +19,12 @@ export function spawnInitialRocks(
   nextId: { value: number },
   count: number = START_ROCK_COUNT,
   wormPoints: Vec2[] = [],
-  startTheta: number = START_THETA,
+  /**
+   * Headings whose forward arcs stay rock-free. Pass `null` to disable.
+   * Default: solo start heading.
+   */
+  clearHeadings: readonly number[] | null = [START_THETA],
+  clearArcRadians: number = ROCK_SPAWN_CLEAR_ARC,
 ): Rock[] {
   const rocks: Rock[] = []
   for (let i = 0; i < count; i++) {
@@ -29,7 +34,8 @@ export function spawnInitialRocks(
       wormPoints,
       rng,
       nextId.value,
-      startTheta,
+      clearHeadings,
+      clearArcRadians,
     )
     if (rock) {
       nextId.value += 1
@@ -90,7 +96,7 @@ export function maybeSpawnRock(
     world.worm.points,
     rng,
     world.nextRockId,
-    world.worm.theta,
+    [world.worm.theta],
   )
   if (rock) {
     world.nextRockId += 1
@@ -105,18 +111,23 @@ function trySpawnRock(
   wormPoints: Vec2[],
   rng: () => number,
   id: number,
-  /** Reject rocks in the forward clear arc from this heading. */
-  clearArcTheta: number | null = null,
+  /** Reject rocks in the forward clear arc from these headings. */
+  clearHeadings: readonly number[] | null = null,
+  clearArcRadians: number = ROCK_SPAWN_CLEAR_ARC,
 ): Rock | null {
   const radius =
     tunables.rockMin + rng() * (tunables.rockMax - tunables.rockMin)
   for (let i = 0; i < SPAWN_ATTEMPTS; i++) {
     const pos = randomAnnulusPoint(tunables, rng, radius)
-    if (
-      clearArcTheta !== null &&
-      inForwardArc(pos, clearArcTheta, ROCK_SPAWN_CLEAR_ARC)
-    ) {
-      continue
+    if (clearHeadings) {
+      let blocked = false
+      for (const heading of clearHeadings) {
+        if (inForwardArc(pos, heading, clearArcRadians)) {
+          blocked = true
+          break
+        }
+      }
+      if (blocked) continue
     }
     if (!clearOfRocks(pos, radius, rocks)) continue
     if (
@@ -175,4 +186,82 @@ function clearOfWorm(
 
 export function rngFromSeed(seed: number): () => number {
   return createRng(seed)
+}
+
+/** Spawn an apple clear of rocks, both worms, and existing apples (battle mode). */
+export function spawnBattleApple(
+  rocks: Rock[],
+  wormPoints: Vec2[],
+  apples: readonly (Apple | null)[],
+  tunables: Tunables,
+  rng: () => number,
+): Apple | null {
+  const color: AppleColor = rng() < 0.5 ? 'red' : 'green'
+  for (let i = 0; i < SPAWN_ATTEMPTS; i++) {
+    const pos = randomAnnulusPoint(tunables, rng, tunables.appleRadius)
+    if (!clearOfRocks(pos, tunables.appleRadius, rocks)) continue
+    if (!clearOfWorm(pos, tunables.appleRadius, wormPoints, tunables.wormThickness)) {
+      continue
+    }
+    let clearApples = true
+    for (const a of apples) {
+      if (a && dist(pos, a) < tunables.appleRadius * 2 + 10) {
+        clearApples = false
+        break
+      }
+    }
+    if (!clearApples) continue
+    return {
+      x: pos.x,
+      y: pos.y,
+      radius: tunables.appleRadius,
+      color,
+    }
+  }
+  return null
+}
+
+/**
+ * Battle rock spawn after either player eats.
+ * `combinedScore` is the sum of both player scores (already includes this eat).
+ */
+export function maybeSpawnBattleRock(
+  rocks: Rock[],
+  wormPoints: Vec2[],
+  nextRockId: { value: number },
+  pointsSinceLastRock: { value: number },
+  combinedScore: number,
+  heading: number | null,
+  tunables: Tunables,
+  rng: () => number,
+): Rock | null {
+  pointsSinceLastRock.value += 1
+  if (rocks.length >= MAX_ROCKS) return null
+
+  const force =
+    combinedScore <= 2 || pointsSinceLastRock.value >= ROCK_SPAWN_MAX_GAP
+  if (!force && rng() > ROCK_SPAWN_CHANCE) return null
+
+  const rock = trySpawnRock(
+    tunables,
+    rocks,
+    wormPoints,
+    rng,
+    nextRockId.value,
+    heading === null ? null : [heading],
+  )
+  if (rock) {
+    nextRockId.value += 1
+    pointsSinceLastRock.value = 0
+  }
+  return rock
+}
+
+/** Exported for tests — forward-arc check used by initial rock spawn. */
+export function rockInForwardArc(
+  pos: Vec2,
+  heading: number,
+  arc: number,
+): boolean {
+  return inForwardArc(pos, heading, arc)
 }

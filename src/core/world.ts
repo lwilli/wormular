@@ -32,7 +32,7 @@ export function createWorld(
   const tunables = tunablesForRadius(R)
   const rng = rngFromSeed(seed)
   const nextId = { value: 1 }
-  const r = START_RADIUS_FRAC * R
+  const r = START_RADIUS_FRAC * tunables.R
   const theta = START_THETA
 
   const worm = {
@@ -51,7 +51,7 @@ export function createWorld(
           nextId,
           rockCount,
           worm.points,
-          START_THETA,
+          [START_THETA],
         )
       : []
 

@@ -1,0 +1,20 @@
+name = "wormular-api"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wormular"
+database_id = "724d0064-636a-421c-bb1e-5c8ab8c4c987"
+preview_database_id = "local-wormular"
+
+[durable_objects]
+bindings = [{ name = "MATCH_ROOM", class_name = "MatchRoom" }]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["MatchRoom"]
+
+[vars]
+# Comma-separated origins allowed for CORS (GitHub Pages + local Vite).
+ALLOWED_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173,https://lwilli.github.io"

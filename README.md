@@ -11,21 +11,65 @@ One-tap arcade game: Snake meets the gravity helicopter game, played in a circul
 ```bash
 npm install
 npm run dev
+# Phone on same Wi‑Fi: open http://<your-lan-ip>:5173/ (Vite prints Network URL).
+# For leaderboard + online PvP: npm run dev:all
 ```
 
 Hold anywhere (or Space / ↑) to move outward. Release to fall toward the center. Eat apples; avoid rocks, walls, and yourself.
 
-The title screen shows the **starting arena paused**. Press & hold when you are ready — the run begins on that first press, with no layout swap.
+The title screen shows the **starting arena paused**. Pick **Solo**, **Local 1v1**, or **Online 1v1** (selection sticks), then **Press & Hold** to start that mode — mode tabs only select; they do not launch the run.
 
 ```bash
 npm test      # core simulation tests
 npm run build # production bundle (GitHub Pages base /wormular/)
 npm run preview # serve dist locally
 npm run icons # regenerate favicon / app icons from the title W (needs Pillow + numpy)
+npm run dev:all # Vite + local leaderboard/PvP API (proxied at /api)
 ```
 
 **→ [docs/icons.md](docs/icons.md)** — how to regenerate favicons / PWA icons / iOS App Icon from the title-art W.
 
+Set `VITE_API_URL` to your Cloudflare Worker URL for production leaderboard/online play (see `.env.example`). Locally, leave it empty and use `npm run dev:all`.
+
+## Production (leaderboard + online PvP)
+
+GitHub Pages only hosts the static game. The API is a **Cloudflare Worker** (D1 + Durable Objects).
+
+**Live API (this account):** `https://wormular-api.lwilli.workers.dev`  
+Smoke-check: `GET /health` → `{"ok":true}`; `GET /scores` → JSON list.
+
+### First-time Cloudflare setup
+
+From `worker/` (scripts use `npx wrangler`, so a local `wrangler` binary on PATH is not required):
+
+```bash
+cd worker && npm install
+npx wrangler login          # browser OAuth; verify the Cloudflare account email if prompted
+```
+
+1. **Create D1** (skip if `database_id` in `wrangler.toml` is already a UUID, not a placeholder):
+   ```bash
+   npx wrangler d1 create wormular
+   ```
+   Paste the printed id into `worker/wrangler.toml` → `database_id`.
+2. **Apply schema** (remote): `npm run db:init:remote`
+3. **Deploy API**: from repo root `npm run worker:deploy` (or `npm run deploy` inside `worker/`).  
+   Note the URL, e.g. `https://wormular-api.<subdomain>.workers.dev`.  
+   First Workers use may ask you to register a `*.workers.dev` subdomain.
+4. **Point the web build at it**: GitHub → Settings → Secrets and variables → Actions → **Repository** secret (not an Environment secret):
+   - Name: `VITE_API_URL`
+   - Value: Worker URL, no trailing slash  
+   The Pages workflow injects this into `npm run build` on pushes to `main`. The `build` job has no `environment:`, so Environment secrets are invisible to it.
+5. **Ship the client**: merge to `main` (or push `main`) so Pages redeploys with the baked-in API URL.
+
+`ALLOWED_ORIGINS` in `worker/wrangler.toml` must list every browser origin that calls the Worker (CORS). It already includes local Vite and `https://lwilli.github.io`. Redeploy the Worker after changing it.
+
+### Pitfalls we hit
+
+- **Email verification** — Cloudflare rejects Worker deploys until the account email is verified ([docs](https://developers.cloudflare.com/fundamentals/setup/account/verify-email-address/)).
+- **Free-plan Durable Objects** — migrations must use `new_sqlite_classes` (not `new_classes`) for `MatchRoom`.
+- **`wrangler: command not found`** — use the npm scripts (`npx wrangler`); run `npm install` in `worker/` first.
+- **Redeploy after Worker code or `ALLOWED_ORIGINS` changes**: `npm run worker:deploy`.
 ## iOS (Capacitor)
 
 Same web build in a native shell. Bundle id: `com.lwilli.wormular`.
@@ -48,10 +92,13 @@ Short version: Apple ID in Xcode → plug in phone → select your Team on the A
 - **[docs/controls.md](docs/controls.md)** — physics & juice knobs (danger, swell, shake, FX timings).
 - **[docs/icons.md](docs/icons.md)** — favicon / app icon regen from the title W.
 - **[docs/adr/0001-capacitor-ios-shell.md](docs/adr/0001-capacitor-ios-shell.md)** — why Capacitor and how the iOS shell is wired.
+- **[docs/adr/0002-leaderboard-and-pvp.md](docs/adr/0002-leaderboard-and-pvp.md)** — Cloudflare leaderboard + lockstep PvP.
 - **[docs/ios.md](docs/ios.md)** — device / simulator runbook.
 
 ## Status
 
-v1 web playable with juice (FX + audio). Deployed to GitHub Pages on push to `main`. Favicon / web icons and iOS App Icon use the title-art W.
+Web playable with juice (FX + audio), **global leaderboard**, **local 1v1**, and **online 1v1**. Favicon / web icons and iOS App Icon use the title-art W. Client on GitHub Pages (`main`); API on Cloudflare Worker + D1 + Durable Objects (`wormular-api.lwilli.workers.dev`). Local stack: `npm run dev:all`.
 
-iOS Capacitor shell works on simulator; physical device needs your Apple ID signing (see [docs/ios.md](docs/ios.md)). Store screenshots / TestFlight still phase 8.
+iOS Capacitor shell works on simulator; physical device needs your Apple ID signing (see [docs/ios.md](docs/ios.md)). Store / TestFlight still phase 8.
+
+Design notes: [docs/adr/0002-leaderboard-and-pvp.md](docs/adr/0002-leaderboard-and-pvp.md).

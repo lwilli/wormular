@@ -1,4 +1,4 @@
-import type { Apple, Rock, World } from '../core/types'
+import type { Apple, Rock, World, Worm } from '../core/types'
 import { headPos } from '../core/worm'
 import { PALETTE } from './palette'
 import { clamp, hash01 } from './util'
@@ -322,6 +322,13 @@ function starPath(
   ctx.closePath()
 }
 
+export type WormStyle = {
+  fill: string
+  outline: string
+  gloss: string
+  glow: string
+}
+
 export function drawWorm(
   ctx: CanvasRenderingContext2D,
   world: World,
@@ -332,14 +339,18 @@ export function drawWorm(
   suck = 0,
   /** 0–1 head→tail digest glow, or null when idle. */
   eatGlow: number | null = null,
+  style?: WormStyle,
+  wormOverride?: Worm,
 ): void {
-  const deposited = world.worm.points
+  const worm = wormOverride ?? world.worm
+  const deposited = worm.points
   if (deposited.length === 0) return
 
-  const fill = flash ? PALETTE.wormFlash : PALETTE.wormFill
-  const outline = flash ? '#ffffff' : PALETTE.wormOutline
-  const gloss = flash ? '#ffffff' : PALETTE.wormGloss
-  const liveHead = headPos(world.worm)
+  const fill = flash ? PALETTE.wormFlash : (style?.fill ?? PALETTE.wormFill)
+  const outline = flash ? '#ffffff' : (style?.outline ?? PALETTE.wormOutline)
+  const gloss = flash ? '#ffffff' : (style?.gloss ?? PALETTE.wormGloss)
+  const glowFill = style?.glow ? style.fill : PALETTE.wormFill
+  const liveHead = headPos(worm)
 
   const sucking = suck > 0.001
   const u = sucking ? suckEase(suck) : 0
@@ -363,7 +374,7 @@ export function drawWorm(
 
   const glowA = (0.22 + danger * 0.35) * alpha
   ctx.globalAlpha = glowA
-  strokeWormPath(ctx, head, body, th + 12 * thickScale, PALETTE.wormFill)
+  strokeWormPath(ctx, head, body, th + 12 * thickScale, glowFill)
   if (danger > 0.35 && !sucking) {
     ctx.globalAlpha = danger * 0.45
     strokeWormPath(ctx, head, body, th + 18, '#ff5030')
@@ -401,8 +412,8 @@ export function drawWorm(
     ctx.fill()
 
     if (u < 0.55) {
-      let tx = Math.cos(world.worm.theta)
-      let ty = Math.sin(world.worm.theta)
+      let tx = Math.cos(worm.theta)
+      let ty = Math.sin(worm.theta)
       const newest = body[body.length - 1]!
       const dx = head.x - newest.x
       const dy = head.y - newest.y

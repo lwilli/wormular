@@ -1,5 +1,7 @@
 /** Pointer / keyboard → boolean holding. */
 
+import { blurTextField, typingInField } from './textFocus'
+
 export type HoldInput = {
   holding: boolean
   /** True once if a start key was pressed (title → playing). Cleared by consumer. */
@@ -20,6 +22,9 @@ export function createHoldInput(
 
   const onDown = (e: Event) => {
     e.preventDefault()
+    // preventDefault on canvas would otherwise keep a focused nickname;
+    // blur so Press & Hold can start the run.
+    blurTextField()
     state.holding = true
     state.playRequested = true
     opts?.onPress?.()
@@ -29,6 +34,7 @@ export function createHoldInput(
     state.holding = false
   }
   const onKeyDown = (e: KeyboardEvent) => {
+    if (typingInField()) return
     if (e.code === 'Space' || e.code === 'ArrowUp') {
       e.preventDefault()
       state.holding = true
@@ -41,6 +47,7 @@ export function createHoldInput(
     }
   }
   const onKeyUp = (e: KeyboardEvent) => {
+    if (typingInField()) return
     if (e.code === 'Space' || e.code === 'ArrowUp') {
       e.preventDefault()
       state.holding = false
@@ -56,6 +63,7 @@ export function createHoldInput(
   const touchOpts: AddEventListenerOptions = { passive: false }
   const onTouchStart = (e: TouchEvent) => {
     e.preventDefault()
+    blurTextField()
     state.holding = true
     state.playRequested = true
     opts?.onPress?.()
