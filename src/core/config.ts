@@ -40,7 +40,10 @@ export const ROCK_SPAWN_CLEAR_ARC = Math.PI
  */
 export const BATTLE_START_CLEAR_ARC = Math.PI * 0.55
 /** Ignore restart attempts for this long after death → title. */
-export const TITLE_RESTART_COOLDOWN_MS = 500
+export const TITLE_RESTART_COOLDOWN_MS = 700
+
+/** Title overlay canvas dim (also used as the end of the death fade). */
+export const TITLE_DIM = 0.14
 
 export type Tunables = {
   R: number

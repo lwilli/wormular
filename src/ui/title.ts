@@ -5,8 +5,10 @@ export type TitleUi = {
   setHighScore: (score: number) => void
   setScore: (score: number) => void
   setHudVisible: (visible: boolean) => void
-  setSoundEnabled: (enabled: boolean) => void
-  onSoundToggle: (cb: () => void) => void
+  setSfxEnabled: (enabled: boolean) => void
+  setMusicEnabled: (enabled: boolean) => void
+  onSfxToggle: (cb: () => void) => void
+  onMusicToggle: (cb: () => void) => void
   setNickname: (name: string) => void
   getNickname: () => string
   onNicknameChange: (cb: (name: string) => void) => void
@@ -27,18 +29,18 @@ export type TitleUi = {
 
 const MODE_COPY: Record<
   PlayMode,
-  { holdSub: string; hint: string }
+  { holdLines: string[]; hint: string }
 > = {
   solo: {
-    holdSub: 'to move out · release to fall in',
+    holdLines: ['to move out', 'release to fall in'],
     hint: 'Hold anywhere to start · thrust out · release to fall in',
   },
   local: {
-    holdSub: 'to start local 1v1',
+    holdLines: ['to start local 1v1'],
     hint: 'Hold to start · release · then P0 hold / P1 hold W · first death loses',
   },
   online: {
-    holdSub: 'to find an opponent',
+    holdLines: ['to find an opponent'],
     hint: 'Hold to queue · matched countdown 5…1 · hold through Go to thrust · first death loses',
   },
 }
@@ -46,7 +48,8 @@ const MODE_COPY: Record<
 export function bindTitleUi(): TitleUi {
   const title = mustHtml('#title')
   const highScore = mustHtml('#high-score')
-  const soundToggle = mustHtml('#sound-toggle') as HTMLButtonElement
+  const sfxToggle = mustHtml('#sfx-toggle') as HTMLButtonElement
+  const musicToggle = mustHtml('#music-toggle') as HTMLButtonElement
   const hud = mustHtml('#hud')
   const scoreEl = mustHtml('#score')
   const nickname = mustHtml('#nickname') as HTMLInputElement
@@ -84,7 +87,13 @@ export function bindTitleUi(): TitleUi {
       btn.setAttribute('aria-selected', selected ? 'true' : 'false')
     }
     const copy = MODE_COPY[mode]
-    holdSub.textContent = copy.holdSub
+    holdSub.replaceChildren(
+      ...copy.holdLines.map((line) => {
+        const span = document.createElement('span')
+        span.textContent = line
+        return span
+      }),
+    )
     hint.textContent = copy.hint
   }
 
@@ -103,8 +112,26 @@ export function bindTitleUi(): TitleUi {
 
   return {
     setVisible(visible) {
-      title.hidden = !visible
-      title.classList.toggle('hidden', !visible)
+      if (visible) {
+        const needsFade = title.hidden || title.classList.contains('hidden')
+        title.hidden = false
+        title.classList.remove('hidden')
+        if (needsFade) {
+          // Death → title: start transparent, then fade chrome in.
+          title.classList.remove('is-shown')
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              if (!title.hidden) title.classList.add('is-shown')
+            })
+          })
+        } else {
+          title.classList.add('is-shown')
+        }
+      } else {
+        title.classList.remove('is-shown')
+        title.hidden = true
+        title.classList.add('hidden')
+      }
     },
     setHighScore(score) {
       highScore.textContent = `High Score: ${score}`
@@ -115,22 +142,27 @@ export function bindTitleUi(): TitleUi {
     setHudVisible(visible) {
       hud.hidden = !visible
     },
-    setSoundEnabled(enabled) {
-      const muted = !enabled
-      soundToggle.classList.toggle('is-muted', muted)
-      soundToggle.setAttribute('aria-pressed', muted ? 'true' : 'false')
-      soundToggle.setAttribute(
-        'aria-label',
-        muted ? 'Unmute sound' : 'Mute sound',
-      )
-      soundToggle.title = muted ? 'Sound off' : 'Sound on'
-    },
-    onSoundToggle(cb) {
-      soundToggle.addEventListener('click', (e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        cb()
+    setSfxEnabled(enabled) {
+      syncMuteButton(sfxToggle, enabled, {
+        mutedLabel: 'Unmute sound effects',
+        unmutedLabel: 'Mute sound effects',
+        mutedTitle: 'SFX off',
+        unmutedTitle: 'SFX on',
       })
+    },
+    setMusicEnabled(enabled) {
+      syncMuteButton(musicToggle, enabled, {
+        mutedLabel: 'Unmute music',
+        unmutedLabel: 'Mute music',
+        mutedTitle: 'Music off',
+        unmutedTitle: 'Music on',
+      })
+    },
+    onSfxToggle(cb) {
+      bindToggleClick(sfxToggle, cb)
+    },
+    onMusicToggle(cb) {
+      bindToggleClick(musicToggle, cb)
     },
     setNickname(name) {
       nickname.value = name
@@ -185,19 +217,44 @@ export function bindTitleUi(): TitleUi {
       result.hidden = false
       result.textContent = text
     },
-    setMatchBanner(title, count) {
-      if (!title) {
+    setMatchBanner(titleText, count) {
+      if (!titleText) {
         matchBanner.hidden = true
         matchBannerTitle.textContent = ''
         matchBannerCount.textContent = ''
         return
       }
       matchBanner.hidden = false
-      matchBannerTitle.textContent = title
+      matchBannerTitle.textContent = titleText
       matchBannerCount.textContent = count ?? ''
       matchBannerCount.hidden = !count
     },
   }
+}
+
+function syncMuteButton(
+  btn: HTMLButtonElement,
+  enabled: boolean,
+  labels: {
+    mutedLabel: string
+    unmutedLabel: string
+    mutedTitle: string
+    unmutedTitle: string
+  },
+): void {
+  const muted = !enabled
+  btn.classList.toggle('is-muted', muted)
+  btn.setAttribute('aria-pressed', muted ? 'true' : 'false')
+  btn.setAttribute('aria-label', muted ? labels.mutedLabel : labels.unmutedLabel)
+  btn.title = muted ? labels.mutedTitle : labels.unmutedTitle
+}
+
+function bindToggleClick(btn: HTMLButtonElement, cb: () => void): void {
+  btn.addEventListener('click', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    cb()
+  })
 }
 
 function mustHtml(sel: string, root: ParentNode = document): HTMLElement {

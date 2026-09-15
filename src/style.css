@@ -60,13 +60,21 @@ body {
   /* No translucent backdrop — blending a full-screen CSS layer over an
      animating canvas tanks Retina FPS. Title dim is drawn on the canvas. */
   background: transparent;
-  /* Let canvas receive hold; only the sound toggle captures clicks. */
+  /* Let canvas receive hold; only the audio toggles capture clicks. */
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+.overlay.is-shown {
+  opacity: 1;
 }
 
 .overlay.hidden,
 .overlay[hidden] {
   display: none;
+  opacity: 0;
+  transition: none;
 }
 
 .title-header {
@@ -115,10 +123,20 @@ body {
 }
 
 .hold-prompt-sub {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
   font-size: clamp(0.9rem, 2.8vw, 1.05rem);
   color: var(--muted);
   letter-spacing: 0.02em;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  text-align: center;
+}
+
+.hold-prompt-sub > span {
+  display: block;
+  white-space: nowrap;
 }
 
 @keyframes hold-prompt-pulse {
@@ -135,14 +153,26 @@ body {
   .hold-prompt {
     animation: none;
   }
+
+  .overlay {
+    transition: none;
+  }
 }
 
-.sound-toggle {
-  appearance: none;
+.audio-toggles {
   position: absolute;
   top: max(0.75rem, env(safe-area-inset-top));
   right: max(0.75rem, env(safe-area-inset-right));
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  pointer-events: none;
+}
+
+.sound-toggle {
+  appearance: none;
+  position: relative;
   pointer-events: auto;
   display: grid;
   place-items: center;
