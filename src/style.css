@@ -285,13 +285,13 @@ body {
 
 .menu-actions {
   position: relative;
-  width: 100%;
+  width: 70%;
+  margin: 0 auto;
   height: 4rem;
   overflow: visible;
   touch-action: pan-x;
   -webkit-user-select: none;
   user-select: none;
-  padding: 0 15%;
 }
 
 .menu-carousel {
@@ -306,9 +306,9 @@ body {
   appearance: none;
   pointer-events: none;
   flex-shrink: 0;
-  width: 70%;
+  width: 100%;
   height: 100%;
-  padding: 0 1rem;
+  padding: 0;
   border: none;
   background: transparent;
   color: var(--text);
@@ -323,6 +323,7 @@ body {
   opacity: 0.35;
   transform: scale(0.8);
   white-space: nowrap;
+  overflow: visible;
 }
 
 .menu-btn.is-selected {
