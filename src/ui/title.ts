@@ -380,7 +380,7 @@ export function bindTitleUi(): TitleUi {
       }
     },
     setHighScore(score) {
-      highScore.textContent = `High Score: ${score}`
+      highScore.textContent = `Personal High Score: ${score}`
     },
     setScore(score) {
       scoreEl.textContent = String(score)

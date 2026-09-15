@@ -17,7 +17,7 @@ npm run dev
 
 Hold anywhere (or Space / ↑) to move outward. Release to fall toward the center. Eat apples; avoid rocks, walls, and yourself.
 
-The title screen shows the **starting arena paused**. Swipe or tap the side circles to pick **Solo**, **Local 1v1**, or **Online 1v1** (wraps; selection sticks). **Solo:** Press & Hold to start. **Local:** Tap to Start, then a 5s countdown. **Online:** Tap to find an opponent — the same center prompt becomes Finding / Waiting / error. Mode selection alone does not launch the run. Solo shows high score + leaderboard; Local shows the dual-control brief; Online shows nickname.
+The title screen shows the **starting arena paused**. Swipe or tap the side circles to pick **Solo**, **Local 1v1**, or **Online 1v1** (wraps; selection sticks). **Solo:** Press & Hold to start. **Local:** Tap to Start, then a 5s countdown. **Online:** Tap to find an opponent — the same center prompt becomes Finding / Waiting / error. Mode selection alone does not launch the run. Solo shows personal high score + leaderboard; Local shows the dual-control brief; Online shows nickname.
 
 ```bash
 npm test      # core simulation tests
