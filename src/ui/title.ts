@@ -108,6 +108,18 @@ export function bindTitleUi(): TitleUi {
       applyPlayMode(mode)
       for (const cb of modeListeners) cb(mode)
     })
+    
+    // Stop pointer and touch events from reaching the canvas.
+    // This prevents swipes on mode buttons from triggering game start.
+    const stopEvent = (e: Event) => {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    btn.addEventListener('pointerdown', stopEvent)
+    btn.addEventListener('touchstart', stopEvent, { passive: false })
+    btn.addEventListener('touchmove', stopEvent, { passive: false })
+    btn.addEventListener('touchend', stopEvent, { passive: false })
+    btn.addEventListener('touchcancel', stopEvent, { passive: false })
   }
 
   return {
