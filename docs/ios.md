@@ -46,6 +46,10 @@ Then Run again in Xcode (or `npx cap run ios --target <device>` if you prefer CL
 | Blank / old web UI | Run `npm run cap:sync` before Run — `ios/App/App/public` is generated, not hand-edited. |
 | Cable not seeing phone | Unlock phone, trust Mac; try another cable; enable Developer Mode. |
 
+## App icon
+
+The App Icon is the title-art **W** on `#05060E`, in `App/Assets.xcassets/AppIcon.appiconset/`. After editing `assets/images/wormular-source.png`, regenerate with `npm run icons` — full steps in **[icons.md](icons.md)**.
+
 ## Not yet (plan phase 8)
 
-TestFlight, App Store icons/screenshots, and paid Developer Program distribution. For local QA, USB + personal team signing is enough.
+TestFlight, App Store screenshots, and paid Developer Program distribution. For local QA, USB + personal team signing is enough.

@@ -1,0 +1,21 @@
+{
+  "name": "Wormular",
+  "short_name": "Wormular",
+  "description": "One-tap arcade: hold to thrust out, release to fall in.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#05060E",
+  "theme_color": "#05060E",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
