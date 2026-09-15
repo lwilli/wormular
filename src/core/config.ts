@@ -29,7 +29,7 @@ export const ARENA_PADDING_PX = 24
 export const ARENA_PADDING_NARROW_PX = 12
 /** Use narrow padding when min(viewW, viewH) is below this. */
 export const ARENA_NARROW_SIDE_PX = 400
-export const START_RADIUS_FRAC = 0.45
+export const START_RADIUS_FRAC = 0.55
 /** Fixed launch heading (radians). 0 = +x; worm always starts here. */
 export const START_THETA = 0
 /** No rocks in this forward arc from worm heading at spawn time (radians). */
@@ -41,6 +41,9 @@ export const ROCK_SPAWN_CLEAR_ARC = Math.PI
 export const BATTLE_START_CLEAR_ARC = Math.PI * 0.55
 /** Ignore restart attempts for this long after death → title. */
 export const TITLE_RESTART_COOLDOWN_MS = 700
+
+/** Pre-match countdown for Local / Online 1v1 (ms). */
+export const PRE_BATTLE_COUNTDOWN_MS = 5000
 
 /** Title overlay canvas dim (also used as the end of the death fade). */
 export const TITLE_DIM = 0.14
