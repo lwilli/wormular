@@ -89,8 +89,11 @@ export function bindTitleUi(): TitleUi {
     playMode = mode
     currentIndex = modeButtons.findIndex((m) => m.mode === mode)
     
-    // Update carousel position - 70% width per button, centered with 15% padding
-    menuCarousel.style.transform = `translateX(-${currentIndex * 70}%)`
+    // Update carousel position
+    // With 70% button width and 15% container padding, we need to center the selected button
+    // Each button occupies 70% of container width, so offset to center it
+    const offset = currentIndex * 70 + 15 // 15% to account for left padding
+    menuCarousel.style.transform = `translateX(-${offset}%)`
     
     // Update button states
     for (let i = 0; i < modeButtons.length; i++) {
@@ -132,7 +135,7 @@ export function bindTitleUi(): TitleUi {
     touchStartX = touch.clientX
     touchStartY = touch.clientY
     isDragging = true
-    startTransform = currentIndex * -70 // 70% width per button
+    startTransform = -(currentIndex * 70 + 15) // Account for 15% left padding
     menuCarousel.style.transition = 'none'
   }
 
