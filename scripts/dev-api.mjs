@@ -14,7 +14,7 @@ const MAX_SCORE = 10_000
 function sanitizeName(raw) {
   const name = String(raw ?? '').trim().replace(/\s+/g, ' ')
   if (name.length < NAME_MIN || name.length > NAME_MAX) return null
-  if (!/^[\p{L}\p{N} _.-]+$/u.test(name)) return null
+  if (!/^[a-zA-Z0-9 _.-]+$/.test(name)) return null
   return name
 }
 
