@@ -6,15 +6,36 @@
  */
 import http from 'node:http'
 import { WebSocketServer } from 'ws'
-const LEADERBOARD_LIMIT = 50
+import {
+  RegExpMatcher,
+  englishDataset,
+  englishRecommendedTransformers,
+  pattern,
+  DataSet,
+} from 'obscenity'
+
+const LEADERBOARD_LIMIT = 10
 const NAME_MIN = 3
 const NAME_MAX = 12
 const MAX_SCORE = 10_000
 
+const customDataset = new DataSet()
+  .addAll(englishDataset)
+  .addPhrase((phrase) => phrase.setMetadata({ originalWord: 'hell' }).addPattern(pattern`|hell|`))
+  .addPhrase((phrase) => phrase.setMetadata({ originalWord: 'damn' }).addPattern(pattern`|damn|`))
+  .addPhrase((phrase) => phrase.setMetadata({ originalWord: 'crap' }).addPattern(pattern`|crap|`))
+  .addPhrase((phrase) => phrase.setMetadata({ originalWord: 'ass' }).addPattern(pattern`|ass|`))
+
+const profanityMatcher = new RegExpMatcher({
+  ...customDataset.build(),
+  ...englishRecommendedTransformers,
+})
+
 function sanitizeName(raw) {
   const name = String(raw ?? '').trim().replace(/\s+/g, ' ')
   if (name.length < NAME_MIN || name.length > NAME_MAX) return null
-  if (!/^[\p{L}\p{N} _.-]+$/u.test(name)) return null
+  if (!/^[a-zA-Z0-9 _.-]+$/.test(name)) return null
+  if (profanityMatcher.hasMatch(name)) return null
   return name
 }
 

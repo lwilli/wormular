@@ -1,9 +1,29 @@
 /** Shared client ↔ API / WebSocket protocol for leaderboard + PvP. */
 
+import {
+  RegExpMatcher,
+  englishDataset,
+  englishRecommendedTransformers,
+  pattern,
+  DataSet,
+} from 'obscenity'
+
 export const MAX_SCORE = 10_000
 export const NAME_MIN = 3
 export const NAME_MAX = 12
-export const LEADERBOARD_LIMIT = 50
+export const LEADERBOARD_LIMIT = 10
+
+const customDataset = new DataSet()
+  .addAll(englishDataset)
+  .addPhrase((phrase) => phrase.setMetadata({ originalWord: 'hell' }).addPattern(pattern`|hell|`))
+  .addPhrase((phrase) => phrase.setMetadata({ originalWord: 'damn' }).addPattern(pattern`|damn|`))
+  .addPhrase((phrase) => phrase.setMetadata({ originalWord: 'crap' }).addPattern(pattern`|crap|`))
+  .addPhrase((phrase) => phrase.setMetadata({ originalWord: 'ass' }).addPattern(pattern`|ass|`))
+
+const profanityMatcher = new RegExpMatcher({
+  ...customDataset.build(),
+  ...englishRecommendedTransformers,
+})
 
 export type ScoreRow = {
   id: number
@@ -78,7 +98,8 @@ export type ServerMsg =
 export function sanitizeName(raw: string): string | null {
   const name = raw.trim().replace(/\s+/g, ' ')
   if (name.length < NAME_MIN || name.length > NAME_MAX) return null
-  if (!/^[\p{L}\p{N} _.-]+$/u.test(name)) return null
+  if (!/^[a-zA-Z0-9 _.-]+$/.test(name)) return null
+  if (profanityMatcher.hasMatch(name)) return null
   return name
 }
 
