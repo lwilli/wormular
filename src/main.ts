@@ -28,7 +28,7 @@ import { createDualHoldInput } from './input/dualHold'
 import { createHoldInput } from './input/hold'
 import { connectMatch, type MatchClient } from './net/matchClient'
 import { createAudio } from './platform/audio'
-import { trackVisit } from './platform/analytics'
+import { trackPlay, trackVisit } from './platform/analytics'
 import { fetchLeaderboard, submitScore } from './platform/leaderboard'
 import {
   initNickname,
@@ -355,6 +355,7 @@ function requestStart(): void {
 }
 
 function startSolo(): void {
+  trackPlay('solo')
   mode = 'playing'
   battle = null
   clearFx(fx)
@@ -369,6 +370,7 @@ function startSolo(): void {
 }
 
 function startBattleLocal(): void {
+  trackPlay('local')
   mode = 'battleLocal'
   onlineViewActive = false
   // Reuse the paused title battle so layout does not pop on start.
@@ -406,6 +408,7 @@ function startMatchmaking(): void {
   matchClient = connectMatch(name, {
     onQueued: () => ui.setMatchStatus('waiting'),
     onStart: ({ seed, you, opponentName }) => {
+      trackPlay('online')
       onlineRole = you
       onlineOpponentName = opponentName
       onlineViewActive = true

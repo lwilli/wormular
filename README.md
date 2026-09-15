@@ -71,12 +71,13 @@ npx wrangler login          # browser OAuth; verify the Cloudflare account email
 
 `ALLOWED_ORIGINS` in `worker/wrangler.toml` must list every browser origin that calls the Worker (CORS). It already includes local Vite and `https://lwilli.github.io`. Redeploy the Worker after changing it.
 
-### Visits (cookieless)
+### Visits + plays (cookieless)
 
-The API keeps a single aggregate page-view counter — no cookies, no stored IPs, no third-party script, so no cookie banner.
+The API keeps aggregate counters — no cookies, no stored IPs, no third-party script, so no cookie banner.
 
-- Each web load fires `POST /visit` (fire-and-forget).
-- Check the total: `curl https://wormular-api.lwilli.workers.dev/stats` → `{"visits":N}`.
+- Each web load fires `POST /visit`.
+- Each started run fires `POST /play?mode=solo|local|online` (online counts when a match starts, not in queue).
+- Check totals: `curl https://wormular-api.lwilli.workers.dev/stats` → `{"visits":N,"plays":{"solo":N,"local":N,"online":N}}`.
 
 After pulling schema changes, apply them remotely (`cd worker && npm run db:init:remote`) and redeploy the Worker.
 
@@ -109,12 +110,12 @@ Short version: Apple ID in Xcode → plug in phone → select your Team on the A
 - **[docs/icons.md](docs/icons.md)** — favicon / app icon regen from the title W.
 - **[docs/adr/0001-capacitor-ios-shell.md](docs/adr/0001-capacitor-ios-shell.md)** — why Capacitor and how the iOS shell is wired.
 - **[docs/adr/0002-leaderboard-and-pvp.md](docs/adr/0002-leaderboard-and-pvp.md)** — Cloudflare leaderboard + lockstep PvP.
-- **[docs/adr/0003-cookieless-visit-analytics.md](docs/adr/0003-cookieless-visit-analytics.md)** — first-party visit counter (no cookies / no banner).
+- **[docs/adr/0003-cookieless-visit-analytics.md](docs/adr/0003-cookieless-visit-analytics.md)** — first-party visit + play counters (no cookies / no banner).
 - **[docs/ios.md](docs/ios.md)** — device / simulator runbook.
 
 ## Status
 
-Web playable with juice (FX + audio), **global leaderboard**, **local 1v1**, **online 1v1**, and a **cookieless visit counter** (`GET /stats` on the API). Favicon / web icons and iOS App Icon use the title-art W. Client on GitHub Pages (`main`); API on Cloudflare Worker + D1 + Durable Objects (`wormular-api.lwilli.workers.dev`). Local stack: `npm run dev:all`.
+Web playable with juice (FX + audio), **global leaderboard**, **local 1v1**, **online 1v1**, and **cookieless visit + play counters** (`GET /stats` on the API). Favicon / web icons and iOS App Icon use the title-art W. Client on GitHub Pages (`main`); API on Cloudflare Worker + D1 + Durable Objects (`wormular-api.lwilli.workers.dev`). Local stack: `npm run dev:all`.
 
 iOS Capacitor shell works on simulator; physical device needs your Apple ID signing (see [docs/ios.md](docs/ios.md)). Store / TestFlight still phase 8.
 
