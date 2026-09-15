@@ -108,6 +108,7 @@ let lastHudScore = -1
 let matchClient: MatchClient | null = null
 let onlineRole: 0 | 1 = 0
 let onlineOpponentName = 'Opponent'
+let onlinePlayerName = 'Player'
 /** Keep online you=orange mirroring through the result flash. */
 let onlineViewActive = false
 /** Wall-clock ms when Local/Online pre-match countdown ends; null when idle. */
@@ -179,6 +180,7 @@ ui.onPlayModeChange((next, meta) => {
     stopMatchClient()
     mode = 'title'
     ui.setStatus('')
+    ui.setMatchStatus('idle')
   }
   if (mode === 'title') {
     // Mode tabs must not inherit a leftover hold/playRequested from queueing
@@ -330,6 +332,7 @@ function showTitle(): void {
   ui.setPlayMode(selectedPlayMode)
   ui.setHudVisible(false)
   ui.setStatus('')
+  ui.setMatchStatus('idle')
   ui.setResult(null)
   ui.setMatchBanner(null)
   preBattleCountdownUntil = null
@@ -393,11 +396,12 @@ function startMatchmaking(): void {
   soloInput.playRequested = false
   dualInput.playRequested = false
   ensureTitlePreview()
-  ui.setStatus('Finding opponent…')
+  ui.setMatchStatus('finding')
   ui.setMenuVisible(true)
   const name = saveNickname(ui.getNickname()) ?? 'Player'
+  onlinePlayerName = name
   matchClient = connectMatch(name, {
-    onQueued: () => ui.setStatus('Waiting for opponent…'),
+    onQueued: () => ui.setMatchStatus('waiting'),
     onStart: ({ seed, you, opponentName }) => {
       onlineRole = you
       onlineOpponentName = opponentName
@@ -415,10 +419,10 @@ function startMatchmaking(): void {
       ui.setVisible(false)
       ui.setMenuVisible(false)
       ui.setHudVisible(false)
-      ui.setStatus('')
+      ui.setMatchStatus('idle')
       ui.setBattleHud(0, 0, `vs ${opponentName}`)
       document.getElementById('battle-hud')?.removeAttribute('hidden')
-      ui.setMatchBanner(`Matched vs ${opponentName}`, '5')
+      ui.setMatchBanner(`${onlinePlayerName} vs ${opponentName}`, '5')
     },
     onInputs: (tick, holding) => {
       onlineInputQueue.set(tick, holding)
@@ -429,7 +433,7 @@ function startMatchmaking(): void {
       endBattle(winner === onlineRole ? 'You win (forfeit)' : 'You lose (disconnect)')
     },
     onError: (message) => {
-      ui.setStatus(message)
+      ui.setMatchStatus({ error: message })
       mode = 'title'
       stopMatchClient()
       armTitleStartGate()
@@ -437,7 +441,7 @@ function startMatchmaking(): void {
     },
     onClose: () => {
       if (mode === 'matchmaking') {
-        ui.setStatus('Connection closed')
+        ui.setMatchStatus({ error: 'Connection closed' })
         mode = 'title'
         armTitleStartGate()
         ensureTitlePreview()
@@ -583,7 +587,9 @@ function frame(ts: number): void {
   ) {
     const left = preBattleCountdownUntil - ts
     const bannerTitle =
-      mode === 'battleOnline' ? `Matched vs ${onlineOpponentName}` : 'Get ready'
+      mode === 'battleOnline'
+        ? `${onlinePlayerName} vs ${onlineOpponentName}`
+        : 'Get ready'
     if (left <= 0) {
       preBattleCountdownUntil = null
       ui.setMatchBanner(null)

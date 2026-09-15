@@ -93,6 +93,7 @@ Prefs: `wormular.sfxEnabled`, `wormular.musicEnabled` (legacy `wormular.soundEna
 | Knob | Default | What it does |
 |------|---------|--------------|
 | Hold prompt pulse | `2s` ease-in-out, scale `0.96`–`1.06` | Grow/shrink on Press & Hold copy |
+| Online match status | center hold prompt | Ready / finding / waiting / error (same spot) |
 | Title fade-in | `0.45s` opacity | Overlay chrome fades in after death |
 | Mode swipe threshold | `48px` (`SWIPE_THRESHOLD_PX`) | Horizontal drag distance to change mode without starting |
 | Mode orbit slide | `420ms` (`MODE_ORBIT_MS`) | Live arenas slide/scale; outgoing stays drawn until settle |

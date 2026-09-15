@@ -280,8 +280,15 @@ body {
 
 .mode-tagline {
   font-size: clamp(0.85rem, 2.8vw, 1.05rem);
+  line-height: 1.25;
+  /* Keep Solo's title at the same Y as Local/Online (caption is vertically centered). */
+  min-height: 1.25em;
   color: var(--muted);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+
+.mode-tagline:empty {
+  visibility: hidden;
 }
 
 .title-bottom {
@@ -470,6 +477,27 @@ body {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
 }
 
+/* Queue / wait copy lives in the same center prompt; pulse opacity, not scale. */
+.overlay.is-matching .hold-prompt {
+  animation: match-status-pulse 1.6s ease-in-out infinite;
+}
+
+.overlay.is-matching .hold-prompt-main {
+  color: var(--accent);
+}
+
+@keyframes match-status-pulse {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: translate(-50%, -50%);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
 .hold-prompt-sub {
   display: flex;
   flex-direction: column;
@@ -502,7 +530,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hold-prompt {
+  .hold-prompt,
+  .overlay.is-matching .hold-prompt {
     animation: none;
   }
 
@@ -677,17 +706,6 @@ body {
   margin: 0;
   color: var(--muted);
   font-size: 0.85rem;
-}
-
-.mode-brief-ready {
-  margin: 0;
-  color: var(--accent);
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.mode-panel.has-status .mode-brief-ready {
-  display: none;
 }
 
 .nickname-field {

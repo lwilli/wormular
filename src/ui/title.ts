@@ -1,5 +1,12 @@
 export type PlayMode = 'solo' | 'local' | 'online'
 
+/** Center-prompt matchmaking copy for Online 1v1. */
+export type MatchStatus =
+  | 'idle'
+  | 'finding'
+  | 'waiting'
+  | { error: string }
+
 export type PlayModeChangeMeta = {
   animate: boolean
   /** +1 = toward Online (next), -1 = toward Solo (prev). */
@@ -27,6 +34,8 @@ export type TitleUi = {
   ) => void
   setMenuVisible: (visible: boolean) => void
   setStatus: (text: string) => void
+  /** Online 1v1 ready / queue / error — always the center prompt. */
+  setMatchStatus: (state: MatchStatus) => void
   setPlayMode: (mode: PlayMode) => void
   getPlayMode: () => PlayMode
   onPlayModeChange: (
@@ -54,7 +63,7 @@ const MODE_COPY: Record<
 > = {
   solo: {
     title: 'SOLO',
-    tagline: 'Survive as long as you can',
+    tagline: '',
     shortLabel: 'Solo',
     promptMain: 'Press & Hold',
     promptLines: ['to move out', 'release to fall in'],
@@ -99,7 +108,6 @@ export function bindTitleUi(): TitleUi {
   const modeTagline = mustHtml('#mode-tagline')
   const panelSolo = mustHtml('#panel-solo')
   const panelLocal = mustHtml('#panel-local')
-  const panelOnline = mustHtml('#panel-online')
   const peekPrev = mustHtml('#mode-peek-prev') as HTMLButtonElement
   const peekNext = mustHtml('#mode-peek-next') as HTMLButtonElement
   const peekPrevLabel = mustHtml('#mode-peek-prev-label')
@@ -177,24 +185,33 @@ export function bindTitleUi(): TitleUi {
     peekNext.setAttribute('aria-label', MODE_COPY[next].title)
   }
 
-  function applyPlayMode(mode: PlayMode, opts?: { peeks?: boolean }): void {
-    playMode = mode
-    const copy = MODE_COPY[mode]
-    modeTitle.textContent = copy.title
-    modeTagline.textContent = copy.tagline
-    holdMain.textContent = copy.promptMain
+  function paintHoldPrompt(main: string, lines: string[]): void {
+    holdMain.textContent = main
     holdSub.replaceChildren(
-      ...copy.promptLines.map((line) => {
+      ...lines.map((line) => {
         const span = document.createElement('span')
         span.textContent = line
         return span
       }),
     )
-    holdSub.hidden = copy.promptLines.length === 0
+    holdSub.hidden = lines.length === 0
+  }
+
+  function paintModeHoldPrompt(): void {
+    const copy = MODE_COPY[playMode]
+    paintHoldPrompt(copy.promptMain, copy.promptLines)
+    title.classList.remove('is-matching')
+  }
+
+  function applyPlayMode(mode: PlayMode, opts?: { peeks?: boolean }): void {
+    playMode = mode
+    const copy = MODE_COPY[mode]
+    modeTitle.textContent = copy.title
+    modeTagline.textContent = copy.tagline
+    paintModeHoldPrompt()
 
     panelSolo.hidden = mode !== 'solo'
     panelLocal.hidden = mode !== 'local'
-    panelOnline.hidden = mode !== 'online'
     nicknameField.hidden = mode === 'local'
 
     title.dataset.playMode = mode
@@ -406,10 +423,9 @@ export function bindTitleUi(): TitleUi {
     },
     setLeaderboard(rows, statusText) {
       boardList.replaceChildren()
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i]!
+      for (const row of rows) {
         const li = document.createElement('li')
-        li.textContent = `${i + 1}. ${row.name} — ${row.score}`
+        li.textContent = `${row.name} — ${row.score}`
         boardList.appendChild(li)
       }
       boardStatus.textContent =
@@ -423,7 +439,24 @@ export function bindTitleUi(): TitleUi {
     setStatus(text) {
       status.textContent = text
       status.hidden = !text
-      panelOnline.classList.toggle('has-status', Boolean(text))
+    },
+    setMatchStatus(state) {
+      if (state === 'idle') {
+        paintModeHoldPrompt()
+        return
+      }
+      if (state === 'finding') {
+        paintHoldPrompt('Finding opponent…', [])
+        title.classList.add('is-matching')
+        return
+      }
+      if (state === 'waiting') {
+        paintHoldPrompt('Waiting for opponent…', [])
+        title.classList.add('is-matching')
+        return
+      }
+      paintHoldPrompt(state.error, ['Tap to try again'])
+      title.classList.remove('is-matching')
     },
     setPlayMode(mode) {
       // Instant — used for sticky restore / death return, not user carousel.
