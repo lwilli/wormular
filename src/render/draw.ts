@@ -39,6 +39,17 @@ export type DrawOpts = {
    * the opponent is teal. Local / title omit this (absolute P0 orange / P1 teal).
    */
   viewAs?: 0 | 1
+  /** Slide the arena in view-space px (added after centering). */
+  offsetX?: number
+  offsetY?: number
+  /** Uniform scale around the arena center (1 = normal). */
+  scale?: number
+  /** Clip drawing to the arena disk (for sliding dual-arena frames). */
+  clipArena?: boolean
+  /** Skip full-viewport space background. */
+  skipSpace?: boolean
+  /** Skip full-viewport dim overlay. */
+  skipDim?: boolean
 }
 
 export function drawWorld(
@@ -62,14 +73,21 @@ export function drawWorld(
   const shake = fx ? shakeOffset(fx) : { x: 0, y: 0 }
   const warn = voidShake(t, danger)
   const hole = voidShake(t + 1.7, near)
+  const ox = opts?.offsetX ?? 0
+  const oy = opts?.offsetY ?? 0
+  const scale = opts?.scale ?? 1
 
-  drawSpace(ctx, viewW, viewH)
+  if (!opts?.skipSpace) drawSpace(ctx, viewW, viewH)
 
   ctx.save()
-  ctx.translate(
-    cx + shake.x + warn.x + hole.x,
-    cy + shake.y + warn.y + hole.y,
-  )
+  ctx.translate(cx + ox, cy + oy)
+  ctx.scale(scale, scale)
+  if (opts?.clipArena) {
+    ctx.beginPath()
+    ctx.arc(0, 0, world.R + 1.5, 0, Math.PI * 2)
+    ctx.clip()
+  }
+  ctx.translate(shake.x + warn.x + hole.x, shake.y + warn.y + hole.y)
 
   const suck = fx ? suckProgress(fx) : 0
 
@@ -94,7 +112,7 @@ export function drawWorld(
   ctx.restore()
 
   const dim = opts?.dim ?? 0
-  if (dim > 0) {
+  if (dim > 0 && !opts?.skipDim) {
     ctx.fillStyle = `rgba(5, 6, 14, ${dim})`
     ctx.fillRect(0, 0, viewW, viewH)
   }
@@ -161,13 +179,20 @@ export function drawBattleWorld(
   const shake = fx ? shakeOffset(fx) : { x: 0, y: 0 }
   const warn = voidShake(t, danger)
   const hole = voidShake(t + 1.7, near)
+  const ox = opts?.offsetX ?? 0
+  const oy = opts?.offsetY ?? 0
+  const scale = opts?.scale ?? 1
 
-  drawSpace(ctx, viewW, viewH)
+  if (!opts?.skipSpace) drawSpace(ctx, viewW, viewH)
   ctx.save()
-  ctx.translate(
-    cx + shake.x + warn.x + hole.x,
-    cy + shake.y + warn.y + hole.y,
-  )
+  ctx.translate(cx + ox, cy + oy)
+  ctx.scale(scale, scale)
+  if (opts?.clipArena) {
+    ctx.beginPath()
+    ctx.arc(0, 0, battle.R + 1.5, 0, Math.PI * 2)
+    ctx.clip()
+  }
+  ctx.translate(shake.x + warn.x + hole.x, shake.y + warn.y + hole.y)
 
   const suck = fx ? suckProgress(fx) : 0
 
@@ -219,7 +244,7 @@ export function drawBattleWorld(
   ctx.restore()
 
   const dim = opts?.dim ?? 0
-  if (dim > 0) {
+  if (dim > 0 && !opts?.skipDim) {
     ctx.fillStyle = `rgba(5, 6, 14, ${dim})`
     ctx.fillRect(0, 0, viewW, viewH)
   }

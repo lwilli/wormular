@@ -32,6 +32,7 @@ Simple map of where to tweak feel. Most gameplay numbers live as fractions of ar
 | `ARENA_PADDING_NARROW_PX` | `12` | Narrow-phone inset |
 | `ARENA_NARROW_SIDE_PX` | `400` | When to use narrow padding |
 | `FIXED_DT` | `1/60` | Physics step |
+| `PRE_BATTLE_COUNTDOWN_MS` | `5000` | Local / Online 1v1 countdown before play |
 | `TITLE_RESTART_COOLDOWN_MS` | `700` | Ignore restart right after death |
 | `TITLE_DIM` | `0.14` | Canvas darken on title / end of death fade |
 
@@ -87,12 +88,14 @@ SFX and BGM are independent mutes (title buttons: speaker + music note). Both ro
 
 Prefs: `wormular.sfxEnabled`, `wormular.musicEnabled` (legacy `wormular.soundEnabled` migrates into both once).
 
-## Title overlay — `src/style.css`
+## Title overlay — `src/style.css` / `src/ui/title.ts`
 
 | Knob | Default | What it does |
 |------|---------|--------------|
 | Hold prompt pulse | `2s` ease-in-out, scale `0.96`–`1.06` | Grow/shrink on Press & Hold copy |
 | Title fade-in | `0.45s` opacity | Overlay chrome fades in after death |
+| Mode swipe threshold | `48px` (`SWIPE_THRESHOLD_PX`) | Horizontal drag distance to change mode without starting |
+| Mode orbit slide | `420ms` (`MODE_ORBIT_MS`) | Live arenas slide/scale; outgoing stays drawn until settle |
 
 ## Camera shake stack — `src/render/draw.ts`
 

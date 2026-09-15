@@ -7,6 +7,7 @@ import {
   ARENA_PADDING_NARROW_PX,
   ARENA_PADDING_PX,
   FIXED_DT,
+  PRE_BATTLE_COUNTDOWN_MS,
   TITLE_DIM,
   TITLE_RESTART_COOLDOWN_MS,
 } from './core/config'
@@ -35,7 +36,8 @@ import {
 } from './platform/nickname'
 import { initStorage, recordScore, loadHighScore } from './platform/storage'
 import { drawBattleWorld, drawWorld } from './render/draw'
-import { bindTitleUi, type PlayMode } from './ui/title'
+import { drawSpace } from './render/cosmic'
+import { bindTitleUi, MODE_ORBIT_MS, type PlayMode } from './ui/title'
 import { Capacitor } from '@capacitor/core'
 
 type Mode =
@@ -108,16 +110,22 @@ let onlineRole: 0 | 1 = 0
 let onlineOpponentName = 'Opponent'
 /** Keep online you=orange mirroring through the result flash. */
 let onlineViewActive = false
-/** Wall-clock ms when online countdown ends; null when not counting. */
-let onlineCountdownUntil: number | null = null
+/** Wall-clock ms when Local/Online pre-match countdown ends; null when idle. */
+let preBattleCountdownUntil: number | null = null
 let lastCountdownSec = -1
 let onlineTick = 0
 const onlineInputQueue = new Map<number, [boolean, boolean]>()
 let resultClearAt = 0
-/** After Press & Hold starts a local battle, freeze until release so both worms stay equal. */
-let battleFrozenUntilRelease = false
 /** How many lockstep ticks to pipeline ahead (masks Wi‑Fi / 30fps peer stalls). */
 const ONLINE_INPUT_AHEAD = 3
+/** Title mode carousel: keep the outgoing arena drawing while it slides away. */
+let arenaSlide: {
+  dir: 1 | -1
+  t0: number
+  dur: number
+  outSolo: World | null
+  outBattle: BattleWorld | null
+} | null = null
 
 ui.setHighScore(highScore)
 ui.setVisible(true)
@@ -145,7 +153,25 @@ ui.onNicknameChange((raw) => {
   if (saved) ui.setNickname(saved)
 })
 
-ui.onPlayModeChange((next) => {
+ui.onPlayModeChange((next, meta) => {
+  const prevMode = selectedPlayMode
+  if (
+    meta.animate &&
+    (mode === 'title' || mode === 'matchmaking')
+  ) {
+    arenaSlide = {
+      dir: meta.dir,
+      t0: performance.now(),
+      dur: MODE_ORBIT_MS,
+      outSolo: prevMode === 'solo' ? world : null,
+      outBattle: prevMode !== 'solo' ? battle : null,
+    }
+    // Detach so ensureTitlePreview cannot reuse the outgoing battle.
+    if (prevMode !== 'solo') battle = null
+  } else {
+    arenaSlide = null
+  }
+
   selectedPlayMode = next
   savePlayMode(next)
   // Switching modes cancels an in-progress queue.
@@ -158,8 +184,15 @@ ui.onPlayModeChange((next) => {
     // Mode tabs must not inherit a leftover hold/playRequested from queueing
     // or a prior Press & Hold — re-arm the start gate.
     armTitleStartGate()
-    ensureTitlePreview()
+    ensureTitlePreview(true)
   }
+})
+
+/** Swipe between modes: cancel the press that would have started a run. */
+ui.onCarouselGesture(() => {
+  soloInput.playRequested = false
+  dualInput.playRequested = false
+  awaitReleaseBeforeStart = true
 })
 
 void initStorage().then(() => {
@@ -190,17 +223,44 @@ function createTitleBattle(): BattleWorld {
 }
 
 /** Paused arena behind the title: solo worm or both 1v1 worms. */
-function ensureTitlePreview(): void {
+function ensureTitlePreview(force = false): void {
   const R = arenaRadius()
   if (selectedPlayMode === 'solo') {
     battle = null
-    if (Math.abs(world.R - R) > 2) world = createPlayWorld()
+    if (force || Math.abs(world.R - R) > 2) world = createPlayWorld()
     return
   }
   // Fresh paused battle layout whenever mode needs one (or size changed).
-  if (!battle || Math.abs(battle.R - R) > 2 || battle.tick > 0 || battle.winner !== null) {
+  if (
+    force ||
+    !battle ||
+    Math.abs(battle.R - R) > 2 ||
+    battle.tick > 0 ||
+    battle.winner !== null
+  ) {
     battle = createTitleBattle()
   }
+}
+
+function orbitLayout(): { peekScale: number; shift: number } {
+  const arenaD = arenaRadius() * 2
+  const rootPx =
+    Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
+  const peekD = Math.min(viewW * 0.28, 7.5 * rootPx)
+  return {
+    peekScale: peekD / arenaD,
+    shift: arenaD * 0.5 + peekD * 0.22,
+  }
+}
+
+function easeOrbit(u: number): number {
+  // Match `--orbit-ease: cubic-bezier(0.22, 1, 0.36, 1)` roughly.
+  const t = Math.min(1, Math.max(0, u))
+  return 1 - (1 - t) ** 3
+}
+
+function lerp(a: number, b: number, u: number): number {
+  return a + (b - a) * u
 }
 
 function platformTag(): string {
@@ -253,6 +313,7 @@ function armTitleStartGate(): void {
 }
 
 function showTitle(): void {
+  arenaSlide = null
   mode = 'title'
   onlineViewActive = false
   stopMatchClient()
@@ -271,7 +332,7 @@ function showTitle(): void {
   ui.setStatus('')
   ui.setResult(null)
   ui.setMatchBanner(null)
-  onlineCountdownUntil = null
+  preBattleCountdownUntil = null
   lastCountdownSec = -1
   document.getElementById('battle-hud')?.setAttribute('hidden', '')
 }
@@ -309,16 +370,20 @@ function startBattleLocal(): void {
     battle = createTitleBattle()
   }
   clearFx(fx)
-  // Freeze until the start-hold releases so orange does not thrust alone
-  // while teal falls in (keeps both at the same radius).
-  battleFrozenUntilRelease = true
+  // Tap-to-start: clear the tap so nobody thrusts during the countdown.
+  soloInput.holding = false
+  soloInput.playRequested = false
+  dualInput.holding[0] = false
   dualInput.holding[1] = false
   dualInput.playRequested = false
+  preBattleCountdownUntil = performance.now() + PRE_BATTLE_COUNTDOWN_MS
+  lastCountdownSec = -1
   ui.setVisible(false)
   ui.setMenuVisible(false)
   ui.setHudVisible(false)
   ui.setBattleHud(0, 0, 'Local')
   document.getElementById('battle-hud')?.removeAttribute('hidden')
+  ui.setMatchBanner('Get ready', '5')
 }
 
 function startMatchmaking(): void {
@@ -343,9 +408,8 @@ function startMatchmaking(): void {
       mode = 'battleOnline'
       clearFx(fx)
       // 5 → 1 → Go — hold during countdown is fine; that press is already thrust.
-      onlineCountdownUntil = performance.now() + 5000
+      preBattleCountdownUntil = performance.now() + PRE_BATTLE_COUNTDOWN_MS
       lastCountdownSec = -1
-      battleFrozenUntilRelease = false
       dualInput.holding[1] = false
       dualInput.playRequested = false
       ui.setVisible(false)
@@ -385,7 +449,7 @@ function startMatchmaking(): void {
 function endBattle(message: string): void {
   if (mode === 'battleResult') return
   mode = 'battleResult'
-  onlineCountdownUntil = null
+  preBattleCountdownUntil = null
   ui.setMatchBanner(null)
   ui.setResult(message)
   resultClearAt = performance.now() + 2200
@@ -512,15 +576,20 @@ function frame(ts: number): void {
     void refreshLeaderboard()
   }
 
-  // Online pre-match countdown (matched → 5..1 → Go).
-  if (mode === 'battleOnline' && onlineCountdownUntil !== null) {
-    const left = onlineCountdownUntil - ts
+  // Pre-match countdown (Local tap-to-start / Online matched → 5..1 → Go).
+  if (
+    (mode === 'battleLocal' || mode === 'battleOnline') &&
+    preBattleCountdownUntil !== null
+  ) {
+    const left = preBattleCountdownUntil - ts
+    const bannerTitle =
+      mode === 'battleOnline' ? `Matched vs ${onlineOpponentName}` : 'Get ready'
     if (left <= 0) {
-      onlineCountdownUntil = null
+      preBattleCountdownUntil = null
       ui.setMatchBanner(null)
       lastCountdownSec = -1
-      // Seed a few ticks so lockstep does not stall on the first frames.
-      if (matchClient) {
+      // Seed a few ticks so online lockstep does not stall on the first frames.
+      if (mode === 'battleOnline' && matchClient) {
         const holding = soloInput.holding
         for (let t = 0; t <= ONLINE_INPUT_AHEAD; t++) {
           matchClient.sendInput(t, holding)
@@ -529,13 +598,13 @@ function frame(ts: number): void {
     } else if (left <= 450) {
       if (lastCountdownSec !== 0) {
         lastCountdownSec = 0
-        ui.setMatchBanner(`Matched vs ${onlineOpponentName}`, 'Go!')
+        ui.setMatchBanner(bannerTitle, 'Go!')
       }
     } else {
       const sec = Math.max(1, Math.ceil(left / 1000))
       if (sec !== lastCountdownSec) {
         lastCountdownSec = sec
-        ui.setMatchBanner(`Matched vs ${onlineOpponentName}`, String(sec))
+        ui.setMatchBanner(bannerTitle, String(sec))
       }
     }
   }
@@ -544,7 +613,7 @@ function frame(ts: number): void {
   while (accum >= FIXED_DT) {
     // Online lockstep: pipeline inputs ahead; only wait when the queue is dry.
     if (mode === 'battleOnline' && battle && matchClient) {
-      if (onlineCountdownUntil !== null || isFreezing(fx)) {
+      if (preBattleCountdownUntil !== null || isFreezing(fx)) {
         accum = Math.min(accum, FIXED_DT)
         break
       }
@@ -591,23 +660,21 @@ function frame(ts: number): void {
     }
 
     if (mode === 'battleLocal' && battle && !isFreezing(fx)) {
-      if (battleFrozenUntilRelease) {
-        if (!dualInput.holding[0] && !soloInput.holding) {
-          battleFrozenUntilRelease = false
-        }
-      } else {
-        stepBattle(
-          battle,
-          { holding: [dualInput.holding[0], dualInput.holding[1]] },
-          FIXED_DT,
-        )
-        handleBattleEvents(battle)
-        ui.setBattleHud(
-          battle.players[0].score,
-          battle.players[1].score,
-          'Local',
-        )
+      if (preBattleCountdownUntil !== null) {
+        accum = Math.min(accum, FIXED_DT)
+        break
       }
+      stepBattle(
+        battle,
+        { holding: [dualInput.holding[0], dualInput.holding[1]] },
+        FIXED_DT,
+      )
+      handleBattleEvents(battle)
+      ui.setBattleHud(
+        battle.players[0].score,
+        battle.players[1].score,
+        'Local',
+      )
     }
   }
 
@@ -616,31 +683,93 @@ function frame(ts: number): void {
   }
   const t1 = performance.now()
 
-  if (
-    battle &&
-    (mode === 'battleLocal' ||
-      mode === 'battleOnline' ||
-      mode === 'battleResult' ||
-      ((mode === 'title' || mode === 'matchmaking') &&
-        selectedPlayMode !== 'solo'))
-  ) {
-    drawBattleWorld(ctx, battle, viewW, viewH, fx, {
-      dim:
-        mode === 'battleResult'
-          ? 0.2
-          : mode === 'title' || mode === 'matchmaking'
-            ? TITLE_DIM
-            : onlineCountdownUntil !== null
-              ? 0.18
-              : 0,
-      time: ts * 0.001,
-      viewAs: onlineViewActive ? onlineRole : undefined,
-    })
-  } else {
-    drawWorld(ctx, world, viewW, viewH, fx, {
-      dim: titleDimForMode(mode, fx),
-      time: ts * 0.001,
-    })
+  if (arenaSlide && (mode === 'title' || mode === 'matchmaking')) {
+    const u = easeOrbit((ts - arenaSlide.t0) / arenaSlide.dur)
+    if (u >= 1) {
+      arenaSlide = null
+    } else {
+      const { peekScale, shift } = orbitLayout()
+      const dir = arenaSlide.dir
+      const outX = lerp(0, -dir * shift, u)
+      const outS = lerp(1, peekScale, u)
+      const inX = lerp(dir * shift, 0, u)
+      const inS = lerp(peekScale, 1, u)
+      // Soft handoff to CSS peeks near the end.
+      const outAlpha = u < 0.82 ? 1 : 1 - (u - 0.82) / 0.18
+      const time = ts * 0.001
+      const slideOpts = {
+        dim: 0,
+        time,
+        skipSpace: true,
+        skipDim: true,
+        clipArena: true,
+      } as const
+
+      drawSpace(ctx, viewW, viewH)
+
+      ctx.save()
+      ctx.globalAlpha = outAlpha
+      if (arenaSlide.outBattle) {
+        drawBattleWorld(ctx, arenaSlide.outBattle, viewW, viewH, fx, {
+          ...slideOpts,
+          offsetX: outX,
+          scale: outS,
+        })
+      } else if (arenaSlide.outSolo) {
+        drawWorld(ctx, arenaSlide.outSolo, viewW, viewH, fx, {
+          ...slideOpts,
+          offsetX: outX,
+          scale: outS,
+        })
+      }
+      ctx.restore()
+
+      if (selectedPlayMode !== 'solo' && battle) {
+        drawBattleWorld(ctx, battle, viewW, viewH, fx, {
+          ...slideOpts,
+          offsetX: inX,
+          scale: inS,
+        })
+      } else {
+        drawWorld(ctx, world, viewW, viewH, fx, {
+          ...slideOpts,
+          offsetX: inX,
+          scale: inS,
+        })
+      }
+
+      ctx.fillStyle = `rgba(5, 6, 14, ${TITLE_DIM})`
+      ctx.fillRect(0, 0, viewW, viewH)
+    }
+  }
+
+  if (!arenaSlide) {
+    if (
+      battle &&
+      (mode === 'battleLocal' ||
+        mode === 'battleOnline' ||
+        mode === 'battleResult' ||
+        ((mode === 'title' || mode === 'matchmaking') &&
+          selectedPlayMode !== 'solo'))
+    ) {
+      drawBattleWorld(ctx, battle, viewW, viewH, fx, {
+        dim:
+          mode === 'battleResult'
+            ? 0.2
+            : mode === 'title' || mode === 'matchmaking'
+              ? TITLE_DIM
+              : preBattleCountdownUntil !== null
+                ? 0.18
+                : 0,
+        time: ts * 0.001,
+        viewAs: onlineViewActive ? onlineRole : undefined,
+      })
+    } else {
+      drawWorld(ctx, world, viewW, viewH, fx, {
+        dim: titleDimForMode(mode, fx),
+        time: ts * 0.001,
+      })
+    }
   }
   const t2 = performance.now()
 

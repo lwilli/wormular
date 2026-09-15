@@ -42,6 +42,9 @@ export const BATTLE_START_CLEAR_ARC = Math.PI * 0.55
 /** Ignore restart attempts for this long after death → title. */
 export const TITLE_RESTART_COOLDOWN_MS = 700
 
+/** Pre-match countdown for Local / Online 1v1 (ms). */
+export const PRE_BATTLE_COUNTDOWN_MS = 5000
+
 /** Title overlay canvas dim (also used as the end of the death fade). */
 export const TITLE_DIM = 0.14
 

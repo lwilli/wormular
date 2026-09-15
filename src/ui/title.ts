@@ -1,5 +1,14 @@
 export type PlayMode = 'solo' | 'local' | 'online'
 
+export type PlayModeChangeMeta = {
+  animate: boolean
+  /** +1 = toward Online (next), -1 = toward Solo (prev). */
+  dir: 1 | -1
+}
+
+/** Keep in sync with `--orbit-ms` in `src/style.css`. */
+export const MODE_ORBIT_MS = 420
+
 export type TitleUi = {
   setVisible: (visible: boolean) => void
   setHighScore: (score: number) => void
@@ -20,53 +29,81 @@ export type TitleUi = {
   setStatus: (text: string) => void
   setPlayMode: (mode: PlayMode) => void
   getPlayMode: () => PlayMode
-  onPlayModeChange: (cb: (mode: PlayMode) => void) => void
+  onPlayModeChange: (
+    cb: (mode: PlayMode, meta: PlayModeChangeMeta) => void,
+  ) => void
+  /** Fires when a horizontal swipe is recognized (start should be cancelled). */
+  onCarouselGesture: (cb: () => void) => void
   setBattleHud: (p0: number, p1: number, label?: string) => void
   setResult: (text: string | null) => void
   /** Matchmaking / countdown overlay. Pass null to hide. */
   setMatchBanner: (title: string | null, count?: string | null) => void
 }
 
+const PLAY_MODES: PlayMode[] = ['solo', 'local', 'online']
+
 const MODE_COPY: Record<
   PlayMode,
-  { holdLines: string[]; hint: string }
+  {
+    title: string
+    tagline: string
+    shortLabel: string
+    promptMain: string
+    promptLines: string[]
+  }
 > = {
   solo: {
-    holdLines: ['to move out', 'release to fall in'],
-    hint: 'Hold anywhere to start · thrust out · release to fall in',
+    title: 'SOLO',
+    tagline: 'Survive as long as you can',
+    shortLabel: 'Solo',
+    promptMain: 'Press & Hold',
+    promptLines: ['to move out', 'release to fall in'],
   },
   local: {
-    holdLines: ['to start local 1v1'],
-    hint: 'Hold to start · release · then P0 hold / P1 hold W · first death loses',
+    title: 'LOCAL 1v1',
+    tagline: 'Same device · first death loses',
+    shortLabel: 'Local',
+    promptMain: 'Tap to Start',
+    promptLines: [],
   },
   online: {
-    holdLines: ['to find an opponent'],
-    hint: 'Hold to queue · matched countdown 5…1 · hold through Go to thrust · first death loses',
+    title: 'ONLINE 1v1',
+    tagline: 'Match a stranger · first death loses',
+    shortLabel: 'Online',
+    promptMain: 'Tap to find an opponent',
+    promptLines: [],
   },
 }
 
+const SWIPE_THRESHOLD_PX = 48
+
 export function bindTitleUi(): TitleUi {
   const title = mustHtml('#title')
+  const carousel = mustHtml('#mode-carousel')
+  const modeCaption = mustHtml('.mode-caption')
+  const titleBottom = mustHtml('.title-bottom')
   const highScore = mustHtml('#high-score')
   const sfxToggle = mustHtml('#sfx-toggle') as HTMLButtonElement
   const musicToggle = mustHtml('#music-toggle') as HTMLButtonElement
   const hud = mustHtml('#hud')
   const scoreEl = mustHtml('#score')
+  const nicknameField = mustHtml('#nickname-field')
   const nickname = mustHtml('#nickname') as HTMLInputElement
   const boardList = mustHtml('#leaderboard-list')
   const boardStatus = mustHtml('#leaderboard-status')
   const menu = mustHtml('#menu')
   const status = mustHtml('#menu-status')
-  const hint = mustHtml('#menu-hint')
+  const holdMain = mustHtml('#hold-prompt-main')
   const holdSub = mustHtml('#hold-prompt-sub')
-  const soloBtn = mustHtml('#btn-solo') as HTMLButtonElement
-  const localBtn = mustHtml('#btn-battle-local') as HTMLButtonElement
-  const onlineBtn = mustHtml('#btn-battle-online') as HTMLButtonElement
-  const modeButtons: { mode: PlayMode; btn: HTMLButtonElement }[] = [
-    { mode: 'solo', btn: soloBtn },
-    { mode: 'local', btn: localBtn },
-    { mode: 'online', btn: onlineBtn },
-  ]
+  const modeTitle = mustHtml('#mode-title')
+  const modeTagline = mustHtml('#mode-tagline')
+  const panelSolo = mustHtml('#panel-solo')
+  const panelLocal = mustHtml('#panel-local')
+  const panelOnline = mustHtml('#panel-online')
+  const peekPrev = mustHtml('#mode-peek-prev') as HTMLButtonElement
+  const peekNext = mustHtml('#mode-peek-next') as HTMLButtonElement
+  const peekPrevLabel = mustHtml('#mode-peek-prev-label')
+  const peekNextLabel = mustHtml('#mode-peek-next-label')
   const battleHud = mustHtml('#battle-hud')
   const battleP0 = mustHtml('#battle-p0')
   const battleP1 = mustHtml('#battle-p1')
@@ -77,38 +114,230 @@ export function bindTitleUi(): TitleUi {
   const matchBannerCount = mustHtml('#match-banner-count')
 
   let playMode: PlayMode = 'solo'
-  const modeListeners: Array<(mode: PlayMode) => void> = []
+  let menuVisible = true
+  let transitioning = false
+  let finishTimer = 0
+  const modeListeners: Array<(mode: PlayMode, meta: PlayModeChangeMeta) => void> =
+    []
+  const gestureListeners: Array<() => void> = []
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
 
-  function applyPlayMode(mode: PlayMode): void {
+  function modeIndex(mode: PlayMode): number {
+    return PLAY_MODES.indexOf(mode)
+  }
+
+  function wrapIndex(i: number): number {
+    const n = PLAY_MODES.length
+    return ((i % n) + n) % n
+  }
+
+  /** Always returns a neighbor — carousel wraps. */
+  function neighbor(delta: -1 | 1): PlayMode {
+    return PLAY_MODES[wrapIndex(modeIndex(playMode) + delta)]!
+  }
+
+  /** Shortest wrap direction from → to (−1 prev, +1 next). */
+  function shortestDir(from: PlayMode, to: PlayMode): 1 | -1 {
+    const a = modeIndex(from)
+    const b = modeIndex(to)
+    const n = PLAY_MODES.length
+    const forward = (b - a + n) % n
+    const backward = (a - b + n) % n
+    if (forward === 0) return 1
+    return forward <= backward ? 1 : -1
+  }
+
+  function clearModeAnimClasses(): void {
+    modeCaption.classList.remove(
+      'mode-anim-out-left',
+      'mode-anim-out-right',
+      'mode-anim-in-left',
+      'mode-anim-in-right',
+    )
+    titleBottom.classList.remove(
+      'mode-anim-out-left',
+      'mode-anim-out-right',
+      'mode-anim-in-left',
+      'mode-anim-in-right',
+    )
+    holdSub.classList.remove('mode-anim-fade-out', 'mode-anim-fade-in')
+    carousel.classList.remove('is-sliding-next', 'is-sliding-prev')
+  }
+
+  function applyPeekChrome(): void {
+    const prev = neighbor(-1)
+    const next = neighbor(1)
+    peekPrev.hidden = false
+    peekNext.hidden = false
+    peekPrev.disabled = transitioning
+    peekNext.disabled = transitioning
+    peekPrevLabel.textContent = MODE_COPY[prev].shortLabel
+    peekNextLabel.textContent = MODE_COPY[next].shortLabel
+    peekPrev.setAttribute('aria-label', MODE_COPY[prev].title)
+    peekNext.setAttribute('aria-label', MODE_COPY[next].title)
+  }
+
+  function applyPlayMode(mode: PlayMode, opts?: { peeks?: boolean }): void {
     playMode = mode
-    for (const { mode: m, btn } of modeButtons) {
-      const selected = m === mode
-      btn.classList.toggle('is-selected', selected)
-      btn.setAttribute('aria-selected', selected ? 'true' : 'false')
-    }
     const copy = MODE_COPY[mode]
+    modeTitle.textContent = copy.title
+    modeTagline.textContent = copy.tagline
+    holdMain.textContent = copy.promptMain
     holdSub.replaceChildren(
-      ...copy.holdLines.map((line) => {
+      ...copy.promptLines.map((line) => {
         const span = document.createElement('span')
         span.textContent = line
         return span
       }),
     )
-    hint.textContent = copy.hint
+    holdSub.hidden = copy.promptLines.length === 0
+
+    panelSolo.hidden = mode !== 'solo'
+    panelLocal.hidden = mode !== 'local'
+    panelOnline.hidden = mode !== 'online'
+    nicknameField.hidden = mode === 'local'
+
+    title.dataset.playMode = mode
+    if (opts?.peeks !== false) applyPeekChrome()
+  }
+
+  function commitMode(
+    mode: PlayMode,
+    meta: PlayModeChangeMeta,
+    opts?: { peeks?: boolean },
+  ): void {
+    applyPlayMode(mode, opts)
+    for (const cb of modeListeners) cb(mode, meta)
+  }
+
+  function selectMode(
+    mode: PlayMode,
+    opts?: { animate?: boolean; dir?: 1 | -1 },
+  ): void {
+    if (playMode === mode || transitioning) return
+    const animate = opts?.animate !== false && !reduceMotion.matches
+    const dir: 1 | -1 = opts?.dir ?? shortestDir(playMode, mode)
+
+    if (!animate) {
+      window.clearTimeout(finishTimer)
+      clearModeAnimClasses()
+      transitioning = false
+      commitMode(mode, { animate: false, dir })
+      return
+    }
+
+    transitioning = true
+    window.clearTimeout(finishTimer)
+    clearModeAnimClasses()
+
+    peekPrev.hidden = false
+    peekNext.hidden = false
+    peekPrev.disabled = true
+    peekNext.disabled = true
+
+    // Commit immediately so main can render both arenas sliding live.
+    carousel.classList.add(dir > 0 ? 'is-sliding-next' : 'is-sliding-prev')
+    commitMode(mode, { animate: true, dir }, { peeks: false })
+    modeCaption.classList.add(dir > 0 ? 'mode-anim-in-right' : 'mode-anim-in-left')
+    titleBottom.classList.add(dir > 0 ? 'mode-anim-in-right' : 'mode-anim-in-left')
+    holdSub.classList.add('mode-anim-fade-in')
+
+    finishTimer = window.setTimeout(() => {
+      clearModeAnimClasses()
+      transitioning = false
+      applyPeekChrome()
+    }, MODE_ORBIT_MS)
+  }
+
+  function stepMode(delta: -1 | 1): void {
+    selectMode(neighbor(delta), { dir: delta })
   }
 
   // Default until main restores the sticky selection via setPlayMode.
   applyPlayMode('solo')
 
-  for (const { mode, btn } of modeButtons) {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-      if (playMode === mode) return
-      applyPlayMode(mode)
-      for (const cb of modeListeners) cb(mode)
-    })
+  peekPrev.addEventListener('click', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    stepMode(-1)
+  })
+  peekNext.addEventListener('click', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    stepMode(1)
+  })
+
+  // Horizontal swipe on the title surface switches modes without starting.
+  let swipePointerId: number | null = null
+  let swipeStartX = 0
+  let swipeStartY = 0
+  let swipeArmed = false
+  let swipeConsumed = false
+
+  function isChromeTarget(t: EventTarget | null): boolean {
+    if (!(t instanceof Element)) return false
+    return Boolean(
+      t.closest(
+        'button, input, label, a, .menu, .orbit-disk, .audio-toggles, .nickname-field',
+      ),
+    )
   }
+
+  function notifyCarouselGesture(): void {
+    for (const cb of gestureListeners) cb()
+  }
+
+  function onPointerDown(e: PointerEvent): void {
+    if (!menuVisible || title.hidden) return
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    if (isChromeTarget(e.target)) return
+    swipePointerId = e.pointerId
+    swipeStartX = e.clientX
+    swipeStartY = e.clientY
+    swipeArmed = true
+    swipeConsumed = false
+  }
+
+  function onPointerMove(e: PointerEvent): void {
+    if (!swipeArmed || e.pointerId !== swipePointerId || swipeConsumed) return
+    const dx = e.clientX - swipeStartX
+    const dy = e.clientY - swipeStartY
+    if (Math.abs(dx) < SWIPE_THRESHOLD_PX) return
+    if (Math.abs(dx) < Math.abs(dy) * 1.15) return
+    swipeConsumed = true
+    swipeArmed = false
+    // Always cancel start — even when already at the first/last mode.
+    notifyCarouselGesture()
+    stepMode(dx < 0 ? 1 : -1)
+  }
+
+  function onPointerUp(e: PointerEvent): void {
+    if (e.pointerId !== swipePointerId) return
+    swipePointerId = null
+    swipeArmed = false
+  }
+
+  window.addEventListener('pointerdown', onPointerDown, { capture: true })
+  window.addEventListener('pointermove', onPointerMove, { capture: true })
+  window.addEventListener('pointerup', onPointerUp, { capture: true })
+  window.addEventListener('pointercancel', onPointerUp, { capture: true })
+
+  window.addEventListener('keydown', (e) => {
+    if (!menuVisible || title.hidden) return
+    if (
+      document.activeElement instanceof HTMLInputElement ||
+      document.activeElement instanceof HTMLTextAreaElement
+    ) {
+      return
+    }
+    if (e.code === 'ArrowLeft') {
+      e.preventDefault()
+      stepMode(-1)
+    } else if (e.code === 'ArrowRight') {
+      e.preventDefault()
+      stepMode(1)
+    }
+  })
 
   return {
     setVisible(visible) {
@@ -187,13 +416,20 @@ export function bindTitleUi(): TitleUi {
         statusText ?? (rows.length ? '' : 'No scores yet')
     },
     setMenuVisible(visible) {
+      menuVisible = visible
       menu.hidden = !visible
+      title.classList.toggle('is-menu-hidden', !visible)
     },
     setStatus(text) {
       status.textContent = text
       status.hidden = !text
+      panelOnline.classList.toggle('has-status', Boolean(text))
     },
     setPlayMode(mode) {
+      // Instant — used for sticky restore / death return, not user carousel.
+      window.clearTimeout(finishTimer)
+      clearModeAnimClasses()
+      transitioning = false
       applyPlayMode(mode)
     },
     getPlayMode() {
@@ -201,6 +437,9 @@ export function bindTitleUi(): TitleUi {
     },
     onPlayModeChange(cb) {
       modeListeners.push(cb)
+    },
+    onCarouselGesture(cb) {
+      gestureListeners.push(cb)
     },
     setBattleHud(p0, p1, label) {
       battleHud.hidden = false

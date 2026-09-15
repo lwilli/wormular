@@ -84,73 +84,91 @@
             height="238"
             decoding="async"
           />
-          <div id="high-score" class="high-score">High Score: 0</div>
+        </div>
+        <div class="mode-caption">
+          <div id="mode-title" class="mode-title">Solo</div>
+          <div id="mode-tagline" class="mode-tagline">
+            Survive as long as you can
+          </div>
+        </div>
+        <div
+          id="mode-carousel"
+          class="mode-carousel"
+          aria-roledescription="carousel"
+          aria-label="Game mode"
+        >
+          <button
+            id="mode-peek-prev"
+            class="orbit-disk orbit-prev"
+            type="button"
+            aria-label="Previous mode"
+          >
+            <span class="orbit-face" aria-hidden="true"></span>
+            <span id="mode-peek-prev-label" class="orbit-label"></span>
+          </button>
+          <div class="orbit-disk orbit-current" aria-hidden="true">
+            <span class="orbit-face"></span>
+          </div>
+          <button
+            id="mode-peek-next"
+            class="orbit-disk orbit-next"
+            type="button"
+            aria-label="Next mode"
+          >
+            <span class="orbit-face" aria-hidden="true"></span>
+            <span id="mode-peek-next-label" class="orbit-label"></span>
+          </button>
         </div>
         <div class="hold-prompt" role="status">
-          <div class="hold-prompt-main">Press &amp; Hold</div>
+          <div id="hold-prompt-main" class="hold-prompt-main">Press &amp; Hold</div>
           <div id="hold-prompt-sub" class="hold-prompt-sub">
             <span>to move out</span>
             <span>release to fall in</span>
           </div>
         </div>
-        <div id="menu" class="menu">
-          <label class="nickname-field">
-            <span>Name</span>
-            <input
-              id="nickname"
-              class="nickname-input"
-              type="text"
-              maxlength="12"
-              minlength="3"
-              autocomplete="nickname"
-              placeholder="Player"
-              spellcheck="false"
-            />
-          </label>
-          <div
-            class="menu-actions"
-            role="tablist"
-            aria-label="Game mode"
-          >
-            <button
-              id="btn-solo"
-              class="menu-btn is-selected"
-              type="button"
-              role="tab"
-              aria-selected="true"
-              data-mode="solo"
-            >
-              Solo
-            </button>
-            <button
-              id="btn-battle-local"
-              class="menu-btn"
-              type="button"
-              role="tab"
-              aria-selected="false"
-              data-mode="local"
-            >
-              Local 1v1
-            </button>
-            <button
-              id="btn-battle-online"
-              class="menu-btn"
-              type="button"
-              role="tab"
-              aria-selected="false"
-              data-mode="online"
-            >
-              Online 1v1
-            </button>
-          </div>
-          <p id="menu-status" class="menu-status" hidden></p>
-          <p id="menu-hint" class="menu-hint">
-            Hold anywhere to start · thrust out · release to fall in
-          </p>
-          <div class="leaderboard">
-            <div class="leaderboard-title">Global Leaderboard</div>
-            <ol id="leaderboard-list" class="leaderboard-list"></ol>
-            <div id="leaderboard-status" class="leaderboard-status">Loading…</div>
+        <div class="title-bottom">
+          <div id="menu" class="menu">
+            <p id="menu-status" class="menu-status" hidden></p>
+            <label id="nickname-field" class="nickname-field">
+              <span>Name</span>
+              <input
+                id="nickname"
+                class="nickname-input"
+                type="text"
+                maxlength="12"
+                minlength="3"
+                autocomplete="nickname"
+                placeholder="Player"
+                spellcheck="false"
+              />
+            </label>
+            <div id="panel-solo" class="mode-panel">
+              <div id="high-score" class="high-score">High Score: 0</div>
+              <div class="leaderboard">
+                <div class="leaderboard-title">Global Leaderboard</div>
+                <ol id="leaderboard-list" class="leaderboard-list"></ol>
+                <div id="leaderboard-status" class="leaderboard-status">
+                  Loading…
+                </div>
+              </div>
+            </div>
+            <div id="panel-local" class="mode-panel" hidden>
+              <div class="mode-brief">
+                <div class="mode-brief-row">
+                  <span class="mode-brief-p0">P0</span>
+                  <span>hold anywhere</span>
+                </div>
+                <div class="mode-brief-row">
+                  <span class="mode-brief-p1">P1</span>
+                  <span>hold W</span>
+                </div>
+              </div>
+            </div>
+            <div id="panel-online" class="mode-panel" hidden>
+              <div class="mode-brief">
+                <p class="mode-brief-ready">Ready to queue</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
