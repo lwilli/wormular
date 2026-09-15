@@ -29,6 +29,35 @@ export type SubmitScoreResponse = {
   rank: number | null
 }
 
+/** Cookieless aggregate counters (`POST /visit`, `POST /play`, `GET /stats`). */
+export type PlayModeStat = 'solo' | 'local' | 'online' | 'online_queue'
+
+export const PLAY_MODE_STATS: readonly PlayModeStat[] = [
+  'solo',
+  'local',
+  'online',
+  'online_queue',
+]
+
+export type VisitResponse = {
+  ok: true
+}
+
+export type PlayResponse = {
+  ok: true
+}
+
+export type StatsResponse = {
+  visits: number
+  plays: {
+    solo: number
+    local: number
+    online: number
+    /** Times a player entered the online waiting/queue state. */
+    online_queue: number
+  }
+}
+
 /** Client → room */
 export type ClientMsg =
   | { type: 'hello'; name: string }

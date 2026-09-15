@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Local stand-in for the Cloudflare Worker (scores + lockstep matchmaking).
+ * Local stand-in for the Cloudflare Worker (scores + lockstep matchmaking + visit/play counters).
  * Run: node scripts/dev-api.mjs
  * Vite proxies /api/* here during npm run dev.
  */
@@ -33,6 +33,15 @@ const recentPosts = new Map()
 /** @type {{ id: number, name: string, score: number, createdAt: string, platform?: string }[]} */
 const scores = []
 let nextId = 1
+let visits = 0
+/** @type {{ solo: number, local: number, online: number }} */
+const plays = { solo: 0, local: 0, online: 0, online_queue: 0 }
+const VISIT_RATE_MS = 2_000
+const PLAY_RATE_MS = 1_000
+/** @type {Map<string, number>} */
+const recentVisits = new Map()
+/** @type {Map<string, number>} */
+const recentPlays = new Map()
 
 /** @typedef {{ ws: import('ws').WebSocket, name: string, role: 0|1, inputs: Map<number, boolean> }} Seat */
 /** @typedef {{ seats: [Seat, Seat], nextTick: number, finished: boolean }} Match */
@@ -188,6 +197,45 @@ const server = http.createServer(async (req, res) => {
     )
     const rank = scores.filter((s) => s.score > score).length + 1
     json(req, res, 200, { ok: true, best, rank })
+    return
+  }
+
+  if (path === '/visit' && req.method === 'POST') {
+    const ip = req.socket.remoteAddress || 'local'
+    const now = Date.now()
+    if (now - (recentVisits.get(ip) || 0) >= VISIT_RATE_MS) {
+      recentVisits.set(ip, now)
+      visits += 1
+    }
+    json(req, res, 200, { ok: true })
+    return
+  }
+
+  if (path === '/play' && req.method === 'POST') {
+    const urlObj = new URL(req.url || '/', `http://127.0.0.1:${PORT}`)
+    const mode = urlObj.searchParams.get('mode')
+    if (
+      mode !== 'solo' &&
+      mode !== 'local' &&
+      mode !== 'online' &&
+      mode !== 'online_queue'
+    ) {
+      json(req, res, 400, { error: 'invalid mode' })
+      return
+    }
+    const ip = req.socket.remoteAddress || 'local'
+    const now = Date.now()
+    const rateKey = `${ip}:${mode}`
+    if (now - (recentPlays.get(rateKey) || 0) >= PLAY_RATE_MS) {
+      recentPlays.set(rateKey, now)
+      plays[mode] += 1
+    }
+    json(req, res, 200, { ok: true })
+    return
+  }
+
+  if (path === '/stats' && req.method === 'GET') {
+    json(req, res, 200, { visits, plays })
     return
   }
 

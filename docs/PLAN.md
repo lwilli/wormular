@@ -202,6 +202,7 @@ If it takes more than a day or starts looking like a particle editor, it is too 
 8. **Store** — screenshots, Game Center later (not v1). Web + iOS app icons already ship from the title W.
 9. **Global leaderboard** — Cloudflare Worker + D1; nickname submit on death; title-screen top N. Soft trust client scores. **Done:** Worker + remote D1; Pages builds bake `VITE_API_URL`; local mirror via `npm run dev:all`. Deploy runbook in [README.md](../README.md#production-leaderboard--online-pvp). ADR: [adr/0002-leaderboard-and-pvp.md](adr/0002-leaderboard-and-pvp.md).
 10. **1v1 battle** — dual-worm sim (opposite starts, 2 apples, first death loses); local split-input; online lockstep via Durable Objects. **Done:** local + online; `MatchRoom` DO; finish-before-close; view mirror; match countdown; input pipelining.
+11. **Visit + play counters** — cookieless first-party `POST /visit`, `POST /play?mode=…`, `GET /stats` on the same Worker/D1 (aggregate visits + solo/local/online plays + online queue entries). **Done:** ADR [adr/0003-cookieless-visit-analytics.md](adr/0003-cookieless-visit-analytics.md).
 
 ## Quality bar (what “done” means)
 
@@ -213,4 +214,4 @@ If it takes more than a day or starts looking like a particle editor, it is too 
 
 ## Explicit non-goals (v1)
 
-Historical v1 non-goals (many now shipped): juice/SFX, particle engine, audio files, power-ups, physics engine, React, full account systems, asset pipeline, Unity. **Multiplayer and a global leaderboard are now in scope** (see phases 9–10 and ADR 0002). Still non-goals: heavy auth/OAuth, ranked ELO, authoritative physics server, Unity.
+Historical v1 non-goals (many now shipped): juice/SFX, particle engine, audio files, power-ups, physics engine, React, full account systems, asset pipeline, Unity. **Multiplayer and a global leaderboard are now in scope** (see phases 9–10 and ADR 0002). Still non-goals: heavy auth/OAuth, ranked ELO, authoritative physics server, Unity, third-party cookie analytics / consent banners (see ADR 0003 for the first-party visit + play counters).

@@ -28,6 +28,7 @@ import { createDualHoldInput } from './input/dualHold'
 import { createHoldInput } from './input/hold'
 import { connectMatch, type MatchClient } from './net/matchClient'
 import { createAudio } from './platform/audio'
+import { trackPlay, trackVisit } from './platform/analytics'
 import { fetchLeaderboard, submitScore } from './platform/leaderboard'
 import {
   initNickname,
@@ -76,6 +77,8 @@ const boot: BootState = ((globalThis as unknown as { __wormularBoot?: BootState 
 boot.gen += 1
 const myGen = boot.gen
 let rafId = 0
+
+trackVisit()
 
 const canvasEl = document.querySelector('#game')
 if (!(canvasEl instanceof HTMLCanvasElement)) {
@@ -352,6 +355,7 @@ function requestStart(): void {
 }
 
 function startSolo(): void {
+  trackPlay('solo')
   mode = 'playing'
   battle = null
   clearFx(fx)
@@ -366,6 +370,7 @@ function startSolo(): void {
 }
 
 function startBattleLocal(): void {
+  trackPlay('local')
   mode = 'battleLocal'
   onlineViewActive = false
   // Reuse the paused title battle so layout does not pop on start.
@@ -401,8 +406,12 @@ function startMatchmaking(): void {
   const name = saveNickname(ui.getNickname()) ?? 'Player'
   onlinePlayerName = name
   matchClient = connectMatch(name, {
-    onQueued: () => ui.setMatchStatus('waiting'),
+    onQueued: () => {
+      trackPlay('online_queue')
+      ui.setMatchStatus('waiting')
+    },
     onStart: ({ seed, you, opponentName }) => {
+      trackPlay('online')
       onlineRole = you
       onlineOpponentName = opponentName
       onlineViewActive = true

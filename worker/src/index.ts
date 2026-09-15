@@ -1,10 +1,15 @@
 import { MatchRoom } from './match-room'
 import {
   LEADERBOARD_LIMIT,
+  PLAY_MODE_STATS,
   clampScore,
   sanitizeName,
+  type PlayModeStat,
+  type PlayResponse,
   type ScoresResponse,
+  type StatsResponse,
   type SubmitScoreResponse,
+  type VisitResponse,
 } from '../../shared/protocol'
 
 export { MatchRoom }
@@ -16,7 +21,11 @@ export interface Env {
 }
 
 const RATE_MS = 3_000
+const VISIT_RATE_MS = 2_000
+const PLAY_RATE_MS = 1_000
 const recentPosts = new Map<string, number>()
+const recentVisits = new Map<string, number>()
+const recentPlays = new Map<string, number>()
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -39,6 +48,18 @@ export default {
 
       if (url.pathname === '/scores' && request.method === 'POST') {
         return await postScore(request, env, cors)
+      }
+
+      if (url.pathname === '/visit' && request.method === 'POST') {
+        return await postVisit(request, env, cors)
+      }
+
+      if (url.pathname === '/play' && request.method === 'POST') {
+        return await postPlay(request, env, url, cors)
+      }
+
+      if (url.pathname === '/stats' && request.method === 'GET') {
+        return await getStats(env, cors)
       }
 
       if (
@@ -146,6 +167,92 @@ async function postScore(
     rank: rankRow?.rank != null ? Number(rankRow.rank) : null,
   }
   return json(response, cors)
+}
+
+/** Cookieless page-view ping: increments an aggregate counter only. No cookies, IPs, or user rows stored. */
+async function postVisit(
+  request: Request,
+  env: Env,
+  cors: HeadersInit,
+): Promise<Response> {
+  const ip =
+    request.headers.get('CF-Connecting-IP') ??
+    request.headers.get('X-Forwarded-For') ??
+    'unknown'
+  const now = Date.now()
+  if (now - (recentVisits.get(ip) ?? 0) < VISIT_RATE_MS) {
+    const body: VisitResponse = { ok: true }
+    return json(body, cors)
+  }
+  recentVisits.set(ip, now)
+
+  await env.DB.prepare(
+    `INSERT INTO counters (name, value) VALUES ('visits', 1)
+     ON CONFLICT(name) DO UPDATE SET value = value + 1`,
+  ).run()
+
+  const body: VisitResponse = { ok: true }
+  return json(body, cors)
+}
+
+/** Cookieless mode-play ping: increments plays_solo / plays_local / plays_online / plays_online_queue. */
+async function postPlay(
+  request: Request,
+  env: Env,
+  url: URL,
+  cors: HeadersInit,
+): Promise<Response> {
+  const modeRaw = url.searchParams.get('mode')
+  if (!PLAY_MODE_STATS.includes(modeRaw as PlayModeStat)) {
+    return json({ error: 'invalid mode' }, cors, 400)
+  }
+  const mode = modeRaw as PlayModeStat
+  const counter = `plays_${mode}`
+
+  const ip =
+    request.headers.get('CF-Connecting-IP') ??
+    request.headers.get('X-Forwarded-For') ??
+    'unknown'
+  const now = Date.now()
+  const rateKey = `${ip}:${mode}`
+  if (now - (recentPlays.get(rateKey) ?? 0) < PLAY_RATE_MS) {
+    const body: PlayResponse = { ok: true }
+    return json(body, cors)
+  }
+  recentPlays.set(rateKey, now)
+
+  await env.DB.prepare(
+    `INSERT INTO counters (name, value) VALUES (?, 1)
+     ON CONFLICT(name) DO UPDATE SET value = value + 1`,
+  )
+    .bind(counter)
+    .run()
+
+  const body: PlayResponse = { ok: true }
+  return json(body, cors)
+}
+
+async function getStats(env: Env, cors: HeadersInit): Promise<Response> {
+  const { results } = await env.DB.prepare(
+    `SELECT name, value FROM counters
+     WHERE name IN ('visits', 'plays_solo', 'plays_local', 'plays_online', 'plays_online_queue')`,
+  ).all<{ name: string; value: number }>()
+
+  const map = new Map<string, number>()
+  for (const row of results ?? []) {
+    map.set(String(row.name), Number(row.value ?? 0))
+  }
+
+  const body: StatsResponse = {
+    visits: map.get('visits') ?? 0,
+    plays: {
+      solo: map.get('plays_solo') ?? 0,
+      local: map.get('plays_local') ?? 0,
+      online: map.get('plays_online') ?? 0,
+      online_queue: map.get('plays_online_queue') ?? 0,
+    },
+  }
+  return json(body, cors)
 }
 
 function corsHeaders(origin: string | null, allowedCsv: string): HeadersInit {
