@@ -27,6 +27,7 @@ import { createDualHoldInput } from './input/dualHold'
 import { createHoldInput } from './input/hold'
 import { connectMatch, type MatchClient } from './net/matchClient'
 import { createAudio } from './platform/audio'
+import { trackVisit } from './platform/analytics'
 import { fetchLeaderboard, submitScore } from './platform/leaderboard'
 import {
   initNickname,
@@ -74,6 +75,8 @@ const boot: BootState = ((globalThis as unknown as { __wormularBoot?: BootState 
 boot.gen += 1
 const myGen = boot.gen
 let rafId = 0
+
+trackVisit()
 
 const canvasEl = document.querySelector('#game')
 if (!(canvasEl instanceof HTMLCanvasElement)) {

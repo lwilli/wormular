@@ -29,6 +29,15 @@ export type SubmitScoreResponse = {
   rank: number | null
 }
 
+/** Cookieless aggregate visit counter (`POST /visit`, `GET /stats`). */
+export type VisitResponse = {
+  ok: true
+}
+
+export type StatsResponse = {
+  visits: number
+}
+
 /** Client → room */
 export type ClientMsg =
   | { type: 'hello'; name: string }

@@ -4,7 +4,9 @@ import {
   clampScore,
   sanitizeName,
   type ScoresResponse,
+  type StatsResponse,
   type SubmitScoreResponse,
+  type VisitResponse,
 } from '../../shared/protocol'
 
 export { MatchRoom }
@@ -16,7 +18,9 @@ export interface Env {
 }
 
 const RATE_MS = 3_000
+const VISIT_RATE_MS = 2_000
 const recentPosts = new Map<string, number>()
+const recentVisits = new Map<string, number>()
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -39,6 +43,14 @@ export default {
 
       if (url.pathname === '/scores' && request.method === 'POST') {
         return await postScore(request, env, cors)
+      }
+
+      if (url.pathname === '/visit' && request.method === 'POST') {
+        return await postVisit(request, env, cors)
+      }
+
+      if (url.pathname === '/stats' && request.method === 'GET') {
+        return await getStats(env, cors)
       }
 
       if (
@@ -146,6 +158,43 @@ async function postScore(
     rank: rankRow?.rank != null ? Number(rankRow.rank) : null,
   }
   return json(response, cors)
+}
+
+/** Cookieless page-view ping: increments an aggregate counter only. No cookies, IPs, or user rows stored. */
+async function postVisit(
+  request: Request,
+  env: Env,
+  cors: HeadersInit,
+): Promise<Response> {
+  const ip =
+    request.headers.get('CF-Connecting-IP') ??
+    request.headers.get('X-Forwarded-For') ??
+    'unknown'
+  const now = Date.now()
+  if (now - (recentVisits.get(ip) ?? 0) < VISIT_RATE_MS) {
+    const body: VisitResponse = { ok: true }
+    return json(body, cors)
+  }
+  recentVisits.set(ip, now)
+
+  await env.DB.prepare(
+    `INSERT INTO counters (name, value) VALUES ('visits', 1)
+     ON CONFLICT(name) DO UPDATE SET value = value + 1`,
+  ).run()
+
+  const body: VisitResponse = { ok: true }
+  return json(body, cors)
+}
+
+async function getStats(env: Env, cors: HeadersInit): Promise<Response> {
+  const row = await env.DB.prepare(
+    `SELECT value FROM counters WHERE name = 'visits'`,
+  ).first<{ value: number }>()
+
+  const body: StatsResponse = {
+    visits: Number(row?.value ?? 0),
+  }
+  return json(body, cors)
 }
 
 function corsHeaders(origin: string | null, allowedCsv: string): HeadersInit {

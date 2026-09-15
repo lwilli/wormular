@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Local stand-in for the Cloudflare Worker (scores + lockstep matchmaking).
+ * Local stand-in for the Cloudflare Worker (scores + lockstep matchmaking + visit counter).
  * Run: node scripts/dev-api.mjs
  * Vite proxies /api/* here during npm run dev.
  */
@@ -33,6 +33,10 @@ const recentPosts = new Map()
 /** @type {{ id: number, name: string, score: number, createdAt: string, platform?: string }[]} */
 const scores = []
 let nextId = 1
+let visits = 0
+const VISIT_RATE_MS = 2_000
+/** @type {Map<string, number>} */
+const recentVisits = new Map()
 
 /** @typedef {{ ws: import('ws').WebSocket, name: string, role: 0|1, inputs: Map<number, boolean> }} Seat */
 /** @typedef {{ seats: [Seat, Seat], nextTick: number, finished: boolean }} Match */
@@ -188,6 +192,22 @@ const server = http.createServer(async (req, res) => {
     )
     const rank = scores.filter((s) => s.score > score).length + 1
     json(req, res, 200, { ok: true, best, rank })
+    return
+  }
+
+  if (path === '/visit' && req.method === 'POST') {
+    const ip = req.socket.remoteAddress || 'local'
+    const now = Date.now()
+    if (now - (recentVisits.get(ip) || 0) >= VISIT_RATE_MS) {
+      recentVisits.set(ip, now)
+      visits += 1
+    }
+    json(req, res, 200, { ok: true })
+    return
+  }
+
+  if (path === '/stats' && req.method === 'GET') {
+    json(req, res, 200, { visits })
     return
   }
 
