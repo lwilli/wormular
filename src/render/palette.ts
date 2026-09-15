@@ -22,6 +22,11 @@ export const PALETTE = {
   wormGlow: 'rgba(255, 122, 24, 0.28)',
   wormFlash: '#fff3e0',
   wormWarn: 'rgba(255, 80, 40, 0.4)',
+  /** P1 (local/online) accent — teal, distinct from orange P0. */
+  worm2Fill: '#2ec4b6',
+  worm2Gloss: '#8ef0e0',
+  worm2Outline: '#0a5c55',
+  worm2Glow: 'rgba(46, 196, 182, 0.28)',
   hazard: '#6e5a48',
   hazardShade: '#3a2e28',
   hazardRim: '#d4b08a',

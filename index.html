@@ -18,6 +18,18 @@
       <div id="hud" class="hud" hidden>
         <div id="score" class="score">0</div>
       </div>
+      <div id="battle-hud" class="battle-hud" hidden>
+        <div class="battle-scores">
+          <span id="battle-p0" class="battle-p0">0</span>
+          <span id="battle-label" class="battle-label">Battle</span>
+          <span id="battle-p1" class="battle-p1">0</span>
+        </div>
+      </div>
+      <div id="result" class="result" hidden></div>
+      <div id="match-banner" class="match-banner" hidden>
+        <div id="match-banner-title" class="match-banner-title"></div>
+        <div id="match-banner-count" class="match-banner-count"></div>
+      </div>
       <div id="title" class="overlay is-shown">
         <div class="audio-toggles">
           <button
@@ -76,9 +88,69 @@
         </div>
         <div class="hold-prompt" role="status">
           <div class="hold-prompt-main">Press &amp; Hold</div>
-          <div class="hold-prompt-sub">
+          <div id="hold-prompt-sub" class="hold-prompt-sub">
             <span>to move out</span>
             <span>release to fall in</span>
+          </div>
+        </div>
+        <div id="menu" class="menu">
+          <label class="nickname-field">
+            <span>Name</span>
+            <input
+              id="nickname"
+              class="nickname-input"
+              type="text"
+              maxlength="12"
+              minlength="3"
+              autocomplete="nickname"
+              placeholder="Player"
+              spellcheck="false"
+            />
+          </label>
+          <div
+            class="menu-actions"
+            role="tablist"
+            aria-label="Game mode"
+          >
+            <button
+              id="btn-solo"
+              class="menu-btn is-selected"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              data-mode="solo"
+            >
+              Solo
+            </button>
+            <button
+              id="btn-battle-local"
+              class="menu-btn"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-mode="local"
+            >
+              Local 1v1
+            </button>
+            <button
+              id="btn-battle-online"
+              class="menu-btn"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-mode="online"
+            >
+              Online 1v1
+            </button>
+          </div>
+          <p id="menu-status" class="menu-status" hidden></p>
+          <p id="menu-hint" class="menu-hint">
+            Hold anywhere to start · thrust out · release to fall in
+          </p>
+          <div class="leaderboard">
+            <div class="leaderboard-title">Global Leaderboard</div>
+            <ol id="leaderboard-list" class="leaderboard-list"></ol>
+            <div id="leaderboard-status" class="leaderboard-status">Loading…</div>
           </div>
         </div>
       </div>

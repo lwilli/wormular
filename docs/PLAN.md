@@ -9,7 +9,7 @@ Wormular is a one-tap arcade mashup of Snake and the gravity helicopter game, pl
 - The worm always crawls **tangentially** around the center (automatic “forward”).
 - **Hold** thrusts **outward**. **Release** lets gravity pull **inward**.
 - Eat apples to grow. Hit rocks, the center rock, the outer wall, or yourself and the run ends.
-- Title screen is the **paused starting arena** (same rocks, worm, apple as the run) with high score + a Press & Hold prompt. First hold starts that world. Death returns to a fresh paused arena.
+- Title screen is the **paused starting arena** (same rocks, worm, apple as the run) with high score, mode tabs (Solo / Local 1v1 / Online 1v1), contextual hints, and a Press & Hold prompt. Mode tabs only select; first hold starts the selected mode. Death returns to a fresh paused arena with the last mode still selected.
 
 The skill loop is helicopter-style rhythm tapping to hold a radius, plus snake-style growth that makes the annulus harder to fly in.
 
@@ -94,7 +94,7 @@ Constant *linear* speed means the worm does not become a blur at the rim. The ce
 
 **Spawn:** one apple at a time in the annulus, not on the worm or rocks. Start with a few rocks plus the center rock. Rocks never spawn in the ~180° arc ahead of the worm’s heading. After eats 1–2 always add a rock (if under cap); from score 3 onward each apple has a chance, but never more than 3 points without another rock. Never spawn inside the worm’s current polyline.
 
-**Score:** apples eaten this run. High score is max of local best.
+**Score:** apples eaten this run. High score is max of local best; optional global leaderboard submit after death.
 
 Starting constants (v1 baseline):
 
@@ -134,7 +134,7 @@ UI type: **Fredoka** (via `@fontsource/fredoka`) with system-ui fallback. Title 
 
 ## Screens and input
 
-**Title:** full-bleed **paused** play arena so the player can find the worm and rocks before time starts. Overlay: logo + high score (top), **Press & Hold** (center, over the core; not a click target). Hold anywhere (or Space / ↑) to unpause; that first hold is already thrust. After death, a new paused world appears behind the same overlay.
+**Title:** full-bleed **paused** play arena so the player can find the worm and rocks before time starts. Overlay: logo + high score (top), **Press & Hold** (center, over the core; not a click target), mode tabs + nickname/leaderboard (bottom). Tabs select the mode and swap the hold/hint copy; they do not start a run. Solo shows the solo start pose; Local/Online 1v1 show both worms opposite at equal radius (local reuses that layout on start). Hold anywhere (or Space / ↑) to start the selected mode. After death, a new paused world appears behind the same overlay with the mode selection preserved.
 
 **Playing:** no HUD except a small current score. Finger/click anywhere is thrust. On death in v1: write high score if needed and return to the title overlay immediately. No freeze, shake, flash, or sound until the juice phase.
 
@@ -200,6 +200,8 @@ If it takes more than a day or starts looking like a particle editor, it is too 
 6. **tvOS** — same web build in a tvOS WKWebView shell + remote hold mapping; fallback plan is Swift port of `src/core` + SpriteKit stroke.
 7. **Android later** — Capacitor Android, no game changes.
 8. **Store** — icons, screenshots, Game Center later (not v1).
+9. **Global leaderboard** — Cloudflare Worker + D1; nickname submit on death; title-screen top N. Soft trust client scores. **Done:** Worker + remote D1; Pages builds bake `VITE_API_URL`; local mirror via `npm run dev:all`. Deploy runbook in [README.md](../README.md#production-leaderboard--online-pvp). ADR: [adr/0002-leaderboard-and-pvp.md](adr/0002-leaderboard-and-pvp.md).
+10. **1v1 battle** — dual-worm sim (opposite starts, 2 apples, first death loses); local split-input; online lockstep via Durable Objects. **Done:** local + online; `MatchRoom` DO; finish-before-close; view mirror; match countdown; input pipelining.
 
 ## Quality bar (what “done” means)
 
@@ -211,4 +213,4 @@ If it takes more than a day or starts looking like a particle editor, it is too 
 
 ## Explicit non-goals (v1)
 
-No eat/death VFX, no sound, no particle engine, no audio files, no multiplayer, power-ups, physics engine, React, account systems, or asset pipeline. No Unity project “just in case.” Juice (phase 4) is planned, not forgotten.
+Historical v1 non-goals (many now shipped): juice/SFX, particle engine, audio files, power-ups, physics engine, React, full account systems, asset pipeline, Unity. **Multiplayer and a global leaderboard are now in scope** (see phases 9–10 and ADR 0002). Still non-goals: heavy auth/OAuth, ranked ELO, authoritative physics server, Unity.
