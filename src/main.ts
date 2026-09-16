@@ -154,7 +154,19 @@ ui.onMusicToggle(() => {
 
 ui.onNicknameChange((raw) => {
   const saved = saveNickname(raw)
-  if (saved) ui.setNickname(saved)
+  if (saved) {
+    ui.setNickname(saved)
+    ui.setStatus('')
+  } else if (raw.trim()) {
+    const trimmed = raw.trim().replace(/\s+/g, ' ')
+    if (trimmed.length < 3 || trimmed.length > 12) {
+      ui.setStatus('Name must be 3-12 characters')
+    } else if (!/^[a-zA-Z0-9 _.-]+$/.test(trimmed)) {
+      ui.setStatus('Name can only use letters, numbers, spaces, and ._-')
+    } else {
+      ui.setStatus('Name not allowed — please choose a different name')
+    }
+  }
 })
 
 ui.onPlayModeChange((next, meta) => {
