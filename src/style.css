@@ -285,8 +285,7 @@ body {
 
 .menu-actions {
   position: relative;
-  width: 70%;
-  margin: 0 auto;
+  width: 100%;
   height: 4rem;
   overflow: visible;
   touch-action: pan-x;
@@ -300,15 +299,16 @@ body {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: transform;
   position: relative;
+  padding: 0 15%;
 }
 
 .menu-btn {
   appearance: none;
   pointer-events: none;
   flex-shrink: 0;
-  width: 100%;
+  width: 70%;
   height: 100%;
-  padding: 0;
+  padding: 0 1rem;
   border: none;
   background: transparent;
   color: var(--text);

@@ -90,9 +90,10 @@ export function bindTitleUi(): TitleUi {
     currentIndex = modeButtons.findIndex((m) => m.mode === mode)
     
     // Update carousel position
-    // Each button is 100% of container width with 15% padding on sides (70% content)
-    // To center button N: transform = -N * 100%
-    const offset = currentIndex * 100
+    // Carousel has 15% padding, buttons are 70% wide
+    // Each button occupies 70% of space
+    // Transform to center button N at 50% of viewport
+    const offset = currentIndex * 70
     menuCarousel.style.transform = `translateX(-${offset}%)`
     
     // Update button states
@@ -135,7 +136,7 @@ export function bindTitleUi(): TitleUi {
     touchStartX = touch.clientX
     touchStartY = touch.clientY
     isDragging = true
-    startTransform = -(currentIndex * 100) // 100% per button
+    startTransform = -(currentIndex * 70) // 70% per button
     menuCarousel.style.transition = 'none'
   }
 
@@ -153,8 +154,8 @@ export function bindTitleUi(): TitleUi {
     // Only handle horizontal swipes (not vertical scrolling)
     if (Math.abs(deltaX) > Math.abs(deltaY)) {
       const containerWidth = menuActions.offsetWidth
-      // 100% width per button
-      const translatePercent = (deltaX / containerWidth) * 100
+      // 70% width per button
+      const translatePercent = (deltaX / containerWidth) * 70
       const newTransform = startTransform + translatePercent
       menuCarousel.style.transform = `translateX(${newTransform}%)`
     }
