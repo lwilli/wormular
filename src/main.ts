@@ -106,6 +106,8 @@ let battle: BattleWorld | null = null
 let accum = 0
 let lastTs = performance.now()
 let awaitReleaseBeforeStart = false
+/** True while a title canvas press might still become a mode swipe. */
+let titlePressDeferred = false
 let titleReadyAt = 0
 let lastHudScore = -1
 let matchClient: MatchClient | null = null
@@ -205,8 +207,14 @@ ui.onPlayModeChange((next, meta) => {
   }
 })
 
+/** Defer title start until tap / hold is distinguished from a mode swipe. */
+ui.onTitlePressGesture((phase) => {
+  titlePressDeferred = phase === 'defer'
+})
+
 /** Swipe between modes: cancel the press that would have started a run. */
 ui.onCarouselGesture(() => {
+  titlePressDeferred = false
   soloInput.playRequested = false
   dualInput.playRequested = false
   awaitReleaseBeforeStart = true
@@ -263,10 +271,16 @@ function orbitLayout(): { peekScale: number; shift: number } {
   const arenaD = arenaRadius() * 2
   const rootPx =
     Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
-  const peekD = Math.min(viewW * 0.28, 7.5 * rootPx)
+  const narrow = Math.min(viewW, viewH) < ARENA_NARROW_SIDE_PX
+  const peekD = narrow
+    ? Math.min(viewW * 0.26, 6.75 * rootPx)
+    : Math.min(viewW * 0.28, 7.5 * rootPx)
+  const naturalShift = arenaD * 0.5 + peekD * 0.22
+  // Match CSS: keep peek centers inset so shortLabels are not clipped.
+  const maxShift = viewW * 0.5 - Math.max(2.75 * rootPx, peekD * 0.42)
   return {
     peekScale: peekD / arenaD,
-    shift: arenaD * 0.5 + peekD * 0.22,
+    shift: Math.min(naturalShift, maxShift),
   }
 }
 
@@ -326,6 +340,7 @@ function armTitleStartGate(): void {
   soloInput.playRequested = false
   dualInput.playRequested = false
   awaitReleaseBeforeStart = true
+  titlePressDeferred = false
   titleReadyAt = performance.now() + TITLE_RESTART_COOLDOWN_MS
 }
 
@@ -588,9 +603,10 @@ function frame(ts: number): void {
         awaitReleaseBeforeStart = false
       }
     } else if (
-      soloInput.playRequested ||
-      soloInput.holding ||
-      (selectedPlayMode === 'local' && dualInput.playRequested)
+      !titlePressDeferred &&
+      (soloInput.playRequested ||
+        soloInput.holding ||
+        (selectedPlayMode === 'local' && dualInput.playRequested))
     ) {
       requestStart()
     }

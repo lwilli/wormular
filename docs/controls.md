@@ -96,7 +96,10 @@ Prefs: `wormular.sfxEnabled`, `wormular.musicEnabled` (legacy `wormular.soundEna
 | Online match status | center hold prompt | Ready / finding / waiting / error (same spot) |
 | Title fade-in | `0.45s` opacity | Overlay chrome fades in after death |
 | Mode swipe threshold | `48px` (`SWIPE_THRESHOLD_PX`) | Horizontal drag distance to change mode without starting |
+| Mode hold-commit | `120ms` (`HOLD_COMMIT_MS`) | Press-and-hold can start once the finger has not begun a swipe |
+| Mode tap slop | `14px` (`TAP_SLOP_PX`) | Horizontal jitter ignored when committing a hold-start |
 | Mode orbit slide | `420ms` (`MODE_ORBIT_MS`) | Live arenas slide/scale; outgoing stays drawn until settle |
+| Mode peek inset | `max(2.75rem, 42% peek-d)` from screen edge | Caps `--orbit-shift` so side shortLabels stay readable on narrow phones |
 
 ## Camera shake stack — `src/render/draw.ts`
 

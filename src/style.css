@@ -106,7 +106,12 @@ body {
   --arena-d: calc(min(100vw, 100vh) - 48px);
   --peek-d: min(28vw, 7.5rem);
   --peek-scale: calc(var(--peek-d) / var(--arena-d));
-  --orbit-shift: calc(var(--arena-d) * 0.5 + var(--peek-d) * 0.22);
+  /* Prefer a deep peek, but keep centers inset so shortLabels stay readable
+     on narrow phones (iPhone mini etc.) instead of clipping to a single letter. */
+  --orbit-shift: min(
+    calc(var(--arena-d) * 0.5 + var(--peek-d) * 0.22),
+    calc(50vw - max(2.75rem, var(--peek-d) * 0.42))
+  );
   --orbit-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --orbit-ms: 420ms;
   position: absolute;
@@ -119,6 +124,7 @@ body {
 @media (max-width: 400px), (max-height: 400px) {
   .mode-carousel {
     --arena-d: calc(min(100vw, 100vh) - 24px);
+    --peek-d: min(26vw, 6.75rem);
   }
 }
 
@@ -224,6 +230,15 @@ body {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
   white-space: nowrap;
   pointer-events: none;
+}
+
+/* Nudge labels toward the viewport center so they sit in the visible crescent. */
+.orbit-prev .orbit-label {
+  transform: translateX(calc(-50% + 0.55rem)) scale(calc(1 / var(--peek-scale)));
+}
+
+.orbit-next .orbit-label {
+  transform: translateX(calc(-50% - 0.55rem)) scale(calc(1 / var(--peek-scale)));
 }
 
 /* During slide the real canvas arenas move; hide decorative orbit faces. */

@@ -43,6 +43,11 @@ export type TitleUi = {
   ) => void
   /** Fires when a horizontal swipe is recognized (start should be cancelled). */
   onCarouselGesture: (cb: () => void) => void
+  /**
+   * Title canvas press may become a swipe — defer starting until commit/cancel.
+   * `defer` on pointerdown, `commit` for tap / press-and-hold, `cancel` on swipe.
+   */
+  onTitlePressGesture: (cb: (phase: 'defer' | 'commit' | 'cancel') => void) => void
   setBattleHud: (p0: number, p1: number, label?: string) => void
   setResult: (text: string | null) => void
   /** Matchmaking / countdown overlay. Pass null to hide. */
@@ -85,6 +90,10 @@ const MODE_COPY: Record<
 }
 
 const SWIPE_THRESHOLD_PX = 48
+/** Ignore tiny jitter when deciding a press-and-hold can start. */
+const TAP_SLOP_PX = 14
+/** Solo Press & Hold: allow start after this if the finger has not slid. */
+const HOLD_COMMIT_MS = 120
 
 export function bindTitleUi(): TitleUi {
   const title = mustHtml('#title')
@@ -128,6 +137,9 @@ export function bindTitleUi(): TitleUi {
   const modeListeners: Array<(mode: PlayMode, meta: PlayModeChangeMeta) => void> =
     []
   const gestureListeners: Array<() => void> = []
+  const pressGestureListeners: Array<
+    (phase: 'defer' | 'commit' | 'cancel') => void
+  > = []
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
 
   function modeIndex(mode: PlayMode): number {
@@ -285,11 +297,16 @@ export function bindTitleUi(): TitleUi {
   })
 
   // Horizontal swipe on the title surface switches modes without starting.
+  // Presses are deferred until we know they are a tap / hold, not a swipe —
+  // otherwise the first rAF after pointerdown starts the run.
   let swipePointerId: number | null = null
   let swipeStartX = 0
   let swipeStartY = 0
+  let swipeLastX = 0
+  let swipeLastY = 0
   let swipeArmed = false
   let swipeConsumed = false
+  let holdCommitTimer = 0
 
   function isChromeTarget(t: EventTarget | null): boolean {
     if (!(t instanceof Element)) return false
@@ -304,6 +321,40 @@ export function bindTitleUi(): TitleUi {
     for (const cb of gestureListeners) cb()
   }
 
+  function notifyPressGesture(phase: 'defer' | 'commit' | 'cancel'): void {
+    for (const cb of pressGestureListeners) cb(phase)
+  }
+
+  function clearHoldCommitTimer(): void {
+    if (holdCommitTimer) {
+      window.clearTimeout(holdCommitTimer)
+      holdCommitTimer = 0
+    }
+  }
+
+  function horizontalTravel(): number {
+    return Math.abs(swipeLastX - swipeStartX)
+  }
+
+  function verticalTravel(): number {
+    return Math.abs(swipeLastY - swipeStartY)
+  }
+
+  /** True when the finger has slid enough that a swipe may still be forming. */
+  function swipeInProgress(): boolean {
+    const dx = horizontalTravel()
+    const dy = verticalTravel()
+    return dx >= TAP_SLOP_PX && dx >= dy * 0.85
+  }
+
+  function commitPressIfStill(): void {
+    if (!swipeArmed || swipeConsumed) return
+    if (swipeInProgress()) return
+    swipeArmed = false
+    clearHoldCommitTimer()
+    notifyPressGesture('commit')
+  }
+
   function onPointerDown(e: PointerEvent): void {
     if (!menuVisible || title.hidden) return
     if (e.pointerType === 'mouse' && e.button !== 0) return
@@ -311,19 +362,31 @@ export function bindTitleUi(): TitleUi {
     swipePointerId = e.pointerId
     swipeStartX = e.clientX
     swipeStartY = e.clientY
+    swipeLastX = e.clientX
+    swipeLastY = e.clientY
     swipeArmed = true
     swipeConsumed = false
+    notifyPressGesture('defer')
+    clearHoldCommitTimer()
+    holdCommitTimer = window.setTimeout(() => {
+      holdCommitTimer = 0
+      commitPressIfStill()
+    }, HOLD_COMMIT_MS)
   }
 
   function onPointerMove(e: PointerEvent): void {
     if (!swipeArmed || e.pointerId !== swipePointerId || swipeConsumed) return
+    swipeLastX = e.clientX
+    swipeLastY = e.clientY
     const dx = e.clientX - swipeStartX
     const dy = e.clientY - swipeStartY
     if (Math.abs(dx) < SWIPE_THRESHOLD_PX) return
     if (Math.abs(dx) < Math.abs(dy) * 1.15) return
     swipeConsumed = true
     swipeArmed = false
+    clearHoldCommitTimer()
     // Always cancel start — even when already at the first/last mode.
+    notifyPressGesture('cancel')
     notifyCarouselGesture()
     stepMode(dx < 0 ? 1 : -1)
   }
@@ -331,7 +394,21 @@ export function bindTitleUi(): TitleUi {
   function onPointerUp(e: PointerEvent): void {
     if (e.pointerId !== swipePointerId) return
     swipePointerId = null
+    clearHoldCommitTimer()
+    if (swipeConsumed) {
+      swipeArmed = false
+      return
+    }
+    if (!swipeArmed) return
     swipeArmed = false
+    if (horizontalTravel() < SWIPE_THRESHOLD_PX) {
+      // Tap or short press: allow start (playRequested may still be set).
+      notifyPressGesture('commit')
+    } else {
+      // Large drag that never met the horizontal-swipe filter — do not start.
+      notifyPressGesture('cancel')
+      notifyCarouselGesture()
+    }
   }
 
   window.addEventListener('pointerdown', onPointerDown, { capture: true })
@@ -473,6 +550,9 @@ export function bindTitleUi(): TitleUi {
     },
     onCarouselGesture(cb) {
       gestureListeners.push(cb)
+    },
+    onTitlePressGesture(cb) {
+      pressGestureListeners.push(cb)
     },
     setBattleHud(p0, p1, label) {
       battleHud.hidden = false
