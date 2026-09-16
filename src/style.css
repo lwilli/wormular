@@ -305,8 +305,8 @@ body {
 .menu-btn {
   appearance: none;
   pointer-events: auto;
-  flex: 0 0 60%;
-  width: 60%;
+  flex: 0 0 42%;
+  width: 42%;
   height: 100%;
   padding: 0 0.5rem;
   border: none;
