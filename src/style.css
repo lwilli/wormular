@@ -299,14 +299,14 @@ body {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: transform;
   position: relative;
-  padding: 0 15%;
+  padding: 0 20%;
 }
 
 .menu-btn {
   appearance: none;
   pointer-events: none;
   flex-shrink: 0;
-  width: 70%;
+  width: 60%;
   height: 100%;
   padding: 0 1rem;
   border: none;
