@@ -78,6 +78,7 @@ The API keeps aggregate counters — no cookies, no stored IPs, no third-party s
 - Each web load fires `POST /visit`.
 - Each started run fires `POST /play?mode=solo|local|online` (online = match start). Entering the online waiting state fires `POST /play?mode=online_queue`.
 - Check totals: `curl https://wormular-api.lwilli.workers.dev/stats` → `{"visits":N,"plays":{"solo":N,"local":N,"online":N,"online_queue":N}}`.
+- Dashboard: [lwilli.github.io/wormular/stats.html](https://lwilli.github.io/wormular/stats.html) (local: `http://127.0.0.1:5173/stats.html` with `npm run dev:all`).
 
 After pulling schema changes, apply them remotely (`cd worker && npm run db:init:remote`) and redeploy the Worker.
 
