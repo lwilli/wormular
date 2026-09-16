@@ -84,30 +84,40 @@ export function bindTitleUi(): TitleUi {
   let playMode: PlayMode = 'solo'
   let currentIndex = 0
   const modeListeners: Array<(mode: PlayMode) => void> = []
+  /** Pixel translate that puts the selected slide in the container center. */
+  let restTranslateX = 0
+
+  function selectedSlideCenterX(): number {
+    const btn = modeButtons[currentIndex]?.btn
+    if (!btn) return 0
+    return btn.offsetLeft + btn.offsetWidth / 2
+  }
+
+  /** Center the selected slide in `.menu-actions`, independent of % padding math. */
+  function centerSelectedSlide(): void {
+    const viewportCenter = menuActions.clientWidth / 2
+    restTranslateX = viewportCenter - selectedSlideCenterX()
+    menuCarousel.style.transform = `translateX(${restTranslateX}px)`
+  }
 
   function applyPlayMode(mode: PlayMode): void {
     playMode = mode
-    currentIndex = modeButtons.findIndex((m) => m.mode === mode)
-    
-    // Update carousel position
-    // Carousel has 20% padding, buttons are 60% wide
-    // To center button N at 50% viewport: offset = (N * 60%) - 20%
-    const offset = currentIndex * 60 - 20
-    menuCarousel.style.transform = `translateX(-${offset}%)`
-    
-    // Update button states
-    for (let i = 0; i < modeButtons.length; i++) {
-      const { mode: m, btn } = modeButtons[i]!
+    currentIndex = Math.max(
+      0,
+      modeButtons.findIndex((m) => m.mode === mode),
+    )
+
+    for (const { mode: m, btn } of modeButtons) {
       const selected = m === mode
       btn.classList.toggle('is-selected', selected)
       btn.setAttribute('aria-selected', selected ? 'true' : 'false')
+      btn.tabIndex = selected ? 0 : -1
     }
-    
-    // Update indicators
+
     for (let i = 0; i < indicators.length; i++) {
       indicators[i]!.classList.toggle('is-active', i === currentIndex)
     }
-    
+
     const copy = MODE_COPY[mode]
     holdSub.replaceChildren(
       ...copy.holdLines.map((line) => {
@@ -117,86 +127,101 @@ export function bindTitleUi(): TitleUi {
       }),
     )
     hint.textContent = copy.hint
+    centerSelectedSlide()
   }
 
-  // Default until main restores the sticky selection via setPlayMode.
   applyPlayMode('solo')
+  requestAnimationFrame(centerSelectedSlide)
 
-  // Swipe gesture handling for carousel
-  let touchStartX = 0
-  let touchStartY = 0
-  let isDragging = false
-  let startTransform = 0
+  let pointerId: number | null = null
+  let dragStartX = 0
+  let dragStartY = 0
+  let dragging = false
+  let dragLocked: 'h' | 'v' | null = null
+  let suppressClick = false
 
-  const handleTouchStart = (e: TouchEvent) => {
+  const onPointerDown = (e: PointerEvent) => {
+    if (pointerId !== null) return
     e.stopPropagation()
-    const touch = e.touches[0]
-    if (!touch) return
-    touchStartX = touch.clientX
-    touchStartY = touch.clientY
-    isDragging = true
-    startTransform = -(currentIndex * 60 - 20) // Match applyPlayMode: 60% buttons, 20% padding
+    pointerId = e.pointerId
+    dragStartX = e.clientX
+    dragStartY = e.clientY
+    dragging = true
+    dragLocked = null
     menuCarousel.style.transition = 'none'
+    try {
+      menuActions.setPointerCapture(e.pointerId)
+    } catch {
+      // ignore
+    }
   }
 
-  const handleTouchMove = (e: TouchEvent) => {
-    if (!isDragging) return
+  const onPointerMove = (e: PointerEvent) => {
+    if (!dragging || e.pointerId !== pointerId) return
+    e.stopPropagation()
+    const deltaX = e.clientX - dragStartX
+    const deltaY = e.clientY - dragStartY
+    if (dragLocked === null && (Math.abs(deltaX) > 8 || Math.abs(deltaY) > 8)) {
+      dragLocked = Math.abs(deltaX) >= Math.abs(deltaY) ? 'h' : 'v'
+    }
+    if (dragLocked !== 'h') return
     e.preventDefault()
-    e.stopPropagation()
-    
-    const touch = e.touches[0]
-    if (!touch) return
-    
-    const deltaX = touch.clientX - touchStartX
-    const deltaY = touch.clientY - touchStartY
-    
-    // Only handle horizontal swipes (not vertical scrolling)
-    if (Math.abs(deltaX) > Math.abs(deltaY)) {
-      const containerWidth = menuActions.offsetWidth
-      // 60% width per button
-      const translatePercent = (deltaX / containerWidth) * 60
-      const newTransform = startTransform + translatePercent
-      menuCarousel.style.transform = `translateX(${newTransform}%)`
-    }
+    menuCarousel.style.transform = `translateX(${restTranslateX + deltaX}px)`
   }
 
-  const handleTouchEnd = (e: TouchEvent) => {
-    if (!isDragging) return
+  const finishDrag = (e: PointerEvent) => {
+    if (!dragging || e.pointerId !== pointerId) return
     e.stopPropagation()
-    isDragging = false
+    dragging = false
+    pointerId = null
     menuCarousel.style.transition = ''
-    
-    const touch = e.changedTouches[0]
-    if (!touch) return
-    
-    const deltaX = touch.clientX - touchStartX
-    const threshold = 50 // pixels
-    
-    let newIndex = currentIndex
-    if (deltaX > threshold && currentIndex > 0) {
-      // Swipe right (previous)
-      newIndex = currentIndex - 1
-    } else if (deltaX < -threshold && currentIndex < modeButtons.length - 1) {
-      // Swipe left (next)
-      newIndex = currentIndex + 1
-    }
-    
-    if (newIndex !== currentIndex) {
-      const newMode = modeButtons[newIndex]?.mode
-      if (newMode) {
-        applyPlayMode(newMode)
-        for (const cb of modeListeners) cb(newMode)
+    const deltaX = e.clientX - dragStartX
+    const threshold = Math.max(40, menuActions.clientWidth * 0.12)
+    let next = currentIndex
+    if (dragLocked === 'h') {
+      if (deltaX > threshold && currentIndex > 0) next = currentIndex - 1
+      else if (deltaX < -threshold && currentIndex < modeButtons.length - 1) {
+        next = currentIndex + 1
       }
+    }
+    dragLocked = null
+    const moved = Math.abs(deltaX) > 8
+    const nextMode = modeButtons[next]?.mode ?? playMode
+    if (nextMode !== playMode) {
+      suppressClick = moved
+      applyPlayMode(nextMode)
+      for (const cb of modeListeners) cb(nextMode)
     } else {
-      // Snap back to current position
-      applyPlayMode(playMode)
+      centerSelectedSlide()
     }
   }
 
-  menuActions.addEventListener('touchstart', handleTouchStart, { passive: false })
-  menuActions.addEventListener('touchmove', handleTouchMove, { passive: false })
-  menuActions.addEventListener('touchend', handleTouchEnd, { passive: false })
-  menuActions.addEventListener('touchcancel', handleTouchEnd, { passive: false })
+  menuActions.addEventListener('pointerdown', onPointerDown)
+  menuActions.addEventListener('pointermove', onPointerMove)
+  menuActions.addEventListener('pointerup', finishDrag)
+  menuActions.addEventListener('pointercancel', finishDrag)
+
+  for (const { mode, btn } of modeButtons) {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      if (suppressClick) {
+        suppressClick = false
+        return
+      }
+      if (playMode === mode) return
+      applyPlayMode(mode)
+      for (const cb of modeListeners) cb(mode)
+    })
+  }
+
+  const onResize = () => centerSelectedSlide()
+  window.addEventListener('resize', onResize)
+  const resizeObserver =
+    typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(onResize)
+      : null
+  resizeObserver?.observe(menuActions)
 
   return {
     setVisible(visible) {
@@ -215,6 +240,7 @@ export function bindTitleUi(): TitleUi {
         } else {
           title.classList.add('is-shown')
         }
+        requestAnimationFrame(centerSelectedSlide)
       } else {
         title.classList.remove('is-shown')
         title.hidden = true
