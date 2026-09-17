@@ -104,13 +104,13 @@ body {
 
 .mode-carousel {
   --arena-d: calc(min(100vw, 100vh) - 48px);
-  --peek-d: min(28vw, 7.5rem);
+  --peek-d: min(30vw, 8rem);
   --peek-scale: calc(var(--peek-d) / var(--arena-d));
   /* Prefer a deep peek, but keep centers inset so shortLabels stay readable
      and enough of each mini-arena shows to read as a real mode. */
   --orbit-shift: min(
     calc(var(--arena-d) * 0.5 + var(--peek-d) * 0.22),
-    calc(50vw - max(3.35rem, var(--peek-d) * 0.55))
+    calc(50vw - max(3.5rem, var(--peek-d) * 0.62))
   );
   --orbit-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --orbit-ms: 420ms;
@@ -124,7 +124,7 @@ body {
 @media (max-width: 400px), (max-height: 400px) {
   .mode-carousel {
     --arena-d: calc(min(100vw, 100vh) - 24px);
-    --peek-d: min(26vw, 6.75rem);
+    --peek-d: min(30vw, 7.25rem);
   }
 }
 
@@ -181,9 +181,19 @@ body {
   height: 100%;
   border-radius: 50%;
   /* Transparent so the canvas mini-arenas show through; hit target stays. */
-  border: 2px solid transparent;
+  border: 2.5px solid rgba(154, 163, 181, 0.42);
   background: transparent;
   box-shadow: none;
+  transition: border-color 0.18s ease;
+}
+
+.orbit-disk[data-peek-mode='solo'] .orbit-face {
+  border-color: rgba(255, 122, 24, 0.55);
+}
+
+.orbit-disk[data-peek-mode='local'] .orbit-face,
+.orbit-disk[data-peek-mode='online'] .orbit-face {
+  border-color: rgba(72, 201, 176, 0.45);
 }
 
 .orbit-current .orbit-face {

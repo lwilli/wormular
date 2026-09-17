@@ -323,11 +323,11 @@ function orbitLayout(): { peekScale: number; shift: number } {
     Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
   const narrow = Math.min(viewW, viewH) < ARENA_NARROW_SIDE_PX
   const peekD = narrow
-    ? Math.min(viewW * 0.26, 6.75 * rootPx)
-    : Math.min(viewW * 0.28, 7.5 * rootPx)
+    ? Math.min(viewW * 0.3, 7.25 * rootPx)
+    : Math.min(viewW * 0.3, 8 * rootPx)
   const naturalShift = arenaD * 0.5 + peekD * 0.22
   // Match CSS: keep peek centers inset so shortLabels + mini arenas read clearly.
-  const maxShift = viewW * 0.5 - Math.max(3.35 * rootPx, peekD * 0.55)
+  const maxShift = viewW * 0.5 - Math.max(3.5 * rootPx, peekD * 0.62)
   return {
     peekScale: peekD / arenaD,
     shift: Math.min(naturalShift, maxShift),

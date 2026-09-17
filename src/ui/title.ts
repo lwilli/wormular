@@ -197,6 +197,8 @@ export function bindTitleUi(): TitleUi {
     peekNextLabel.textContent = MODE_COPY[next].shortLabel
     peekPrev.setAttribute('aria-label', MODE_COPY[prev].title)
     peekNext.setAttribute('aria-label', MODE_COPY[next].title)
+    peekPrev.dataset.peekMode = prev
+    peekNext.dataset.peekMode = next
   }
 
   function paintHoldPrompt(main: string, lines: string[]): void {
