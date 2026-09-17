@@ -157,6 +157,8 @@ ui.setResult(null)
 ui.setMatchBanner(null)
 document.getElementById('battle-hud')?.setAttribute('hidden', '')
 document.getElementById('battle-hud')?.classList.remove('is-local')
+document.getElementById('match-banner')?.classList.remove('is-local')
+document.getElementById('result')?.classList.remove('is-local')
 document.getElementById('local-zones')?.setAttribute('hidden', '')
 ensureTitlePreview()
 
@@ -489,12 +491,18 @@ function armTitleStartGate(): void {
 function setLocalBattleChrome(visible: boolean): void {
   const zones = document.getElementById('local-zones')
   const hud = document.getElementById('battle-hud')
+  const banner = document.getElementById('match-banner')
+  const result = document.getElementById('result')
   if (visible) {
     zones?.removeAttribute('hidden')
     hud?.classList.add('is-local')
+    banner?.classList.add('is-local')
+    result?.classList.add('is-local')
   } else {
     zones?.setAttribute('hidden', '')
     hud?.classList.remove('is-local')
+    banner?.classList.remove('is-local')
+    result?.classList.remove('is-local')
   }
 }
 
