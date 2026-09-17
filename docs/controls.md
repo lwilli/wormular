@@ -102,7 +102,7 @@ Prefs: `wormular.sfxEnabled`, `wormular.musicEnabled` (legacy `wormular.soundEna
 | Title launch | `300ms` (`TITLE_LAUNCH_MS`) | Selected arena expands centerScale→1 while peeks + chrome fade into play |
 | Mode peek inset | JS `orbitLayout()` gap + label pad | Peeks sit beside a scaled-down selected arena with a clear gap (not nested inside its rim) |
 | Mode peek size | `~22–24vw` (capped) | Side preview diameter; synced to CSS `--peek-d` |
-| Mode peek previews | canvas plate + mini arena | Opaque disk + paused Solo / 1v1 world; HTML face is a tinted ring/hit target |
+| Mode peek previews | canvas plate + mini arena | Opaque disk + paused Solo / 1v1 world; HTML face is a neutral ring/hit target |
 | Title center scale | `centerScale` from `orbitLayout()` | Selected mode shrinks on title so neighbor peeks read as separate carousel items |
 
 ## Camera shake stack — `src/render/draw.ts`
