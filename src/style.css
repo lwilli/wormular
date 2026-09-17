@@ -218,7 +218,7 @@ body {
   position: absolute;
   left: 50%;
   bottom: -1.35rem;
-  /* JS sets --peek-label-nudge so ink sits on the disk axis (and on-screen). */
+  /* JS sets --peek-label-nudge so ink sits under the visible peek mass. */
   transform: translateX(calc(-50% + var(--peek-label-nudge, 0px)));
   transform-origin: top center;
   font-size: 0.72rem;
