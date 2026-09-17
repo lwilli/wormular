@@ -218,7 +218,8 @@ body {
   position: absolute;
   left: 50%;
   bottom: -1.35rem;
-  /* --peek-label-nudge centers on the visible crescent when the disk is clipped. */
+  /* --peek-label-nudge is 0 when the label fits on the disk axis; otherwise
+     a small inward clamp so clipped peeks don't push titles off-screen. */
   transform: translateX(calc(-50% + var(--peek-label-nudge, 0px)));
   transform-origin: top center;
   font-size: 0.72rem;

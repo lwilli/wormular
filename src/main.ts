@@ -373,32 +373,24 @@ function orbitLayout(): OrbitLayout {
 }
 
 /**
- * Nudge a peek label to the center of the *visible* disk so it stays on-screen
- * and reads centered under the clipped crescent.
+ * Center each peek label on the disk axis. Only nudge inward if the label
+ * would otherwise clip off-screen (peeks themselves may hang off slightly).
  */
 function syncPeekLabelNudge(
   el: HTMLElement | null,
   diskCx: number,
-  peekR: number,
+  _peekR: number,
 ): void {
   if (!el) return
   const label = el.querySelector('.orbit-label') as HTMLElement | null
   if (!label) return
-  const left = diskCx - peekR
-  const right = diskCx + peekR
-  const visLeft = Math.max(0, left)
-  const visRight = Math.min(viewW, right)
-  const visibleCx =
-    visRight > visLeft ? (visLeft + visRight) * 0.5 : diskCx
-  let nudge = visibleCx - diskCx
   const labelHalf = Math.max(12, (label.offsetWidth || 48) * 0.5)
   const pad = 6
   const labelCx = Math.min(
     viewW - labelHalf - pad,
-    Math.max(labelHalf + pad, diskCx + nudge),
+    Math.max(labelHalf + pad, diskCx),
   )
-  nudge = labelCx - diskCx
-  el.style.setProperty('--peek-label-nudge', `${nudge}px`)
+  el.style.setProperty('--peek-label-nudge', `${labelCx - diskCx}px`)
 }
 
 /** Keep HTML peek hit-targets aligned with the canvas layout. */
