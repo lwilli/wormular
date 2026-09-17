@@ -99,9 +99,10 @@ Prefs: `wormular.sfxEnabled`, `wormular.musicEnabled` (legacy `wormular.soundEna
 | Mode hold-commit | `120ms` (`HOLD_COMMIT_MS`) | Press-and-hold can start once the finger has not begun a swipe |
 | Mode tap slop | `14px` (`TAP_SLOP_PX`) | Horizontal jitter ignored when committing a hold-start |
 | Mode orbit slide | `420ms` (`MODE_ORBIT_MS`) | Live arenas slide/scale; outgoing stays drawn until settle |
-| Mode peek inset | `max(3.5rem, 62% peek-d)` from screen edge | Caps `--orbit-shift` so shortLabels and mini-arena content stay readable on narrow phones |
-| Mode peek size | `min(30vw, 8rem)` (`7.25rem` when narrow) | Side preview diameter |
-| Mode peek previews | canvas mini arenas | Idle title draws real paused Solo / 1v1 worlds in the side peeks; HTML faces are transparent hit targets with mode-tinted rings |
+| Mode peek inset | JS `orbitLayout()` gap + label pad | Peeks sit beside a scaled-down selected arena with a clear gap (not nested inside its rim) |
+| Mode peek size | `~22–24vw` (capped) | Side preview diameter; synced to CSS `--peek-d` |
+| Mode peek previews | canvas plate + mini arena | Opaque disk + paused Solo / 1v1 world; HTML face is a tinted ring/hit target |
+| Title center scale | `centerScale` from `orbitLayout()` | Selected mode shrinks on title so neighbor peeks read as separate carousel items |
 
 ## Camera shake stack — `src/render/draw.ts`
 

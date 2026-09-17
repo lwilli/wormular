@@ -317,21 +317,59 @@ function drawTitleModePreview(
   }
 }
 
-function orbitLayout(): { peekScale: number; shift: number } {
+/** Opaque disk under a side peek so it reads as its own mode, not part of center. */
+function drawPeekPlate(offsetX: number, diameter: number): void {
+  const cx = viewW * 0.5 + offsetX
+  const cy = viewH * 0.5
+  ctx.save()
+  ctx.beginPath()
+  ctx.arc(cx, cy, diameter * 0.5 + 1, 0, Math.PI * 2)
+  ctx.fillStyle = 'rgba(7, 9, 20, 0.97)'
+  ctx.fill()
+  ctx.restore()
+}
+
+type OrbitLayout = {
+  peekD: number
+  peekScale: number
+  shift: number
+  /** Selected mode scale on title — shrunk so peeks sit beside it with a gap. */
+  centerScale: number
+}
+
+function orbitLayout(): OrbitLayout {
   const arenaD = arenaRadius() * 2
+  const arenaR = arenaD * 0.5
   const rootPx =
     Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
   const narrow = Math.min(viewW, viewH) < ARENA_NARROW_SIDE_PX
   const peekD = narrow
-    ? Math.min(viewW * 0.3, 7.25 * rootPx)
-    : Math.min(viewW * 0.3, 8 * rootPx)
-  const naturalShift = arenaD * 0.5 + peekD * 0.22
-  // Match CSS: keep peek centers inset so shortLabels + mini arenas read clearly.
-  const maxShift = viewW * 0.5 - Math.max(3.5 * rootPx, peekD * 0.62)
+    ? Math.min(viewW * 0.22, 5.75 * rootPx)
+    : Math.min(viewW * 0.24, 7 * rootPx)
+  const gap = Math.max(12, Math.min(24, viewW * 0.036))
+  const labelPad = Math.max(2.4 * rootPx, peekD * 0.42)
+  const maxShift = viewW * 0.5 - labelPad
+  // Fit: centerScale*arenaR + peekR + gap <= maxShift (peeks outside the selected rim).
+  const centerScale = Math.min(
+    1,
+    Math.max(0.55, (maxShift - peekD * 0.5 - gap) / arenaR),
+  )
+  const shift = Math.min(maxShift, centerScale * arenaR + peekD * 0.5 + gap)
   return {
+    peekD,
     peekScale: peekD / arenaD,
-    shift: Math.min(naturalShift, maxShift),
+    shift,
+    centerScale,
   }
+}
+
+/** Keep HTML peek hit-targets aligned with the canvas layout. */
+function syncOrbitCss(layout: OrbitLayout): void {
+  const carousel = document.getElementById('mode-carousel')
+  if (!carousel) return
+  carousel.style.setProperty('--peek-d', `${layout.peekD}px`)
+  carousel.style.setProperty('--orbit-shift', `${layout.shift}px`)
+  carousel.style.setProperty('--title-center-scale', String(layout.centerScale))
 }
 
 function easeOrbit(u: number): number {
@@ -580,6 +618,7 @@ function resize(): void {
   const R = arenaRadius()
   if (mode === 'title' || mode === 'matchmaking') {
     ensureTitlePreview()
+    syncOrbitCss(orbitLayout())
   } else if (mode === 'playing' || mode === 'dying') {
     if (Math.abs(world.R - R) > 2) world = createPlayWorld()
   } else if (
@@ -781,12 +820,12 @@ function frame(ts: number): void {
     if (u >= 1) {
       arenaSlide = null
     } else {
-      const { peekScale, shift } = orbitLayout()
+      const { peekScale, shift, centerScale } = orbitLayout()
       const dir = arenaSlide.dir
       const outX = lerp(0, -dir * shift, u)
-      const outS = lerp(1, peekScale, u)
+      const outS = lerp(centerScale, peekScale, u)
       const inX = lerp(dir * shift, 0, u)
-      const inS = lerp(peekScale, 1, u)
+      const inS = lerp(peekScale, centerScale, u)
       // Soft handoff to CSS peeks near the end.
       const outAlpha = u < 0.82 ? 1 : 1 - (u - 0.82) / 0.18
       const time = ts * 0.001
@@ -840,25 +879,28 @@ function frame(ts: number): void {
     const onTitle = mode === 'title' || mode === 'matchmaking'
     if (onTitle) {
       ensurePeekPreviews()
-      const { peekScale, shift } = orbitLayout()
+      const layout = orbitLayout()
+      syncOrbitCss(layout)
+      const { peekScale, shift, centerScale, peekD } = layout
       const time = ts * 0.001
       const prev = neighborPlayMode(selectedPlayMode, -1)
       const next = neighborPlayMode(selectedPlayMode, 1)
       drawSpace(ctx, viewW, viewH)
       drawTitleModePreview(selectedPlayMode, {
         offsetX: 0,
-        scale: 1,
+        scale: centerScale,
         time,
       })
       ctx.fillStyle = `rgba(5, 6, 14, ${TITLE_DIM})`
       ctx.fillRect(0, 0, viewW, viewH)
-      // Side peeks above the title dim so mini arenas stay readable as
-      // selectable modes (not blank dark crescents).
+      // Separate mode disks: opaque plate + mini arena, beside the selected mode.
+      drawPeekPlate(-shift, peekD)
       drawTitleModePreview(prev, {
         offsetX: -shift,
         scale: peekScale,
         time,
       })
+      drawPeekPlate(shift, peekD)
       drawTitleModePreview(next, {
         offsetX: shift,
         scale: peekScale,

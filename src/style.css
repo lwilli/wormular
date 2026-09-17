@@ -104,14 +104,11 @@ body {
 
 .mode-carousel {
   --arena-d: calc(min(100vw, 100vh) - 48px);
-  --peek-d: min(30vw, 8rem);
-  /* Prefer a deep peek, but keep centers inset so shortLabels stay readable
-     and enough of each mini-arena shows to read as a real mode.
-     (Do not use length/length in scale() — invalid in Chromium and drops the transform.) */
-  --orbit-shift: min(
-    calc(var(--arena-d) * 0.5 + var(--peek-d) * 0.22),
-    calc(50vw - max(3.5rem, var(--peek-d) * 0.62))
-  );
+  --peek-d: min(24vw, 7rem);
+  /* JS syncs --orbit-shift / --peek-d / --title-center-scale on resize so
+     peeks sit beside the scaled center with a visible gap (not nested in it). */
+  --orbit-shift: calc(var(--arena-d) * 0.42 + var(--peek-d) * 0.55);
+  --title-center-scale: 0.78;
   --orbit-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --orbit-ms: 420ms;
   position: absolute;
@@ -124,7 +121,8 @@ body {
 @media (max-width: 400px), (max-height: 400px) {
   .mode-carousel {
     --arena-d: calc(min(100vw, 100vh) - 24px);
-    --peek-d: min(30vw, 7.25rem);
+    --peek-d: min(22vw, 5.75rem);
+    --title-center-scale: 0.62;
   }
 }
 
@@ -172,7 +170,7 @@ body {
 }
 
 .orbit-current {
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(var(--title-center-scale));
 }
 
 .orbit-face {
@@ -180,20 +178,22 @@ body {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  /* Transparent so the canvas mini-arenas show through; hit target stays. */
-  border: 2.5px solid rgba(154, 163, 181, 0.42);
+  /* Transparent fill — canvas draws an opaque plate + mini arena underneath. */
+  border: 2px solid rgba(154, 163, 181, 0.55);
   background: transparent;
-  box-shadow: none;
+  box-shadow:
+    0 0 0 1px rgba(5, 6, 14, 0.55),
+    0 8px 22px rgba(0, 0, 0, 0.45);
   transition: border-color 0.18s ease;
 }
 
 .orbit-disk[data-peek-mode='solo'] .orbit-face {
-  border-color: rgba(255, 122, 24, 0.55);
+  border-color: rgba(255, 122, 24, 0.62);
 }
 
 .orbit-disk[data-peek-mode='local'] .orbit-face,
 .orbit-disk[data-peek-mode='online'] .orbit-face {
-  border-color: rgba(72, 201, 176, 0.5);
+  border-color: rgba(72, 201, 176, 0.55);
 }
 
 .orbit-current .orbit-face {
