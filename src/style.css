@@ -189,15 +189,6 @@ body {
     border-color 0.18s ease;
 }
 
-.orbit-disk[data-peek-mode='solo'] .orbit-face {
-  border-color: rgba(255, 122, 24, 0.62);
-}
-
-.orbit-disk[data-peek-mode='local'] .orbit-face,
-.orbit-disk[data-peek-mode='online'] .orbit-face {
-  border-color: rgba(72, 201, 176, 0.55);
-}
-
 .orbit-current .orbit-face {
   opacity: 0;
   background: transparent;
@@ -209,7 +200,7 @@ body {
 .orbit-next:hover .orbit-face,
 .orbit-prev:focus-visible .orbit-face,
 .orbit-next:focus-visible .orbit-face {
-  border-color: rgba(255, 122, 24, 0.55);
+  border-color: rgba(154, 163, 181, 0.85);
 }
 
 .orbit-prev:focus-visible,
@@ -227,26 +218,21 @@ body {
   position: absolute;
   left: 50%;
   bottom: -1.35rem;
-  transform: translateX(-50%);
+  /* JS sets --peek-label-nudge so ink sits on the disk axis (and on-screen). */
+  transform: translateX(calc(-50% + var(--peek-label-nudge, 0px)));
   transform-origin: top center;
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.06em;
+  /* Balance trailing letter-spacing so box mid matches glyph ink. */
+  padding-left: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
   white-space: nowrap;
   pointer-events: none;
   transition: opacity 0.2s ease;
-}
-
-/* Nudge labels toward the viewport center so they sit in the visible crescent. */
-.orbit-prev .orbit-label {
-  transform: translateX(calc(-50% + 0.35rem));
-}
-
-.orbit-next .orbit-label {
-  transform: translateX(calc(-50% - 0.35rem));
+  text-align: center;
 }
 
 /* During slide: hide peek chrome quickly, then fade labels/rings back in on settle. */
@@ -500,6 +486,8 @@ body {
   font-size: clamp(1.15rem, 4.2vw, 1.55rem);
   font-weight: 600;
   letter-spacing: 0.04em;
+  text-indent: 0.04em;
+  text-align: center;
   text-transform: uppercase;
   color: var(--text);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
