@@ -218,15 +218,15 @@ body {
   position: absolute;
   left: 50%;
   bottom: -1.35rem;
-  /* --peek-label-nudge is 0 when the label fits on the disk axis; otherwise
-     a small inward clamp so clipped peeks don't push titles off-screen. */
-  transform: translateX(calc(-50% + var(--peek-label-nudge, 0px)));
+  /* Half letter-spacing offsets the trailing tracking so glyphs sit on the disk axis.
+     --peek-label-nudge only kicks in if a title would clip off-screen. */
+  transform: translateX(
+    calc(-50% + 0.03em + var(--peek-label-nudge, 0px))
+  );
   transform-origin: top center;
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.06em;
-  /* Cancel trailing letter-spacing so the glyph box stays optically centered. */
-  margin-right: -0.06em;
   text-transform: uppercase;
   color: var(--muted);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
