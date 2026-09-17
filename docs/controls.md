@@ -100,6 +100,7 @@ Prefs: `wormular.sfxEnabled`, `wormular.musicEnabled` (legacy `wormular.soundEna
 | Mode tap slop | `14px` (`TAP_SLOP_PX`) | Horizontal jitter ignored when committing a hold-start |
 | Mode orbit slide | `420ms` (`MODE_ORBIT_MS`) | Live arenas slide/scale; outgoing stays drawn until settle |
 | Mode peek inset | `max(2.75rem, 42% peek-d)` from screen edge | Caps `--orbit-shift` so side shortLabels stay readable on narrow phones |
+| Mode peek previews | canvas mini arenas | Idle title draws real paused Solo / 1v1 worlds in the side peeks (HTML faces are transparent hit targets) |
 
 ## Camera shake stack — `src/render/draw.ts`
 

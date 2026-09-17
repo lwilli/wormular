@@ -54,7 +54,14 @@ export type TitleUi = {
   setMatchBanner: (title: string | null, count?: string | null) => void
 }
 
-const PLAY_MODES: PlayMode[] = ['solo', 'local', 'online']
+export const PLAY_MODES: PlayMode[] = ['solo', 'local', 'online']
+
+/** Neighbor in the wrapping carousel (−1 prev, +1 next). */
+export function neighborPlayMode(mode: PlayMode, delta: -1 | 1): PlayMode {
+  const i = PLAY_MODES.indexOf(mode)
+  const n = PLAY_MODES.length
+  return PLAY_MODES[((i + delta) % n + n) % n]!
+}
 
 const MODE_COPY: Record<
   PlayMode,
@@ -146,14 +153,9 @@ export function bindTitleUi(): TitleUi {
     return PLAY_MODES.indexOf(mode)
   }
 
-  function wrapIndex(i: number): number {
-    const n = PLAY_MODES.length
-    return ((i % n) + n) % n
-  }
-
   /** Always returns a neighbor — carousel wraps. */
   function neighbor(delta: -1 | 1): PlayMode {
-    return PLAY_MODES[wrapIndex(modeIndex(playMode) + delta)]!
+    return neighborPlayMode(playMode, delta)
   }
 
   /** Shortest wrap direction from → to (−1 prev, +1 next). */

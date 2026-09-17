@@ -38,7 +38,7 @@ import {
 import { initStorage, recordScore, loadHighScore } from './platform/storage'
 import { drawBattleWorld, drawWorld } from './render/draw'
 import { drawSpace } from './render/cosmic'
-import { bindTitleUi, MODE_ORBIT_MS, type PlayMode } from './ui/title'
+import { bindTitleUi, MODE_ORBIT_MS, neighborPlayMode, type PlayMode } from './ui/title'
 import { Capacitor } from '@capacitor/core'
 
 type Mode =
@@ -103,6 +103,9 @@ let viewW = Math.max(1, window.innerWidth)
 let viewH = Math.max(1, window.innerHeight)
 let world = createPlayWorld()
 let battle: BattleWorld | null = null
+/** Cached paused arenas for idle side peeks (not the selected center mode). */
+let peekSolo: World | null = null
+let peekBattle: BattleWorld | null = null
 let accum = 0
 let lastTs = performance.now()
 let awaitReleaseBeforeStart = false
@@ -253,17 +256,64 @@ function ensureTitlePreview(force = false): void {
   if (selectedPlayMode === 'solo') {
     battle = null
     if (force || Math.abs(world.R - R) > 2) world = createPlayWorld()
-    return
+  } else {
+    // Fresh paused battle layout whenever mode needs one (or size changed).
+    if (
+      force ||
+      !battle ||
+      Math.abs(battle.R - R) > 2 ||
+      battle.tick > 0 ||
+      battle.winner !== null
+    ) {
+      battle = createTitleBattle()
+    }
   }
-  // Fresh paused battle layout whenever mode needs one (or size changed).
-  if (
-    force ||
-    !battle ||
-    Math.abs(battle.R - R) > 2 ||
-    battle.tick > 0 ||
-    battle.winner !== null
-  ) {
-    battle = createTitleBattle()
+  ensurePeekPreviews(force)
+}
+
+/** Side-peek mini arenas so neighbors look like real selectable modes. */
+function ensurePeekPreviews(force = false): void {
+  const R = arenaRadius()
+  if (force || !peekSolo || Math.abs(peekSolo.R - R) > 2) {
+    peekSolo = createPlayWorld()
+  }
+  if (force || !peekBattle || Math.abs(peekBattle.R - R) > 2) {
+    peekBattle = createTitleBattle()
+  }
+}
+
+function previewWorldFor(mode: PlayMode): World | BattleWorld {
+  if (mode === 'solo') {
+    return selectedPlayMode === 'solo' ? world : peekSolo!
+  }
+  if (selectedPlayMode === mode && battle) return battle
+  return peekBattle!
+}
+
+function drawTitleModePreview(
+  playMode: PlayMode,
+  opts: { offsetX: number; scale: number; time: number },
+): void {
+  const drawOpts = {
+    dim: 0,
+    time: opts.time,
+    skipSpace: true,
+    skipDim: true,
+    clipArena: true,
+    offsetX: opts.offsetX,
+    scale: opts.scale,
+  } as const
+  if (playMode === 'solo') {
+    drawWorld(ctx, previewWorldFor(playMode) as World, viewW, viewH, fx, drawOpts)
+  } else {
+    drawBattleWorld(
+      ctx,
+      previewWorldFor(playMode) as BattleWorld,
+      viewW,
+      viewH,
+      fx,
+      drawOpts,
+    )
   }
 }
 
@@ -787,23 +837,45 @@ function frame(ts: number): void {
   }
 
   if (!arenaSlide) {
-    if (
+    const onTitle = mode === 'title' || mode === 'matchmaking'
+    if (onTitle) {
+      ensurePeekPreviews()
+      const { peekScale, shift } = orbitLayout()
+      const time = ts * 0.001
+      const prev = neighborPlayMode(selectedPlayMode, -1)
+      const next = neighborPlayMode(selectedPlayMode, 1)
+      drawSpace(ctx, viewW, viewH)
+      // Side peeks: real paused arenas so neighbors read as selectable modes.
+      drawTitleModePreview(prev, {
+        offsetX: -shift,
+        scale: peekScale,
+        time,
+      })
+      drawTitleModePreview(next, {
+        offsetX: shift,
+        scale: peekScale,
+        time,
+      })
+      drawTitleModePreview(selectedPlayMode, {
+        offsetX: 0,
+        scale: 1,
+        time,
+      })
+      ctx.fillStyle = `rgba(5, 6, 14, ${TITLE_DIM})`
+      ctx.fillRect(0, 0, viewW, viewH)
+    } else if (
       battle &&
       (mode === 'battleLocal' ||
         mode === 'battleOnline' ||
-        mode === 'battleResult' ||
-        ((mode === 'title' || mode === 'matchmaking') &&
-          selectedPlayMode !== 'solo'))
+        mode === 'battleResult')
     ) {
       drawBattleWorld(ctx, battle, viewW, viewH, fx, {
         dim:
           mode === 'battleResult'
             ? 0.2
-            : mode === 'title' || mode === 'matchmaking'
-              ? TITLE_DIM
-              : preBattleCountdownUntil !== null
-                ? 0.18
-                : 0,
+            : preBattleCountdownUntil !== null
+              ? 0.18
+              : 0,
         time: ts * 0.001,
         viewAs: onlineViewActive ? onlineRole : undefined,
       })
