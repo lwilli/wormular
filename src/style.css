@@ -105,9 +105,9 @@ body {
 .mode-carousel {
   --arena-d: calc(min(100vw, 100vh) - 48px);
   --peek-d: min(30vw, 8rem);
-  --peek-scale: calc(var(--peek-d) / var(--arena-d));
   /* Prefer a deep peek, but keep centers inset so shortLabels stay readable
-     and enough of each mini-arena shows to read as a real mode. */
+     and enough of each mini-arena shows to read as a real mode.
+     (Do not use length/length in scale() — invalid in Chromium and drops the transform.) */
   --orbit-shift: min(
     calc(var(--arena-d) * 0.5 + var(--peek-d) * 0.22),
     calc(50vw - max(3.5rem, var(--peek-d) * 0.62))
@@ -148,6 +148,8 @@ body {
 
 .orbit-prev,
 .orbit-next {
+  width: var(--peek-d);
+  height: var(--peek-d);
   pointer-events: auto;
   cursor: pointer;
 }
@@ -162,17 +164,15 @@ body {
 }
 
 .orbit-prev {
-  transform: translate(-50%, -50%) translateX(calc(-1 * var(--orbit-shift)))
-    scale(var(--peek-scale));
+  transform: translate(-50%, -50%) translateX(calc(-1 * var(--orbit-shift)));
 }
 
 .orbit-next {
-  transform: translate(-50%, -50%) translateX(var(--orbit-shift))
-    scale(var(--peek-scale));
+  transform: translate(-50%, -50%) translateX(var(--orbit-shift));
 }
 
 .orbit-current {
-  transform: translate(-50%, -50%) scale(1);
+  transform: translate(-50%, -50%);
 }
 
 .orbit-face {
@@ -224,8 +224,8 @@ body {
 .orbit-label {
   position: absolute;
   left: 50%;
-  bottom: -1.45rem;
-  transform: translateX(-50%) scale(calc(1 / var(--peek-scale)));
+  bottom: -1.35rem;
+  transform: translateX(-50%);
   transform-origin: top center;
   font-size: 0.72rem;
   font-weight: 600;
@@ -239,11 +239,11 @@ body {
 
 /* Nudge labels toward the viewport center so they sit in the visible crescent. */
 .orbit-prev .orbit-label {
-  transform: translateX(calc(-50% + 0.55rem)) scale(calc(1 / var(--peek-scale)));
+  transform: translateX(calc(-50% + 0.35rem));
 }
 
 .orbit-next .orbit-label {
-  transform: translateX(calc(-50% - 0.55rem)) scale(calc(1 / var(--peek-scale)));
+  transform: translateX(calc(-50% - 0.35rem));
 }
 
 /* During slide the live canvas arenas move; hide labels (faces are transparent). */

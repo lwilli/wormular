@@ -845,7 +845,15 @@ function frame(ts: number): void {
       const prev = neighborPlayMode(selectedPlayMode, -1)
       const next = neighborPlayMode(selectedPlayMode, 1)
       drawSpace(ctx, viewW, viewH)
-      // Side peeks: real paused arenas so neighbors read as selectable modes.
+      drawTitleModePreview(selectedPlayMode, {
+        offsetX: 0,
+        scale: 1,
+        time,
+      })
+      ctx.fillStyle = `rgba(5, 6, 14, ${TITLE_DIM})`
+      ctx.fillRect(0, 0, viewW, viewH)
+      // Side peeks above the title dim so mini arenas stay readable as
+      // selectable modes (not blank dark crescents).
       drawTitleModePreview(prev, {
         offsetX: -shift,
         scale: peekScale,
@@ -856,13 +864,6 @@ function frame(ts: number): void {
         scale: peekScale,
         time,
       })
-      drawTitleModePreview(selectedPlayMode, {
-        offsetX: 0,
-        scale: 1,
-        time,
-      })
-      ctx.fillStyle = `rgba(5, 6, 14, ${TITLE_DIM})`
-      ctx.fillRect(0, 0, viewW, viewH)
     } else if (
       battle &&
       (mode === 'battleLocal' ||
