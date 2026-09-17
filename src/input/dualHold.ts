@@ -1,4 +1,4 @@
-/** Local 1v1: left half / Space = P0 (orange), right half / KeyW = P1 (teal). */
+/** Local 1v1: top half / Space = P0 (orange), bottom half / KeyW = P1 (teal). */
 
 import { blurTextField, typingInField } from './textFocus'
 
@@ -10,10 +10,10 @@ export type DualHoldInput = {
   destroy: () => void
 }
 
-/** Left half → seat 0 (orange), right half → seat 1 (teal). */
-export function seatFromClientX(clientX: number, bounds: DOMRect): 0 | 1 {
-  const mid = bounds.left + bounds.width * 0.5
-  return clientX < mid ? 0 : 1
+/** Top half → seat 0 (orange), bottom half → seat 1 (teal). */
+export function seatFromClientY(clientY: number, bounds: DOMRect): 0 | 1 {
+  const mid = bounds.top + bounds.height * 0.5
+  return clientY < mid ? 0 : 1
 }
 
 export function createDualHoldInput(
@@ -60,7 +60,7 @@ export function createDualHoldInput(
     if (e.pointerType === 'touch') return
     e.preventDefault()
     blurTextField()
-    const seat = seatFromClientX(e.clientX, bounds())
+    const seat = seatFromClientY(e.clientY, bounds())
     pointerSeats.set(e.pointerId, seat)
     recompute()
     state.playRequested = true
@@ -82,7 +82,7 @@ export function createDualHoldInput(
     for (let i = 0; i < e.changedTouches.length; i++) {
       const t = e.changedTouches.item(i)
       if (!t) continue
-      touchSeats.set(t.identifier, seatFromClientX(t.clientX, rect))
+      touchSeats.set(t.identifier, seatFromClientY(t.clientY, rect))
     }
     recompute()
     state.playRequested = true

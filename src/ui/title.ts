@@ -82,7 +82,7 @@ const MODE_COPY: Record<
   },
   local: {
     title: 'LOCAL 1v1',
-    tagline: 'Split screen · first death loses',
+    tagline: 'Top / bottom · first death loses',
     shortLabel: 'Local',
     promptMain: 'Tap to Start',
     promptLines: [],

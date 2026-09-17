@@ -1,26 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import { seatFromClientX } from '../../src/input/dualHold'
+import { seatFromClientY } from '../../src/input/dualHold'
 
-function rect(left: number, width: number): DOMRect {
+function rect(top: number, height: number): DOMRect {
   return {
-    x: left,
-    y: 0,
-    left,
-    top: 0,
-    right: left + width,
-    bottom: 100,
-    width,
-    height: 100,
+    x: 0,
+    y: top,
+    left: 0,
+    top,
+    right: 100,
+    bottom: top + height,
+    width: 100,
+    height,
     toJSON: () => ({}),
   }
 }
 
-describe('seatFromClientX', () => {
-  it('maps left half to orange (P0) and right half to teal (P1)', () => {
+describe('seatFromClientY', () => {
+  it('maps top half to orange (P0) and bottom half to teal (P1)', () => {
     const bounds = rect(10, 200)
-    expect(seatFromClientX(10, bounds)).toBe(0)
-    expect(seatFromClientX(109, bounds)).toBe(0)
-    expect(seatFromClientX(110, bounds)).toBe(1)
-    expect(seatFromClientX(209, bounds)).toBe(1)
+    expect(seatFromClientY(10, bounds)).toBe(0)
+    expect(seatFromClientY(109, bounds)).toBe(0)
+    expect(seatFromClientY(110, bounds)).toBe(1)
+    expect(seatFromClientY(209, bounds)).toBe(1)
   })
 })

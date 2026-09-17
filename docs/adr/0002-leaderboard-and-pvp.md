@@ -27,7 +27,7 @@ Costs must stay near $0.
 - Extend core with `BattleWorld` (two worms, two apples, head-vs-opponent-body death)
 - **Input lockstep** over WebSockets: clients run the same seeded sim; server only relays ordered inputs
 - **Cloudflare Durable Object** (`MatchRoom`) for matchmaking + input relay
-- Local 1v1 (left half / Space vs right half / W, with orange/teal zone chrome) ships without a network
+- Local 1v1 (top half / Space vs bottom half / W, with orange/teal zone chrome) ships without a network
 
 ### Local development
 
