@@ -373,8 +373,9 @@ function orbitLayout(): OrbitLayout {
 }
 
 /**
- * Center each peek label on the disk axis. Only nudge inward if the label
- * would otherwise clip off-screen (peeks themselves may hang off slightly).
+ * Center each peek label on the disk axis. Measure after layout so
+ * letter-spacing / font metrics don't bias the title left of the circle.
+ * Only clamp inward if the title would clip off-screen.
  */
 function syncPeekLabelNudge(
   el: HTMLElement | null,
@@ -384,13 +385,23 @@ function syncPeekLabelNudge(
   if (!el) return
   const label = el.querySelector('.orbit-label') as HTMLElement | null
   if (!label) return
-  const labelHalf = Math.max(12, (label.offsetWidth || 48) * 0.5)
+  el.style.setProperty('--peek-label-nudge', '0px')
+  // Force layout with nudge cleared before measuring.
+  const lr = label.getBoundingClientRect()
+  if (lr.width < 1) return
+  const ls = Number.parseFloat(getComputedStyle(label).letterSpacing)
+  const trail = Number.isFinite(ls) ? ls : 0
+  // Trailing letter-spacing widens the box on the right; ink center is left of box mid.
+  const inkCx = (lr.left + lr.right - trail) * 0.5
+  let nudge = diskCx - inkCx
+  const labelHalf = lr.width * 0.5
   const pad = 6
   const labelCx = Math.min(
     viewW - labelHalf - pad,
-    Math.max(labelHalf + pad, diskCx),
+    Math.max(labelHalf + pad, diskCx + nudge),
   )
-  el.style.setProperty('--peek-label-nudge', `${labelCx - diskCx}px`)
+  nudge = labelCx - diskCx
+  el.style.setProperty('--peek-label-nudge', `${nudge}px`)
 }
 
 /** Keep HTML peek hit-targets aligned with the canvas layout. */
