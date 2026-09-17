@@ -107,10 +107,10 @@ body {
   --peek-d: min(28vw, 7.5rem);
   --peek-scale: calc(var(--peek-d) / var(--arena-d));
   /* Prefer a deep peek, but keep centers inset so shortLabels stay readable
-     on narrow phones (iPhone mini etc.) instead of clipping to a single letter. */
+     and enough of each mini-arena shows to read as a real mode. */
   --orbit-shift: min(
     calc(var(--arena-d) * 0.5 + var(--peek-d) * 0.22),
-    calc(50vw - max(2.75rem, var(--peek-d) * 0.42))
+    calc(50vw - max(3.35rem, var(--peek-d) * 0.55))
   );
   --orbit-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --orbit-ms: 420ms;

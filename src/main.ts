@@ -326,8 +326,8 @@ function orbitLayout(): { peekScale: number; shift: number } {
     ? Math.min(viewW * 0.26, 6.75 * rootPx)
     : Math.min(viewW * 0.28, 7.5 * rootPx)
   const naturalShift = arenaD * 0.5 + peekD * 0.22
-  // Match CSS: keep peek centers inset so shortLabels are not clipped.
-  const maxShift = viewW * 0.5 - Math.max(2.75 * rootPx, peekD * 0.42)
+  // Match CSS: keep peek centers inset so shortLabels + mini arenas read clearly.
+  const maxShift = viewW * 0.5 - Math.max(3.35 * rootPx, peekD * 0.55)
   return {
     peekScale: peekD / arenaD,
     shift: Math.min(naturalShift, maxShift),
