@@ -156,6 +156,10 @@ ui.setStatus('')
 ui.setResult(null)
 ui.setMatchBanner(null)
 document.getElementById('battle-hud')?.setAttribute('hidden', '')
+document.getElementById('battle-hud')?.classList.remove('is-local')
+document.getElementById('match-banner')?.classList.remove('is-local')
+document.getElementById('result')?.classList.remove('is-local')
+document.getElementById('local-zones')?.setAttribute('hidden', '')
 ensureTitlePreview()
 
 ui.onSfxToggle(() => {
@@ -484,6 +488,24 @@ function armTitleStartGate(): void {
   titleReadyAt = performance.now() + TITLE_RESTART_COOLDOWN_MS
 }
 
+function setLocalBattleChrome(visible: boolean): void {
+  const zones = document.getElementById('local-zones')
+  const hud = document.getElementById('battle-hud')
+  const banner = document.getElementById('match-banner')
+  const result = document.getElementById('result')
+  if (visible) {
+    zones?.removeAttribute('hidden')
+    hud?.classList.add('is-local')
+    banner?.classList.add('is-local')
+    result?.classList.add('is-local')
+  } else {
+    zones?.setAttribute('hidden', '')
+    hud?.classList.remove('is-local')
+    banner?.classList.remove('is-local')
+    result?.classList.remove('is-local')
+  }
+}
+
 function showTitle(): void {
   arenaSlide = null
   titleLaunch = null
@@ -495,8 +517,7 @@ function showTitle(): void {
   ensureTitlePreview()
   clearFx(fx)
   soloInput.holding = false
-  dualInput.holding[0] = false
-  dualInput.holding[1] = false
+  dualInput.reset()
   armTitleStartGate()
   ui.setVisible(true)
   ui.setMenuVisible(true)
@@ -509,6 +530,7 @@ function showTitle(): void {
   preBattleCountdownUntil = null
   lastCountdownSec = -1
   document.getElementById('battle-hud')?.setAttribute('hidden', '')
+  setLocalBattleChrome(false)
 }
 
 /** Start only on a fresh intentional press after death cooldown + release. */
@@ -584,9 +606,7 @@ function startBattleLocal(): void {
   // Tap-to-start: clear the tap so nobody thrusts during the countdown.
   soloInput.holding = false
   soloInput.playRequested = false
-  dualInput.holding[0] = false
-  dualInput.holding[1] = false
-  dualInput.playRequested = false
+  dualInput.reset()
   beginTitleLaunch('local')
 }
 
@@ -599,6 +619,7 @@ function finishStartLocal(): void {
   ui.setHudVisible(false)
   ui.setBattleHud(0, 0, 'Local')
   document.getElementById('battle-hud')?.removeAttribute('hidden')
+  setLocalBattleChrome(true)
   ui.setMatchBanner('Get ready', '5')
 }
 
@@ -627,8 +648,7 @@ function startMatchmaking(): void {
       onlineInputQueue.clear()
       battle = createBattleWorld(arenaRadius(), seed)
       clearFx(fx)
-      dualInput.holding[1] = false
-      dualInput.playRequested = false
+      dualInput.reset()
       ui.setMatchStatus('idle')
       ui.setBattleHud(0, 0, `vs ${opponentName}`)
       beginTitleLaunch('online')
@@ -666,6 +686,7 @@ function finishStartOnline(): void {
   ui.setVisible(false)
   ui.setMenuVisible(false)
   ui.setHudVisible(false)
+  setLocalBattleChrome(false)
   document.getElementById('battle-hud')?.removeAttribute('hidden')
   ui.setMatchBanner(`${onlinePlayerName} vs ${onlineOpponentName}`, '5')
 }
@@ -788,7 +809,7 @@ function frame(ts: number): void {
       // Swallow held taps from the death mash; arm only after release.
       soloInput.playRequested = false
       dualInput.playRequested = false
-      if (ts >= titleReadyAt && !soloInput.holding) {
+      if (ts >= titleReadyAt && !soloInput.holding && !dualInput.holding[0] && !dualInput.holding[1]) {
         awaitReleaseBeforeStart = false
       }
     } else if (

@@ -107,6 +107,8 @@ Prefs: `wormular.sfxEnabled`, `wormular.musicEnabled` (legacy `wormular.soundEna
 | Title center scale | `centerScale` from `orbitLayout()` | Selected mode shrinks on title so neighbor peeks read as separate carousel items |
 | Solo leaderboard list | `max-height: min(5.25rem, 18vh)` (`4.25rem` / `15vh` under 700px tall) | Caps the title-screen score list so it stays under the scaled arena |
 | Title bottom chrome | overlay `padding-bottom` ≈ `0.75rem` / safe-area | Keeps name + leaderboard pinned low without unused gap under the board |
+| Local split zones | `#local-zones` mirrored seats | Soft orange (top) / teal (bottom) tints; top seat chrome rotated 180° so both players can read scores / countdown / result |
+| Local dual input | `src/input/dualHold.ts` | Top half + Space → P0; bottom half + W → P1; multi-touch per seat |
 
 ## Camera shake stack — `src/render/draw.ts`
 

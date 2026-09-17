@@ -82,7 +82,7 @@ const MODE_COPY: Record<
   },
   local: {
     title: 'LOCAL 1v1',
-    tagline: 'Same device · first death loses',
+    tagline: 'Top / bottom · first death loses',
     shortLabel: 'Local',
     promptMain: 'Tap to Start',
     promptLines: [],
@@ -132,10 +132,47 @@ export function bindTitleUi(): TitleUi {
   const battleP0 = mustHtml('#battle-p0')
   const battleP1 = mustHtml('#battle-p1')
   const battleLabel = mustHtml('#battle-label')
+  const localScoreP0 = mustHtml('#local-score-p0')
+  const localScoreP1 = mustHtml('#local-score-p1')
+  const localBannerP0 = mustHtml('#local-banner-p0')
+  const localBannerP1 = mustHtml('#local-banner-p1')
+  const localResultP0 = mustHtml('#local-result-p0')
+  const localResultP1 = mustHtml('#local-result-p1')
   const result = mustHtml('#result')
   const matchBanner = mustHtml('#match-banner')
   const matchBannerTitle = mustHtml('#match-banner-title')
   const matchBannerCount = mustHtml('#match-banner-count')
+
+  function setLocalBanners(titleText: string | null, count?: string | null): void {
+    for (const banner of [localBannerP0, localBannerP1]) {
+      const titleEl = banner.querySelector('.local-banner-title') as HTMLElement | null
+      const countEl = banner.querySelector('.local-banner-count') as HTMLElement | null
+      if (!titleText) {
+        banner.hidden = true
+        if (titleEl) titleEl.textContent = ''
+        if (countEl) countEl.textContent = ''
+        continue
+      }
+      banner.hidden = false
+      if (titleEl) titleEl.textContent = titleText
+      if (countEl) {
+        countEl.textContent = count ?? ''
+        countEl.hidden = !count
+      }
+    }
+  }
+
+  function setLocalResults(text: string | null): void {
+    for (const el of [localResultP0, localResultP1]) {
+      if (!text) {
+        el.hidden = true
+        el.textContent = ''
+      } else {
+        el.hidden = false
+        el.textContent = text
+      }
+    }
+  }
 
   let playMode: PlayMode = 'solo'
   let menuVisible = true
@@ -576,27 +613,36 @@ export function bindTitleUi(): TitleUi {
       battleP0.textContent = String(p0)
       battleP1.textContent = String(p1)
       battleLabel.textContent = label ?? 'Battle'
+      localScoreP0.textContent = String(p0)
+      localScoreP1.textContent = String(p1)
+      for (const meta of document.querySelectorAll('.local-seat-meta')) {
+        meta.textContent = label ?? 'Local'
+      }
     },
     setResult(text) {
       if (!text) {
         result.hidden = true
         result.textContent = ''
+        setLocalResults(null)
         return
       }
       result.hidden = false
       result.textContent = text
+      setLocalResults(text)
     },
     setMatchBanner(titleText, count) {
       if (!titleText) {
         matchBanner.hidden = true
         matchBannerTitle.textContent = ''
         matchBannerCount.textContent = ''
+        setLocalBanners(null)
         return
       }
       matchBanner.hidden = false
       matchBannerTitle.textContent = titleText
       matchBannerCount.textContent = count ?? ''
       matchBannerCount.hidden = !count
+      setLocalBanners(titleText, count)
     },
   }
 }

@@ -808,6 +808,153 @@ body {
   }
 }
 
+/* Soft top/bottom tints for local 1v1 split-touch (pointer-events none). */
+.local-zones {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.local-zones[hidden] {
+  display: none;
+}
+
+.local-zone {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.local-zone-p0 {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 122, 24, 0.22) 0%,
+    rgba(255, 122, 24, 0.08) 42%,
+    rgba(255, 122, 24, 0) 100%
+  );
+  box-shadow: inset 0 3px 0 rgba(255, 122, 24, 0.55);
+}
+
+.local-zone-p1 {
+  background: linear-gradient(
+    0deg,
+    rgba(46, 196, 182, 0.22) 0%,
+    rgba(46, 196, 182, 0.08) 42%,
+    rgba(46, 196, 182, 0) 100%
+  );
+  box-shadow: inset 0 -3px 0 rgba(46, 196, 182, 0.55);
+}
+
+/* Same chrome in both seats; orange seat is rotated so top player can read it. */
+.local-seat {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  padding: 0.85rem 1rem max(1.1rem, env(safe-area-inset-bottom));
+}
+
+.local-zone-p0 .local-seat {
+  /* After rotate, flex-end sits on the physical top edge for the orange player. */
+  transform: rotate(180deg);
+  padding-bottom: max(1.1rem, env(safe-area-inset-top));
+}
+
+.local-seat-hud {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.local-seat-score {
+  font-size: clamp(1.1rem, 3.5vw, 1.5rem);
+}
+
+.local-zone-p0 .local-seat-score {
+  color: #ff7a18;
+}
+
+.local-zone-p1 .local-seat-score {
+  color: #2ec4b6;
+}
+
+.local-seat-meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.local-zone-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
+  opacity: 0.85;
+}
+
+.local-zone-p0 .local-zone-label {
+  color: #ffc56a;
+}
+
+.local-zone-p1 .local-zone-label {
+  color: #8ef0e0;
+}
+
+.local-seat-banner,
+.local-seat-result {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.85rem 1.25rem;
+  border-radius: 0.55rem;
+  background: rgba(5, 6, 14, 0.78);
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+}
+
+.local-seat-banner[hidden],
+.local-seat-result[hidden] {
+  display: none;
+}
+
+.local-banner-title {
+  color: var(--text);
+  font-size: clamp(0.95rem, 3.4vw, 1.2rem);
+  font-weight: 600;
+}
+
+.local-banner-count {
+  color: var(--accent);
+  font-size: clamp(1.8rem, 8vw, 2.75rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  min-height: 1em;
+}
+
+.local-seat-result {
+  color: var(--text);
+  font-size: clamp(1.05rem, 3.8vw, 1.35rem);
+  font-weight: 700;
+}
+
 .battle-hud {
   position: absolute;
   top: max(0.75rem, env(safe-area-inset-top));
@@ -816,10 +963,11 @@ body {
   display: flex;
   justify-content: center;
   pointer-events: none;
-  z-index: 1;
+  z-index: 2;
 }
 
-.battle-hud[hidden] {
+.battle-hud[hidden],
+.battle-hud.is-local {
   display: none;
 }
 
@@ -867,7 +1015,8 @@ body {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
 }
 
-.result[hidden] {
+.result[hidden],
+.result.is-local {
   display: none;
 }
 
@@ -889,7 +1038,8 @@ body {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
 }
 
-.match-banner[hidden] {
+.match-banner[hidden],
+.match-banner.is-local {
   display: none;
 }
 
