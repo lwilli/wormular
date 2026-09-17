@@ -355,9 +355,9 @@ function orbitLayout(): OrbitLayout {
     ? Math.min(viewW * 0.22, 5.75 * rootPx)
     : Math.min(viewW * 0.24, 7 * rootPx)
   const gap = Math.max(12, Math.min(24, viewW * 0.036))
-  // Keep the full peek disk on-screen so labels centered under it look correct.
-  const edgePad = Math.max(8, 0.5 * rootPx)
-  const maxShift = viewW * 0.5 - peekD * 0.5 - edgePad
+  // Let a sliver of each peek hang off-screen (recessed / not-selected feel).
+  const clip = Math.min(peekD * 0.18, 16)
+  const maxShift = viewW * 0.5 - peekD * 0.5 + clip
   // Fit: centerScale*arenaR + peekR + gap <= maxShift (peeks outside the selected rim).
   const centerScale = Math.min(
     1,
@@ -372,6 +372,35 @@ function orbitLayout(): OrbitLayout {
   }
 }
 
+/**
+ * Nudge a peek label to the center of the *visible* disk so it stays on-screen
+ * and reads centered under the clipped crescent.
+ */
+function syncPeekLabelNudge(
+  el: HTMLElement | null,
+  diskCx: number,
+  peekR: number,
+): void {
+  if (!el) return
+  const label = el.querySelector('.orbit-label') as HTMLElement | null
+  if (!label) return
+  const left = diskCx - peekR
+  const right = diskCx + peekR
+  const visLeft = Math.max(0, left)
+  const visRight = Math.min(viewW, right)
+  const visibleCx =
+    visRight > visLeft ? (visLeft + visRight) * 0.5 : diskCx
+  let nudge = visibleCx - diskCx
+  const labelHalf = Math.max(12, (label.offsetWidth || 48) * 0.5)
+  const pad = 6
+  const labelCx = Math.min(
+    viewW - labelHalf - pad,
+    Math.max(labelHalf + pad, diskCx + nudge),
+  )
+  nudge = labelCx - diskCx
+  el.style.setProperty('--peek-label-nudge', `${nudge}px`)
+}
+
 /** Keep HTML peek hit-targets aligned with the canvas layout. */
 function syncOrbitCss(layout: OrbitLayout): void {
   const carousel = document.getElementById('mode-carousel')
@@ -379,6 +408,18 @@ function syncOrbitCss(layout: OrbitLayout): void {
   carousel.style.setProperty('--peek-d', `${layout.peekD}px`)
   carousel.style.setProperty('--orbit-shift', `${layout.shift}px`)
   carousel.style.setProperty('--title-center-scale', String(layout.centerScale))
+  const mid = viewW * 0.5
+  const peekR = layout.peekD * 0.5
+  syncPeekLabelNudge(
+    document.getElementById('mode-peek-prev'),
+    mid - layout.shift,
+    peekR,
+  )
+  syncPeekLabelNudge(
+    document.getElementById('mode-peek-next'),
+    mid + layout.shift,
+    peekR,
+  )
 }
 
 function easeOrbit(u: number): number {

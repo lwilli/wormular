@@ -218,7 +218,8 @@ body {
   position: absolute;
   left: 50%;
   bottom: -1.35rem;
-  transform: translateX(-50%);
+  /* --peek-label-nudge centers on the visible crescent when the disk is clipped. */
+  transform: translateX(calc(-50% + var(--peek-label-nudge, 0px)));
   transform-origin: top center;
   font-size: 0.72rem;
   font-weight: 600;
