@@ -356,7 +356,9 @@ function orbitLayout(): OrbitLayout {
     : Math.min(viewW * 0.24, 7 * rootPx)
   const gap = Math.max(12, Math.min(24, viewW * 0.036))
   // Let a sliver of each peek hang off-screen (recessed / not-selected feel).
-  const clip = Math.min(peekD * 0.18, 16)
+  // Keep this small so the geometric center still reads as the circle’s center
+  // (and side titles can sit on that axis without looking edge-biased).
+  const clip = Math.min(peekD * 0.08, 8)
   const maxShift = viewW * 0.5 - peekD * 0.5 + clip
   // Fit: centerScale*arenaR + peekR + gap <= maxShift (peeks outside the selected rim).
   const centerScale = Math.min(
@@ -373,15 +375,14 @@ function orbitLayout(): OrbitLayout {
 }
 
 /**
- * Center each peek label on the visible peek mass. Clipped peeks hang
- * slightly off-screen; the eye tracks the area centroid of the on-screen
- * disk (not the geometric center, not the bbox mid). Measure ink after
- * layout (letter-spacing biases the box mid) and only clamp if needed.
+ * Center each peek label on the disk axis. Measure after layout so
+ * letter-spacing / font metrics don't bias the title left of the circle.
+ * Only clamp inward if the title would clip off-screen.
  */
 function syncPeekLabelNudge(
   el: HTMLElement | null,
   diskCx: number,
-  peekR: number,
+  _peekR: number,
 ): void {
   if (!el) return
   const label = el.querySelector('.orbit-label') as HTMLElement | null
@@ -394,8 +395,7 @@ function syncPeekLabelNudge(
   const trail = Number.isFinite(ls) ? ls : 0
   // Trailing letter-spacing widens the box on the right; ink center is left of box mid.
   const inkCx = (lr.left + lr.right - trail) * 0.5
-  const targetCx = clippedDiskCentroidX(diskCx, peekR)
-  let nudge = targetCx - inkCx
+  let nudge = diskCx - inkCx
   const labelHalf = lr.width * 0.5
   const pad = 6
   const labelCx = Math.min(
@@ -404,38 +404,6 @@ function syncPeekLabelNudge(
   )
   nudge = labelCx - inkCx
   el.style.setProperty('--peek-label-nudge', `${nudge}px`)
-}
-
-/**
- * Horizontal area-centroid of a disk after clipping to [0, viewW].
- * For a left clip at 0, this sits slightly inland of the geometric center.
- */
-function clippedDiskCentroidX(diskCx: number, peekR: number): number {
-  const left = diskCx - peekR
-  const right = diskCx + peekR
-  if (left >= 0 && right <= viewW) return diskCx
-  if (left < 0 && right > viewW) {
-    return (Math.max(0, left) + Math.min(viewW, right)) * 0.5
-  }
-  if (left < 0) return diskCentroidBeyondEdge(diskCx, peekR, 0)
-  // Right clip: mirror into the left-clip case.
-  return viewW - diskCentroidBeyondEdge(viewW - diskCx, peekR, 0)
-}
-
-/** Centroid of the portion of a disk with x >= edge. */
-function diskCentroidBeyondEdge(
-  diskCx: number,
-  peekR: number,
-  edge: number,
-): number {
-  const d = edge - diskCx
-  if (d <= -peekR) return diskCx
-  if (d >= peekR) return edge
-  const r2 = peekR * peekR
-  const halfChord = Math.sqrt(Math.max(0, r2 - d * d))
-  const area = r2 * Math.acos(Math.min(1, Math.max(-1, d / peekR))) - d * halfChord
-  if (area < 1e-6) return (edge + diskCx + peekR) * 0.5
-  return diskCx + ((2 / 3) * halfChord * halfChord * halfChord) / area
 }
 
 /** Keep HTML peek hit-targets aligned with the canvas layout. */

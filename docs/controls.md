@@ -100,8 +100,8 @@ Prefs: `wormular.sfxEnabled`, `wormular.musicEnabled` (legacy `wormular.soundEna
 | Mode tap slop | `14px` (`TAP_SLOP_PX`) | Horizontal jitter ignored when committing a hold-start |
 | Mode orbit slide | `420ms` (`MODE_ORBIT_MS` / `--orbit-ms`) | Live arenas slide/scale; caption/bottom use the same duration |
 | Title launch | `300ms` (`TITLE_LAUNCH_MS`) | Selected arena expands centerScale→1 while peeks + chrome fade into play |
-| Mode peek inset | JS `orbitLayout()` gap + ~18% peek clip | Peeks sit beside a scaled-down selected arena; a slight off-screen clip keeps them recessed |
-| Mode peek labels | `--peek-label-nudge` | Labels sit under the clipped peek’s area centroid (visible mass); nudge only if a title would clip |
+| Mode peek inset | JS `orbitLayout()` gap + ~8% peek clip | Peeks sit beside a scaled-down selected arena; a slight off-screen clip keeps them recessed without pulling labels off-axis |
+| Mode peek labels | `--peek-label-nudge` (usually ~0) | Labels share the peek disk axis; only nudge inward if a title would clip |
 | Mode peek size | `~22–24vw` (capped) | Side preview diameter; synced to CSS `--peek-d` |
 | Mode peek previews | canvas plate + mini arena | Opaque disk + paused Solo / 1v1 world; HTML face is a neutral ring/hit target |
 | Title center scale | `centerScale` from `orbitLayout()` | Selected mode shrinks on title so neighbor peeks read as separate carousel items |
