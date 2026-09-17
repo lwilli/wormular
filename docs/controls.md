@@ -101,7 +101,7 @@ Prefs: `wormular.sfxEnabled`, `wormular.musicEnabled` (legacy `wormular.soundEna
 | Mode orbit slide | `420ms` (`MODE_ORBIT_MS`) | Live arenas slide/scale; outgoing stays drawn until settle |
 | Mode peek inset | `max(3.5rem, 62% peek-d)` from screen edge | Caps `--orbit-shift` so shortLabels and mini-arena content stay readable on narrow phones |
 | Mode peek size | `min(30vw, 8rem)` (`7.25rem` when narrow) | Side preview diameter |
-| Mode peek previews | canvas mini arenas + CSS worm glyphs | Idle title draws real paused Solo / 1v1 worlds in the side peeks; HTML faces add 1- vs 2-worm silhouettes and mode-tinted rings |
+| Mode peek previews | canvas mini arenas | Idle title draws real paused Solo / 1v1 worlds in the side peeks; HTML faces are transparent hit targets with mode-tinted rings |
 
 ## Camera shake stack — `src/render/draw.ts`
 
