@@ -9,6 +9,7 @@ import {
   FIXED_DT,
   PRE_BATTLE_COUNTDOWN_MS,
   TITLE_DIM,
+  TITLE_LAUNCH_MS,
   TITLE_RESTART_COOLDOWN_MS,
 } from './core/config'
 import { createBattleWorld, stepBattle } from './core/battle'
@@ -38,7 +39,7 @@ import {
 import { initStorage, recordScore, loadHighScore } from './platform/storage'
 import { drawBattleWorld, drawWorld } from './render/draw'
 import { drawSpace } from './render/cosmic'
-import { bindTitleUi, MODE_ORBIT_MS, type PlayMode } from './ui/title'
+import { bindTitleUi, MODE_ORBIT_MS, neighborPlayMode, type PlayMode } from './ui/title'
 import { Capacitor } from '@capacitor/core'
 
 type Mode =
@@ -103,9 +104,14 @@ let viewW = Math.max(1, window.innerWidth)
 let viewH = Math.max(1, window.innerHeight)
 let world = createPlayWorld()
 let battle: BattleWorld | null = null
+/** Cached paused arenas for idle side peeks (not the selected center mode). */
+let peekSolo: World | null = null
+let peekBattle: BattleWorld | null = null
 let accum = 0
 let lastTs = performance.now()
 let awaitReleaseBeforeStart = false
+/** True while a title canvas press might still become a mode swipe. */
+let titlePressDeferred = false
 let titleReadyAt = 0
 let lastHudScore = -1
 let matchClient: MatchClient | null = null
@@ -129,6 +135,13 @@ let arenaSlide: {
   dur: number
   outSolo: World | null
   outBattle: BattleWorld | null
+} | null = null
+/** Title → play: expand selected arena and fade chrome before gameplay. */
+let titleLaunch: {
+  t0: number
+  dur: number
+  fromScale: number
+  kind: 'solo' | 'local' | 'online'
 } | null = null
 
 ui.setHighScore(highScore)
@@ -205,8 +218,14 @@ ui.onPlayModeChange((next, meta) => {
   }
 })
 
+/** Defer title start until tap / hold is distinguished from a mode swipe. */
+ui.onTitlePressGesture((phase) => {
+  titlePressDeferred = phase === 'defer'
+})
+
 /** Swipe between modes: cancel the press that would have started a run. */
 ui.onCarouselGesture(() => {
+  titlePressDeferred = false
   soloInput.playRequested = false
   dualInput.playRequested = false
   awaitReleaseBeforeStart = true
@@ -245,29 +264,120 @@ function ensureTitlePreview(force = false): void {
   if (selectedPlayMode === 'solo') {
     battle = null
     if (force || Math.abs(world.R - R) > 2) world = createPlayWorld()
-    return
+  } else {
+    // Fresh paused battle layout whenever mode needs one (or size changed).
+    if (
+      force ||
+      !battle ||
+      Math.abs(battle.R - R) > 2 ||
+      battle.tick > 0 ||
+      battle.winner !== null
+    ) {
+      battle = createTitleBattle()
+    }
   }
-  // Fresh paused battle layout whenever mode needs one (or size changed).
-  if (
-    force ||
-    !battle ||
-    Math.abs(battle.R - R) > 2 ||
-    battle.tick > 0 ||
-    battle.winner !== null
-  ) {
-    battle = createTitleBattle()
+  ensurePeekPreviews(force)
+}
+
+/** Side-peek mini arenas so neighbors look like real selectable modes. */
+function ensurePeekPreviews(force = false): void {
+  const R = arenaRadius()
+  if (force || !peekSolo || Math.abs(peekSolo.R - R) > 2) {
+    peekSolo = createPlayWorld()
+  }
+  if (force || !peekBattle || Math.abs(peekBattle.R - R) > 2) {
+    peekBattle = createTitleBattle()
   }
 }
 
-function orbitLayout(): { peekScale: number; shift: number } {
+function previewWorldFor(mode: PlayMode): World | BattleWorld {
+  if (mode === 'solo') {
+    return selectedPlayMode === 'solo' ? world : peekSolo!
+  }
+  if (selectedPlayMode === mode && battle) return battle
+  return peekBattle!
+}
+
+function drawTitleModePreview(
+  playMode: PlayMode,
+  opts: { offsetX: number; scale: number; time: number },
+): void {
+  const drawOpts = {
+    dim: 0,
+    time: opts.time,
+    skipSpace: true,
+    skipDim: true,
+    clipArena: true,
+    offsetX: opts.offsetX,
+    scale: opts.scale,
+  } as const
+  if (playMode === 'solo') {
+    drawWorld(ctx, previewWorldFor(playMode) as World, viewW, viewH, fx, drawOpts)
+  } else {
+    drawBattleWorld(
+      ctx,
+      previewWorldFor(playMode) as BattleWorld,
+      viewW,
+      viewH,
+      fx,
+      drawOpts,
+    )
+  }
+}
+
+/** Opaque disk under a side peek so it reads as its own mode, not part of center. */
+function drawPeekPlate(offsetX: number, diameter: number): void {
+  const cx = viewW * 0.5 + offsetX
+  const cy = viewH * 0.5
+  ctx.save()
+  ctx.beginPath()
+  ctx.arc(cx, cy, diameter * 0.5 + 1, 0, Math.PI * 2)
+  ctx.fillStyle = 'rgba(7, 9, 20, 0.97)'
+  ctx.fill()
+  ctx.restore()
+}
+
+type OrbitLayout = {
+  peekD: number
+  peekScale: number
+  shift: number
+  /** Selected mode scale on title — shrunk so peeks sit beside it with a gap. */
+  centerScale: number
+}
+
+function orbitLayout(): OrbitLayout {
   const arenaD = arenaRadius() * 2
+  const arenaR = arenaD * 0.5
   const rootPx =
     Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
-  const peekD = Math.min(viewW * 0.28, 7.5 * rootPx)
+  const narrow = Math.min(viewW, viewH) < ARENA_NARROW_SIDE_PX
+  const peekD = narrow
+    ? Math.min(viewW * 0.22, 5.75 * rootPx)
+    : Math.min(viewW * 0.24, 7 * rootPx)
+  const gap = Math.max(12, Math.min(24, viewW * 0.036))
+  const labelPad = Math.max(2.4 * rootPx, peekD * 0.42)
+  const maxShift = viewW * 0.5 - labelPad
+  // Fit: centerScale*arenaR + peekR + gap <= maxShift (peeks outside the selected rim).
+  const centerScale = Math.min(
+    1,
+    Math.max(0.55, (maxShift - peekD * 0.5 - gap) / arenaR),
+  )
+  const shift = Math.min(maxShift, centerScale * arenaR + peekD * 0.5 + gap)
   return {
+    peekD,
     peekScale: peekD / arenaD,
-    shift: arenaD * 0.5 + peekD * 0.22,
+    shift,
+    centerScale,
   }
+}
+
+/** Keep HTML peek hit-targets aligned with the canvas layout. */
+function syncOrbitCss(layout: OrbitLayout): void {
+  const carousel = document.getElementById('mode-carousel')
+  if (!carousel) return
+  carousel.style.setProperty('--peek-d', `${layout.peekD}px`)
+  carousel.style.setProperty('--orbit-shift', `${layout.shift}px`)
+  carousel.style.setProperty('--title-center-scale', String(layout.centerScale))
 }
 
 function easeOrbit(u: number): number {
@@ -326,11 +436,13 @@ function armTitleStartGate(): void {
   soloInput.playRequested = false
   dualInput.playRequested = false
   awaitReleaseBeforeStart = true
+  titlePressDeferred = false
   titleReadyAt = performance.now() + TITLE_RESTART_COOLDOWN_MS
 }
 
 function showTitle(): void {
   arenaSlide = null
+  titleLaunch = null
   mode = 'title'
   onlineViewActive = false
   stopMatchClient()
@@ -358,6 +470,7 @@ function showTitle(): void {
 /** Start only on a fresh intentional press after death cooldown + release. */
 function requestStart(): void {
   if (mode !== 'title') return
+  if (titleLaunch) return
   if (awaitReleaseBeforeStart) return
   if (performance.now() < titleReadyAt) return
   audio.unlock()
@@ -366,14 +479,49 @@ function requestStart(): void {
   else startMatchmaking()
 }
 
+function beginTitleLaunch(kind: 'solo' | 'local' | 'online'): void {
+  arenaSlide = null
+  const { centerScale } = orbitLayout()
+  const fromScale = reduceMotionLaunch() ? 1 : centerScale
+  titleLaunch = {
+    t0: performance.now(),
+    dur: reduceMotionLaunch() ? 0 : TITLE_LAUNCH_MS,
+    fromScale,
+    kind,
+  }
+  // Fade title chrome while the arena expands into play.
+  ui.setMenuVisible(false)
+  ui.setVisible(false, { fadeMs: Math.max(TITLE_LAUNCH_MS, 180) })
+  if (titleLaunch.dur <= 0) {
+    finishTitleLaunch()
+  }
+}
+
+function reduceMotionLaunch(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+function finishTitleLaunch(): void {
+  if (!titleLaunch) return
+  const kind = titleLaunch.kind
+  titleLaunch = null
+  if (kind === 'solo') finishStartSolo()
+  else if (kind === 'local') finishStartLocal()
+  else finishStartOnline()
+}
+
 function startSolo(): void {
   trackPlay('solo')
-  mode = 'playing'
   battle = null
   clearFx(fx)
   awaitReleaseBeforeStart = false
   soloInput.playRequested = false
   lastHudScore = -1
+  beginTitleLaunch('solo')
+}
+
+function finishStartSolo(): void {
+  mode = 'playing'
   ui.setVisible(false)
   ui.setMenuVisible(false)
   ui.setHudVisible(true)
@@ -383,7 +531,6 @@ function startSolo(): void {
 
 function startBattleLocal(): void {
   trackPlay('local')
-  mode = 'battleLocal'
   onlineViewActive = false
   // Reuse the paused title battle so layout does not pop on start.
   if (!battle || battle.tick > 0 || battle.winner !== null) {
@@ -396,6 +543,11 @@ function startBattleLocal(): void {
   dualInput.holding[0] = false
   dualInput.holding[1] = false
   dualInput.playRequested = false
+  beginTitleLaunch('local')
+}
+
+function finishStartLocal(): void {
+  mode = 'battleLocal'
   preBattleCountdownUntil = performance.now() + PRE_BATTLE_COUNTDOWN_MS
   lastCountdownSec = -1
   ui.setVisible(false)
@@ -430,20 +582,12 @@ function startMatchmaking(): void {
       onlineTick = 0
       onlineInputQueue.clear()
       battle = createBattleWorld(arenaRadius(), seed)
-      mode = 'battleOnline'
       clearFx(fx)
-      // 5 → 1 → Go — hold during countdown is fine; that press is already thrust.
-      preBattleCountdownUntil = performance.now() + PRE_BATTLE_COUNTDOWN_MS
-      lastCountdownSec = -1
       dualInput.holding[1] = false
       dualInput.playRequested = false
-      ui.setVisible(false)
-      ui.setMenuVisible(false)
-      ui.setHudVisible(false)
       ui.setMatchStatus('idle')
       ui.setBattleHud(0, 0, `vs ${opponentName}`)
-      document.getElementById('battle-hud')?.removeAttribute('hidden')
-      ui.setMatchBanner(`${onlinePlayerName} vs ${opponentName}`, '5')
+      beginTitleLaunch('online')
     },
     onInputs: (tick, holding) => {
       onlineInputQueue.set(tick, holding)
@@ -469,6 +613,17 @@ function startMatchmaking(): void {
       }
     },
   })
+}
+
+function finishStartOnline(): void {
+  mode = 'battleOnline'
+  preBattleCountdownUntil = performance.now() + PRE_BATTLE_COUNTDOWN_MS
+  lastCountdownSec = -1
+  ui.setVisible(false)
+  ui.setMenuVisible(false)
+  ui.setHudVisible(false)
+  document.getElementById('battle-hud')?.removeAttribute('hidden')
+  ui.setMatchBanner(`${onlinePlayerName} vs ${onlineOpponentName}`, '5')
 }
 
 function endBattle(message: string): void {
@@ -515,6 +670,7 @@ function resize(): void {
   const R = arenaRadius()
   if (mode === 'title' || mode === 'matchmaking') {
     ensureTitlePreview()
+    syncOrbitCss(orbitLayout())
   } else if (mode === 'playing' || mode === 'dying') {
     if (Math.abs(world.R - R) > 2) world = createPlayWorld()
   } else if (
@@ -580,7 +736,11 @@ function frame(ts: number): void {
   }
 
   if (mode === 'title') {
-    if (awaitReleaseBeforeStart) {
+    if (titleLaunch) {
+      // Launch owns the press — don't re-fire start.
+      soloInput.playRequested = false
+      dualInput.playRequested = false
+    } else if (awaitReleaseBeforeStart) {
       // Swallow held taps from the death mash; arm only after release.
       soloInput.playRequested = false
       dualInput.playRequested = false
@@ -588,9 +748,10 @@ function frame(ts: number): void {
         awaitReleaseBeforeStart = false
       }
     } else if (
-      soloInput.playRequested ||
-      soloInput.holding ||
-      (selectedPlayMode === 'local' && dualInput.playRequested)
+      !titlePressDeferred &&
+      (soloInput.playRequested ||
+        soloInput.holding ||
+        (selectedPlayMode === 'local' && dualInput.playRequested))
     ) {
       requestStart()
     }
@@ -713,16 +874,17 @@ function frame(ts: number): void {
   if (arenaSlide && (mode === 'title' || mode === 'matchmaking')) {
     const u = easeOrbit((ts - arenaSlide.t0) / arenaSlide.dur)
     if (u >= 1) {
+      // Keep the outgoing world as the peek that just slid away — no content pop.
+      if (arenaSlide.outSolo) peekSolo = arenaSlide.outSolo
+      if (arenaSlide.outBattle) peekBattle = arenaSlide.outBattle
       arenaSlide = null
     } else {
-      const { peekScale, shift } = orbitLayout()
+      const { peekScale, shift, centerScale } = orbitLayout()
       const dir = arenaSlide.dir
       const outX = lerp(0, -dir * shift, u)
-      const outS = lerp(1, peekScale, u)
+      const outS = lerp(centerScale, peekScale, u)
       const inX = lerp(dir * shift, 0, u)
-      const inS = lerp(peekScale, 1, u)
-      // Soft handoff to CSS peeks near the end.
-      const outAlpha = u < 0.82 ? 1 : 1 - (u - 0.82) / 0.18
+      const inS = lerp(peekScale, centerScale, u)
       const time = ts * 0.001
       const slideOpts = {
         dim: 0,
@@ -734,8 +896,6 @@ function frame(ts: number): void {
 
       drawSpace(ctx, viewW, viewH)
 
-      ctx.save()
-      ctx.globalAlpha = outAlpha
       if (arenaSlide.outBattle) {
         drawBattleWorld(ctx, arenaSlide.outBattle, viewW, viewH, fx, {
           ...slideOpts,
@@ -749,7 +909,6 @@ function frame(ts: number): void {
           scale: outS,
         })
       }
-      ctx.restore()
 
       if (selectedPlayMode !== 'solo' && battle) {
         drawBattleWorld(ctx, battle, viewW, viewH, fx, {
@@ -770,24 +929,100 @@ function frame(ts: number): void {
     }
   }
 
-  if (!arenaSlide) {
-    if (
+  if (titleLaunch) {
+    const u =
+      titleLaunch.dur <= 0
+        ? 1
+        : easeOrbit((ts - titleLaunch.t0) / titleLaunch.dur)
+    const layout = orbitLayout()
+    const scale = lerp(titleLaunch.fromScale, 1, Math.min(1, u))
+    const peekFade = 1 - Math.min(1, u)
+    const time = ts * 0.001
+    const prev = neighborPlayMode(selectedPlayMode, -1)
+    const next = neighborPlayMode(selectedPlayMode, 1)
+    drawSpace(ctx, viewW, viewH)
+    if (peekFade > 0.02) {
+      ctx.save()
+      ctx.globalAlpha = peekFade
+      drawPeekPlate(-layout.shift, layout.peekD)
+      drawTitleModePreview(prev, {
+        offsetX: -layout.shift,
+        scale: layout.peekScale,
+        time,
+      })
+      drawPeekPlate(layout.shift, layout.peekD)
+      drawTitleModePreview(next, {
+        offsetX: layout.shift,
+        scale: layout.peekScale,
+        time,
+      })
+      ctx.restore()
+    }
+    // Expanding selected arena (solo world, local battle, or matched online).
+    if (titleLaunch.kind === 'solo' || selectedPlayMode === 'solo') {
+      drawTitleModePreview('solo', { offsetX: 0, scale, time })
+    } else if (battle) {
+      drawBattleWorld(ctx, battle, viewW, viewH, fx, {
+        dim: 0,
+        time,
+        skipSpace: true,
+        skipDim: true,
+        clipArena: true,
+        offsetX: 0,
+        scale,
+        viewAs: titleLaunch.kind === 'online' ? onlineRole : undefined,
+      })
+    }
+    const dim = TITLE_DIM * (1 - Math.min(1, u))
+    if (dim > 0.01) {
+      ctx.fillStyle = `rgba(5, 6, 14, ${dim})`
+      ctx.fillRect(0, 0, viewW, viewH)
+    }
+    if (u >= 1) finishTitleLaunch()
+  } else if (!arenaSlide) {
+    const onTitle = mode === 'title' || mode === 'matchmaking'
+    if (onTitle) {
+      ensurePeekPreviews()
+      const layout = orbitLayout()
+      syncOrbitCss(layout)
+      const { peekScale, shift, centerScale, peekD } = layout
+      const time = ts * 0.001
+      const prev = neighborPlayMode(selectedPlayMode, -1)
+      const next = neighborPlayMode(selectedPlayMode, 1)
+      drawSpace(ctx, viewW, viewH)
+      drawTitleModePreview(selectedPlayMode, {
+        offsetX: 0,
+        scale: centerScale,
+        time,
+      })
+      ctx.fillStyle = `rgba(5, 6, 14, ${TITLE_DIM})`
+      ctx.fillRect(0, 0, viewW, viewH)
+      // Separate mode disks: opaque plate + mini arena, beside the selected mode.
+      drawPeekPlate(-shift, peekD)
+      drawTitleModePreview(prev, {
+        offsetX: -shift,
+        scale: peekScale,
+        time,
+      })
+      drawPeekPlate(shift, peekD)
+      drawTitleModePreview(next, {
+        offsetX: shift,
+        scale: peekScale,
+        time,
+      })
+    } else if (
       battle &&
       (mode === 'battleLocal' ||
         mode === 'battleOnline' ||
-        mode === 'battleResult' ||
-        ((mode === 'title' || mode === 'matchmaking') &&
-          selectedPlayMode !== 'solo'))
+        mode === 'battleResult')
     ) {
       drawBattleWorld(ctx, battle, viewW, viewH, fx, {
         dim:
           mode === 'battleResult'
             ? 0.2
-            : mode === 'title' || mode === 'matchmaking'
-              ? TITLE_DIM
-              : preBattleCountdownUntil !== null
-                ? 0.18
-                : 0,
+            : preBattleCountdownUntil !== null
+              ? 0.18
+              : 0,
         time: ts * 0.001,
         viewAs: onlineViewActive ? onlineRole : undefined,
       })

@@ -4,6 +4,8 @@
   --text: #f2f4f8;
   --muted: #9aa3b5;
   --accent: #ff7a18;
+  --orbit-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --orbit-ms: 420ms;
 }
 
 * {
@@ -104,11 +106,11 @@ body {
 
 .mode-carousel {
   --arena-d: calc(min(100vw, 100vh) - 48px);
-  --peek-d: min(28vw, 7.5rem);
-  --peek-scale: calc(var(--peek-d) / var(--arena-d));
-  --orbit-shift: calc(var(--arena-d) * 0.5 + var(--peek-d) * 0.22);
-  --orbit-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --orbit-ms: 420ms;
+  --peek-d: min(24vw, 7rem);
+  /* JS syncs --orbit-shift / --peek-d / --title-center-scale on resize so
+     peeks sit beside the scaled center with a visible gap (not nested in it). */
+  --orbit-shift: calc(var(--arena-d) * 0.42 + var(--peek-d) * 0.55);
+  --title-center-scale: 0.78;
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -119,6 +121,8 @@ body {
 @media (max-width: 400px), (max-height: 400px) {
   .mode-carousel {
     --arena-d: calc(min(100vw, 100vh) - 24px);
+    --peek-d: min(22vw, 5.75rem);
+    --title-center-scale: 0.62;
   }
 }
 
@@ -142,6 +146,8 @@ body {
 
 .orbit-prev,
 .orbit-next {
+  width: var(--peek-d);
+  height: var(--peek-d);
   pointer-events: auto;
   cursor: pointer;
 }
@@ -156,17 +162,15 @@ body {
 }
 
 .orbit-prev {
-  transform: translate(-50%, -50%) translateX(calc(-1 * var(--orbit-shift)))
-    scale(var(--peek-scale));
+  transform: translate(-50%, -50%) translateX(calc(-1 * var(--orbit-shift)));
 }
 
 .orbit-next {
-  transform: translate(-50%, -50%) translateX(var(--orbit-shift))
-    scale(var(--peek-scale));
+  transform: translate(-50%, -50%) translateX(var(--orbit-shift));
 }
 
 .orbit-current {
-  transform: translate(-50%, -50%) scale(1);
+  transform: translate(-50%, -50%) scale(var(--title-center-scale));
 }
 
 .orbit-face {
@@ -174,15 +178,24 @@ body {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  border: 2px solid rgba(154, 163, 181, 0.28);
-  background:
-    radial-gradient(
-      circle at 50% 45%,
-      rgba(255, 122, 24, 0.08),
-      transparent 62%
-    ),
-    rgba(11, 16, 32, 0.4);
-  box-shadow: inset 0 0 0 1px rgba(5, 6, 14, 0.35);
+  /* Transparent fill — canvas draws an opaque plate + mini arena underneath. */
+  border: 2px solid rgba(154, 163, 181, 0.55);
+  background: transparent;
+  box-shadow:
+    0 0 0 1px rgba(5, 6, 14, 0.55),
+    0 8px 22px rgba(0, 0, 0, 0.45);
+  transition:
+    opacity 0.2s ease,
+    border-color 0.18s ease;
+}
+
+.orbit-disk[data-peek-mode='solo'] .orbit-face {
+  border-color: rgba(255, 122, 24, 0.62);
+}
+
+.orbit-disk[data-peek-mode='local'] .orbit-face,
+.orbit-disk[data-peek-mode='online'] .orbit-face {
+  border-color: rgba(72, 201, 176, 0.55);
 }
 
 .orbit-current .orbit-face {
@@ -213,8 +226,8 @@ body {
 .orbit-label {
   position: absolute;
   left: 50%;
-  bottom: -1.45rem;
-  transform: translateX(-50%) scale(calc(1 / var(--peek-scale)));
+  bottom: -1.35rem;
+  transform: translateX(-50%);
   transform-origin: top center;
   font-size: 0.72rem;
   font-weight: 600;
@@ -224,15 +237,25 @@ body {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
   white-space: nowrap;
   pointer-events: none;
+  transition: opacity 0.2s ease;
 }
 
-/* During slide the real canvas arenas move; hide decorative orbit faces. */
+/* Nudge labels toward the viewport center so they sit in the visible crescent. */
+.orbit-prev .orbit-label {
+  transform: translateX(calc(-50% + 0.35rem));
+}
+
+.orbit-next .orbit-label {
+  transform: translateX(calc(-50% - 0.35rem));
+}
+
+/* During slide: hide peek chrome quickly, then fade labels/rings back in on settle. */
 .mode-carousel.is-sliding-next .orbit-face,
 .mode-carousel.is-sliding-prev .orbit-face,
 .mode-carousel.is-sliding-next .orbit-label,
 .mode-carousel.is-sliding-prev .orbit-label {
   opacity: 0 !important;
-  transition: none;
+  transition: opacity 0.12s ease;
 }
 
 .mode-carousel.is-sliding-next .orbit-prev,
@@ -245,7 +268,7 @@ body {
 .overlay:has(.mode-carousel.is-sliding-next) .hold-prompt,
 .overlay:has(.mode-carousel.is-sliding-prev) .hold-prompt {
   opacity: 0;
-  transition: opacity 0.12s ease;
+  transition: opacity 0.14s ease;
 }
 
 .mode-caption {
@@ -303,43 +326,47 @@ body {
 }
 
 .title-bottom.mode-anim-out-left {
-  animation: mode-slide-out-left 0.2s ease forwards;
+  animation: mode-slide-out-left calc(var(--orbit-ms) * 0.45) var(--orbit-ease)
+    forwards;
 }
 
 .title-bottom.mode-anim-out-right {
-  animation: mode-slide-out-right 0.2s ease forwards;
+  animation: mode-slide-out-right calc(var(--orbit-ms) * 0.45) var(--orbit-ease)
+    forwards;
 }
 
 .title-bottom.mode-anim-in-left {
-  animation: mode-slide-in-left 0.22s ease forwards;
+  animation: mode-slide-in-left var(--orbit-ms) var(--orbit-ease) forwards;
 }
 
 .title-bottom.mode-anim-in-right {
-  animation: mode-slide-in-right 0.22s ease forwards;
+  animation: mode-slide-in-right var(--orbit-ms) var(--orbit-ease) forwards;
 }
 
 .mode-caption.mode-anim-out-left {
-  animation: mode-caption-out-left 0.2s ease forwards;
+  animation: mode-caption-out-left calc(var(--orbit-ms) * 0.45) var(--orbit-ease)
+    forwards;
 }
 
 .mode-caption.mode-anim-out-right {
-  animation: mode-caption-out-right 0.2s ease forwards;
+  animation: mode-caption-out-right calc(var(--orbit-ms) * 0.45) var(--orbit-ease)
+    forwards;
 }
 
 .mode-caption.mode-anim-in-left {
-  animation: mode-caption-in-left 0.22s ease forwards;
+  animation: mode-caption-in-left var(--orbit-ms) var(--orbit-ease) forwards;
 }
 
 .mode-caption.mode-anim-in-right {
-  animation: mode-caption-in-right 0.22s ease forwards;
+  animation: mode-caption-in-right var(--orbit-ms) var(--orbit-ease) forwards;
 }
 
 .hold-prompt-sub.mode-anim-fade-out {
-  animation: mode-fade-out 0.2s ease forwards;
+  animation: mode-fade-out calc(var(--orbit-ms) * 0.45) var(--orbit-ease) forwards;
 }
 
 .hold-prompt-sub.mode-anim-fade-in {
-  animation: mode-fade-in 0.22s ease forwards;
+  animation: mode-fade-in var(--orbit-ms) var(--orbit-ease) forwards;
 }
 
 @keyframes mode-slide-out-left {
@@ -466,6 +493,7 @@ body {
   transform-origin: center center;
   animation: hold-prompt-pulse 2s ease-in-out infinite;
   z-index: 2;
+  transition: opacity 0.2s ease;
 }
 
 .hold-prompt-main {
