@@ -373,11 +373,10 @@ function orbitLayout(): OrbitLayout {
 }
 
 /**
- * Center each peek label on the *visible* disk axis. Clipped peeks hang
- * slightly off-screen, so the geometric center sits toward the edge while
- * the eye tracks the on-screen crescent — put the title under that mass.
- * Measure ink after layout (letter-spacing biases the box mid) and only
- * clamp inward if the title would clip.
+ * Center each peek label on the visible peek mass. Clipped peeks hang
+ * slightly off-screen; the eye tracks the area centroid of the on-screen
+ * disk (not the geometric center, not the bbox mid). Measure ink after
+ * layout (letter-spacing biases the box mid) and only clamp if needed.
  */
 function syncPeekLabelNudge(
   el: HTMLElement | null,
@@ -395,9 +394,7 @@ function syncPeekLabelNudge(
   const trail = Number.isFinite(ls) ? ls : 0
   // Trailing letter-spacing widens the box on the right; ink center is left of box mid.
   const inkCx = (lr.left + lr.right - trail) * 0.5
-  const visibleLeft = Math.max(0, diskCx - peekR)
-  const visibleRight = Math.min(viewW, diskCx + peekR)
-  const targetCx = (visibleLeft + visibleRight) * 0.5
+  const targetCx = clippedDiskCentroidX(diskCx, peekR)
   let nudge = targetCx - inkCx
   const labelHalf = lr.width * 0.5
   const pad = 6
@@ -407,6 +404,38 @@ function syncPeekLabelNudge(
   )
   nudge = labelCx - inkCx
   el.style.setProperty('--peek-label-nudge', `${nudge}px`)
+}
+
+/**
+ * Horizontal area-centroid of a disk after clipping to [0, viewW].
+ * For a left clip at 0, this sits slightly inland of the geometric center.
+ */
+function clippedDiskCentroidX(diskCx: number, peekR: number): number {
+  const left = diskCx - peekR
+  const right = diskCx + peekR
+  if (left >= 0 && right <= viewW) return diskCx
+  if (left < 0 && right > viewW) {
+    return (Math.max(0, left) + Math.min(viewW, right)) * 0.5
+  }
+  if (left < 0) return diskCentroidBeyondEdge(diskCx, peekR, 0)
+  // Right clip: mirror into the left-clip case.
+  return viewW - diskCentroidBeyondEdge(viewW - diskCx, peekR, 0)
+}
+
+/** Centroid of the portion of a disk with x >= edge. */
+function diskCentroidBeyondEdge(
+  diskCx: number,
+  peekR: number,
+  edge: number,
+): number {
+  const d = edge - diskCx
+  if (d <= -peekR) return diskCx
+  if (d >= peekR) return edge
+  const r2 = peekR * peekR
+  const halfChord = Math.sqrt(Math.max(0, r2 - d * d))
+  const area = r2 * Math.acos(Math.min(1, Math.max(-1, d / peekR))) - d * halfChord
+  if (area < 1e-6) return (edge + diskCx + peekR) * 0.5
+  return diskCx + ((2 / 3) * halfChord * halfChord * halfChord) / area
 }
 
 /** Keep HTML peek hit-targets aligned with the canvas layout. */
