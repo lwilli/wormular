@@ -355,8 +355,9 @@ function orbitLayout(): OrbitLayout {
     ? Math.min(viewW * 0.22, 5.75 * rootPx)
     : Math.min(viewW * 0.24, 7 * rootPx)
   const gap = Math.max(12, Math.min(24, viewW * 0.036))
-  const labelPad = Math.max(2.4 * rootPx, peekD * 0.42)
-  const maxShift = viewW * 0.5 - labelPad
+  // Keep the full peek disk on-screen so labels centered under it look correct.
+  const edgePad = Math.max(8, 0.5 * rootPx)
+  const maxShift = viewW * 0.5 - peekD * 0.5 - edgePad
   // Fit: centerScale*arenaR + peekR + gap <= maxShift (peeks outside the selected rim).
   const centerScale = Math.min(
     1,
