@@ -48,6 +48,9 @@ export const PRE_BATTLE_COUNTDOWN_MS = 5000
 /** Title overlay canvas dim (also used as the end of the death fade). */
 export const TITLE_DIM = 0.14
 
+/** Title → play: expand selected arena from centerScale → 1 while chrome fades. */
+export const TITLE_LAUNCH_MS = 300
+
 export type Tunables = {
   R: number
   RCore: number

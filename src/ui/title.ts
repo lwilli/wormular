@@ -17,7 +17,7 @@ export type PlayModeChangeMeta = {
 export const MODE_ORBIT_MS = 420
 
 export type TitleUi = {
-  setVisible: (visible: boolean) => void
+  setVisible: (visible: boolean, opts?: { fadeMs?: number }) => void
   setHighScore: (score: number) => void
   setScore: (score: number) => void
   setHudVisible: (visible: boolean) => void
@@ -141,6 +141,7 @@ export function bindTitleUi(): TitleUi {
   let menuVisible = true
   let transitioning = false
   let finishTimer = 0
+  let hideFadeTimer = 0
   const modeListeners: Array<(mode: PlayMode, meta: PlayModeChangeMeta) => void> =
     []
   const gestureListeners: Array<() => void> = []
@@ -438,7 +439,8 @@ export function bindTitleUi(): TitleUi {
   })
 
   return {
-    setVisible(visible) {
+    setVisible(visible, opts) {
+      window.clearTimeout(hideFadeTimer)
       if (visible) {
         const needsFade = title.hidden || title.classList.contains('hidden')
         title.hidden = false
@@ -455,9 +457,20 @@ export function bindTitleUi(): TitleUi {
           title.classList.add('is-shown')
         }
       } else {
+        const fadeMs = opts?.fadeMs ?? 0
         title.classList.remove('is-shown')
-        title.hidden = true
-        title.classList.add('hidden')
+        if (fadeMs > 0) {
+          // Keep in layout so opacity can ease out, then hard-hide.
+          hideFadeTimer = window.setTimeout(() => {
+            if (!title.classList.contains('is-shown')) {
+              title.hidden = true
+              title.classList.add('hidden')
+            }
+          }, fadeMs)
+        } else {
+          title.hidden = true
+          title.classList.add('hidden')
+        }
       }
     },
     setHighScore(score) {

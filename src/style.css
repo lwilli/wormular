@@ -4,6 +4,8 @@
   --text: #f2f4f8;
   --muted: #9aa3b5;
   --accent: #ff7a18;
+  --orbit-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --orbit-ms: 420ms;
 }
 
 * {
@@ -109,8 +111,6 @@ body {
      peeks sit beside the scaled center with a visible gap (not nested in it). */
   --orbit-shift: calc(var(--arena-d) * 0.42 + var(--peek-d) * 0.55);
   --title-center-scale: 0.78;
-  --orbit-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --orbit-ms: 420ms;
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -184,7 +184,9 @@ body {
   box-shadow:
     0 0 0 1px rgba(5, 6, 14, 0.55),
     0 8px 22px rgba(0, 0, 0, 0.45);
-  transition: border-color 0.18s ease;
+  transition:
+    opacity 0.2s ease,
+    border-color 0.18s ease;
 }
 
 .orbit-disk[data-peek-mode='solo'] .orbit-face {
@@ -235,6 +237,7 @@ body {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
   white-space: nowrap;
   pointer-events: none;
+  transition: opacity 0.2s ease;
 }
 
 /* Nudge labels toward the viewport center so they sit in the visible crescent. */
@@ -246,13 +249,13 @@ body {
   transform: translateX(calc(-50% - 0.35rem));
 }
 
-/* During slide the live canvas arenas move; hide labels (faces are transparent). */
+/* During slide: hide peek chrome quickly, then fade labels/rings back in on settle. */
 .mode-carousel.is-sliding-next .orbit-face,
 .mode-carousel.is-sliding-prev .orbit-face,
 .mode-carousel.is-sliding-next .orbit-label,
 .mode-carousel.is-sliding-prev .orbit-label {
   opacity: 0 !important;
-  transition: none;
+  transition: opacity 0.12s ease;
 }
 
 .mode-carousel.is-sliding-next .orbit-prev,
@@ -265,7 +268,7 @@ body {
 .overlay:has(.mode-carousel.is-sliding-next) .hold-prompt,
 .overlay:has(.mode-carousel.is-sliding-prev) .hold-prompt {
   opacity: 0;
-  transition: opacity 0.12s ease;
+  transition: opacity 0.14s ease;
 }
 
 .mode-caption {
@@ -323,43 +326,47 @@ body {
 }
 
 .title-bottom.mode-anim-out-left {
-  animation: mode-slide-out-left 0.2s ease forwards;
+  animation: mode-slide-out-left calc(var(--orbit-ms) * 0.45) var(--orbit-ease)
+    forwards;
 }
 
 .title-bottom.mode-anim-out-right {
-  animation: mode-slide-out-right 0.2s ease forwards;
+  animation: mode-slide-out-right calc(var(--orbit-ms) * 0.45) var(--orbit-ease)
+    forwards;
 }
 
 .title-bottom.mode-anim-in-left {
-  animation: mode-slide-in-left 0.22s ease forwards;
+  animation: mode-slide-in-left var(--orbit-ms) var(--orbit-ease) forwards;
 }
 
 .title-bottom.mode-anim-in-right {
-  animation: mode-slide-in-right 0.22s ease forwards;
+  animation: mode-slide-in-right var(--orbit-ms) var(--orbit-ease) forwards;
 }
 
 .mode-caption.mode-anim-out-left {
-  animation: mode-caption-out-left 0.2s ease forwards;
+  animation: mode-caption-out-left calc(var(--orbit-ms) * 0.45) var(--orbit-ease)
+    forwards;
 }
 
 .mode-caption.mode-anim-out-right {
-  animation: mode-caption-out-right 0.2s ease forwards;
+  animation: mode-caption-out-right calc(var(--orbit-ms) * 0.45) var(--orbit-ease)
+    forwards;
 }
 
 .mode-caption.mode-anim-in-left {
-  animation: mode-caption-in-left 0.22s ease forwards;
+  animation: mode-caption-in-left var(--orbit-ms) var(--orbit-ease) forwards;
 }
 
 .mode-caption.mode-anim-in-right {
-  animation: mode-caption-in-right 0.22s ease forwards;
+  animation: mode-caption-in-right var(--orbit-ms) var(--orbit-ease) forwards;
 }
 
 .hold-prompt-sub.mode-anim-fade-out {
-  animation: mode-fade-out 0.2s ease forwards;
+  animation: mode-fade-out calc(var(--orbit-ms) * 0.45) var(--orbit-ease) forwards;
 }
 
 .hold-prompt-sub.mode-anim-fade-in {
-  animation: mode-fade-in 0.22s ease forwards;
+  animation: mode-fade-in var(--orbit-ms) var(--orbit-ease) forwards;
 }
 
 @keyframes mode-slide-out-left {
@@ -486,6 +493,7 @@ body {
   transform-origin: center center;
   animation: hold-prompt-pulse 2s ease-in-out infinite;
   z-index: 2;
+  transition: opacity 0.2s ease;
 }
 
 .hold-prompt-main {

@@ -98,7 +98,8 @@ Prefs: `wormular.sfxEnabled`, `wormular.musicEnabled` (legacy `wormular.soundEna
 | Mode swipe threshold | `48px` (`SWIPE_THRESHOLD_PX`) | Horizontal drag distance to change mode without starting |
 | Mode hold-commit | `120ms` (`HOLD_COMMIT_MS`) | Press-and-hold can start once the finger has not begun a swipe |
 | Mode tap slop | `14px` (`TAP_SLOP_PX`) | Horizontal jitter ignored when committing a hold-start |
-| Mode orbit slide | `420ms` (`MODE_ORBIT_MS`) | Live arenas slide/scale; outgoing stays drawn until settle |
+| Mode orbit slide | `420ms` (`MODE_ORBIT_MS` / `--orbit-ms`) | Live arenas slide/scale; caption/bottom use the same duration |
+| Title launch | `300ms` (`TITLE_LAUNCH_MS`) | Selected arena expands centerScale→1 while peeks + chrome fade into play |
 | Mode peek inset | JS `orbitLayout()` gap + label pad | Peeks sit beside a scaled-down selected arena with a clear gap (not nested inside its rim) |
 | Mode peek size | `~22–24vw` (capped) | Side preview diameter; synced to CSS `--peek-d` |
 | Mode peek previews | canvas plate + mini arena | Opaque disk + paused Solo / 1v1 world; HTML face is a tinted ring/hit target |

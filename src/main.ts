@@ -9,6 +9,7 @@ import {
   FIXED_DT,
   PRE_BATTLE_COUNTDOWN_MS,
   TITLE_DIM,
+  TITLE_LAUNCH_MS,
   TITLE_RESTART_COOLDOWN_MS,
 } from './core/config'
 import { createBattleWorld, stepBattle } from './core/battle'
@@ -134,6 +135,13 @@ let arenaSlide: {
   dur: number
   outSolo: World | null
   outBattle: BattleWorld | null
+} | null = null
+/** Title → play: expand selected arena and fade chrome before gameplay. */
+let titleLaunch: {
+  t0: number
+  dur: number
+  fromScale: number
+  kind: 'solo' | 'local' | 'online'
 } | null = null
 
 ui.setHighScore(highScore)
@@ -434,6 +442,7 @@ function armTitleStartGate(): void {
 
 function showTitle(): void {
   arenaSlide = null
+  titleLaunch = null
   mode = 'title'
   onlineViewActive = false
   stopMatchClient()
@@ -461,6 +470,7 @@ function showTitle(): void {
 /** Start only on a fresh intentional press after death cooldown + release. */
 function requestStart(): void {
   if (mode !== 'title') return
+  if (titleLaunch) return
   if (awaitReleaseBeforeStart) return
   if (performance.now() < titleReadyAt) return
   audio.unlock()
@@ -469,14 +479,49 @@ function requestStart(): void {
   else startMatchmaking()
 }
 
+function beginTitleLaunch(kind: 'solo' | 'local' | 'online'): void {
+  arenaSlide = null
+  const { centerScale } = orbitLayout()
+  const fromScale = reduceMotionLaunch() ? 1 : centerScale
+  titleLaunch = {
+    t0: performance.now(),
+    dur: reduceMotionLaunch() ? 0 : TITLE_LAUNCH_MS,
+    fromScale,
+    kind,
+  }
+  // Fade title chrome while the arena expands into play.
+  ui.setMenuVisible(false)
+  ui.setVisible(false, { fadeMs: Math.max(TITLE_LAUNCH_MS, 180) })
+  if (titleLaunch.dur <= 0) {
+    finishTitleLaunch()
+  }
+}
+
+function reduceMotionLaunch(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+function finishTitleLaunch(): void {
+  if (!titleLaunch) return
+  const kind = titleLaunch.kind
+  titleLaunch = null
+  if (kind === 'solo') finishStartSolo()
+  else if (kind === 'local') finishStartLocal()
+  else finishStartOnline()
+}
+
 function startSolo(): void {
   trackPlay('solo')
-  mode = 'playing'
   battle = null
   clearFx(fx)
   awaitReleaseBeforeStart = false
   soloInput.playRequested = false
   lastHudScore = -1
+  beginTitleLaunch('solo')
+}
+
+function finishStartSolo(): void {
+  mode = 'playing'
   ui.setVisible(false)
   ui.setMenuVisible(false)
   ui.setHudVisible(true)
@@ -486,7 +531,6 @@ function startSolo(): void {
 
 function startBattleLocal(): void {
   trackPlay('local')
-  mode = 'battleLocal'
   onlineViewActive = false
   // Reuse the paused title battle so layout does not pop on start.
   if (!battle || battle.tick > 0 || battle.winner !== null) {
@@ -499,6 +543,11 @@ function startBattleLocal(): void {
   dualInput.holding[0] = false
   dualInput.holding[1] = false
   dualInput.playRequested = false
+  beginTitleLaunch('local')
+}
+
+function finishStartLocal(): void {
+  mode = 'battleLocal'
   preBattleCountdownUntil = performance.now() + PRE_BATTLE_COUNTDOWN_MS
   lastCountdownSec = -1
   ui.setVisible(false)
@@ -533,20 +582,12 @@ function startMatchmaking(): void {
       onlineTick = 0
       onlineInputQueue.clear()
       battle = createBattleWorld(arenaRadius(), seed)
-      mode = 'battleOnline'
       clearFx(fx)
-      // 5 → 1 → Go — hold during countdown is fine; that press is already thrust.
-      preBattleCountdownUntil = performance.now() + PRE_BATTLE_COUNTDOWN_MS
-      lastCountdownSec = -1
       dualInput.holding[1] = false
       dualInput.playRequested = false
-      ui.setVisible(false)
-      ui.setMenuVisible(false)
-      ui.setHudVisible(false)
       ui.setMatchStatus('idle')
       ui.setBattleHud(0, 0, `vs ${opponentName}`)
-      document.getElementById('battle-hud')?.removeAttribute('hidden')
-      ui.setMatchBanner(`${onlinePlayerName} vs ${opponentName}`, '5')
+      beginTitleLaunch('online')
     },
     onInputs: (tick, holding) => {
       onlineInputQueue.set(tick, holding)
@@ -572,6 +613,17 @@ function startMatchmaking(): void {
       }
     },
   })
+}
+
+function finishStartOnline(): void {
+  mode = 'battleOnline'
+  preBattleCountdownUntil = performance.now() + PRE_BATTLE_COUNTDOWN_MS
+  lastCountdownSec = -1
+  ui.setVisible(false)
+  ui.setMenuVisible(false)
+  ui.setHudVisible(false)
+  document.getElementById('battle-hud')?.removeAttribute('hidden')
+  ui.setMatchBanner(`${onlinePlayerName} vs ${onlineOpponentName}`, '5')
 }
 
 function endBattle(message: string): void {
@@ -684,7 +736,11 @@ function frame(ts: number): void {
   }
 
   if (mode === 'title') {
-    if (awaitReleaseBeforeStart) {
+    if (titleLaunch) {
+      // Launch owns the press — don't re-fire start.
+      soloInput.playRequested = false
+      dualInput.playRequested = false
+    } else if (awaitReleaseBeforeStart) {
       // Swallow held taps from the death mash; arm only after release.
       soloInput.playRequested = false
       dualInput.playRequested = false
@@ -818,6 +874,9 @@ function frame(ts: number): void {
   if (arenaSlide && (mode === 'title' || mode === 'matchmaking')) {
     const u = easeOrbit((ts - arenaSlide.t0) / arenaSlide.dur)
     if (u >= 1) {
+      // Keep the outgoing world as the peek that just slid away — no content pop.
+      if (arenaSlide.outSolo) peekSolo = arenaSlide.outSolo
+      if (arenaSlide.outBattle) peekBattle = arenaSlide.outBattle
       arenaSlide = null
     } else {
       const { peekScale, shift, centerScale } = orbitLayout()
@@ -826,8 +885,6 @@ function frame(ts: number): void {
       const outS = lerp(centerScale, peekScale, u)
       const inX = lerp(dir * shift, 0, u)
       const inS = lerp(peekScale, centerScale, u)
-      // Soft handoff to CSS peeks near the end.
-      const outAlpha = u < 0.82 ? 1 : 1 - (u - 0.82) / 0.18
       const time = ts * 0.001
       const slideOpts = {
         dim: 0,
@@ -839,8 +896,6 @@ function frame(ts: number): void {
 
       drawSpace(ctx, viewW, viewH)
 
-      ctx.save()
-      ctx.globalAlpha = outAlpha
       if (arenaSlide.outBattle) {
         drawBattleWorld(ctx, arenaSlide.outBattle, viewW, viewH, fx, {
           ...slideOpts,
@@ -854,7 +909,6 @@ function frame(ts: number): void {
           scale: outS,
         })
       }
-      ctx.restore()
 
       if (selectedPlayMode !== 'solo' && battle) {
         drawBattleWorld(ctx, battle, viewW, viewH, fx, {
@@ -875,7 +929,57 @@ function frame(ts: number): void {
     }
   }
 
-  if (!arenaSlide) {
+  if (titleLaunch) {
+    const u =
+      titleLaunch.dur <= 0
+        ? 1
+        : easeOrbit((ts - titleLaunch.t0) / titleLaunch.dur)
+    const layout = orbitLayout()
+    const scale = lerp(titleLaunch.fromScale, 1, Math.min(1, u))
+    const peekFade = 1 - Math.min(1, u)
+    const time = ts * 0.001
+    const prev = neighborPlayMode(selectedPlayMode, -1)
+    const next = neighborPlayMode(selectedPlayMode, 1)
+    drawSpace(ctx, viewW, viewH)
+    if (peekFade > 0.02) {
+      ctx.save()
+      ctx.globalAlpha = peekFade
+      drawPeekPlate(-layout.shift, layout.peekD)
+      drawTitleModePreview(prev, {
+        offsetX: -layout.shift,
+        scale: layout.peekScale,
+        time,
+      })
+      drawPeekPlate(layout.shift, layout.peekD)
+      drawTitleModePreview(next, {
+        offsetX: layout.shift,
+        scale: layout.peekScale,
+        time,
+      })
+      ctx.restore()
+    }
+    // Expanding selected arena (solo world, local battle, or matched online).
+    if (titleLaunch.kind === 'solo' || selectedPlayMode === 'solo') {
+      drawTitleModePreview('solo', { offsetX: 0, scale, time })
+    } else if (battle) {
+      drawBattleWorld(ctx, battle, viewW, viewH, fx, {
+        dim: 0,
+        time,
+        skipSpace: true,
+        skipDim: true,
+        clipArena: true,
+        offsetX: 0,
+        scale,
+        viewAs: titleLaunch.kind === 'online' ? onlineRole : undefined,
+      })
+    }
+    const dim = TITLE_DIM * (1 - Math.min(1, u))
+    if (dim > 0.01) {
+      ctx.fillStyle = `rgba(5, 6, 14, ${dim})`
+      ctx.fillRect(0, 0, viewW, viewH)
+    }
+    if (u >= 1) finishTitleLaunch()
+  } else if (!arenaSlide) {
     const onTitle = mode === 'title' || mode === 'matchmaking'
     if (onTitle) {
       ensurePeekPreviews()
