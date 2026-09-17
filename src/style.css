@@ -808,6 +808,65 @@ body {
   }
 }
 
+/* Soft half-screen tints for local 1v1 split-touch (pointer-events none). */
+.local-zones {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.local-zones[hidden] {
+  display: none;
+}
+
+.local-zone {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+}
+
+.local-zone-p0 {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 122, 24, 0.22) 0%,
+    rgba(255, 122, 24, 0.08) 42%,
+    rgba(255, 122, 24, 0) 100%
+  );
+  box-shadow: inset 3px 0 0 rgba(255, 122, 24, 0.55);
+}
+
+.local-zone-p1 {
+  background: linear-gradient(
+    270deg,
+    rgba(46, 196, 182, 0.22) 0%,
+    rgba(46, 196, 182, 0.08) 42%,
+    rgba(46, 196, 182, 0) 100%
+  );
+  box-shadow: inset -3px 0 0 rgba(46, 196, 182, 0.55);
+}
+
+.local-zone-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
+  opacity: 0.85;
+}
+
+.local-zone-p0 .local-zone-label {
+  color: #ffc56a;
+}
+
+.local-zone-p1 .local-zone-label {
+  color: #8ef0e0;
+}
+
 .battle-hud {
   position: absolute;
   top: max(0.75rem, env(safe-area-inset-top));
@@ -816,11 +875,19 @@ body {
   display: flex;
   justify-content: center;
   pointer-events: none;
-  z-index: 1;
+  z-index: 2;
 }
 
 .battle-hud[hidden] {
   display: none;
+}
+
+.battle-hud.is-local .battle-scores {
+  width: min(100%, 28rem);
+  padding: 0 max(0.85rem, env(safe-area-inset-left)) 0
+    max(0.85rem, env(safe-area-inset-right));
+  justify-content: space-between;
+  gap: 0;
 }
 
 .battle-scores {
