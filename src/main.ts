@@ -28,6 +28,7 @@ import {
 import { createDualHoldInput } from './input/dualHold'
 import { createHoldInput } from './input/hold'
 import { connectMatch, type MatchClient } from './net/matchClient'
+import { connectPresence, type PresenceClient } from './net/presenceClient'
 import { createAudio } from './platform/audio'
 import { trackPlay, trackVisit } from './platform/analytics'
 import { fetchLeaderboard, submitScore } from './platform/leaderboard'
@@ -115,6 +116,7 @@ let titlePressDeferred = false
 let titleReadyAt = 0
 let lastHudScore = -1
 let matchClient: MatchClient | null = null
+let presenceClient: PresenceClient | null = null
 let onlineRole: 0 | 1 = 0
 let onlineOpponentName = 'Opponent'
 let onlinePlayerName = 'Player'
@@ -153,6 +155,7 @@ ui.setNickname(loadNickname() || 'Player')
 ui.setMenuVisible(true)
 ui.setPlayMode(selectedPlayMode)
 ui.setStatus('')
+ui.setOnlineCount(null)
 ui.setResult(null)
 ui.setMatchBanner(null)
 document.getElementById('battle-hud')?.setAttribute('hidden', '')
@@ -207,6 +210,7 @@ ui.onPlayModeChange((next, meta) => {
 
   selectedPlayMode = next
   savePlayMode(next)
+  syncOnlinePresence()
   // Switching modes cancels an in-progress queue.
   if (mode === 'matchmaking') {
     stopMatchClient()
@@ -221,6 +225,42 @@ ui.onPlayModeChange((next, meta) => {
     ensureTitlePreview(true)
   }
 })
+
+/** Live lobby count while Online 1v1 is selected (title, queue, or match). */
+function syncOnlinePresence(): void {
+  const want = selectedPlayMode === 'online'
+  if (!want) {
+    stopPresenceClient()
+    ui.setOnlineCount(null)
+    return
+  }
+  if (presenceClient) return
+  presenceClient = connectPresence({
+    onCount(n) {
+      if (selectedPlayMode === 'online') ui.setOnlineCount(n)
+    },
+    onClose() {
+      // Drop so a later mode re-select (or retry) can reconnect.
+      if (presenceClient) {
+        presenceClient = null
+        if (selectedPlayMode === 'online') {
+          ui.setOnlineCount(null)
+          // Brief delay avoids tight reconnect loops on hard failures.
+          window.setTimeout(() => {
+            if (selectedPlayMode === 'online' && !presenceClient) {
+              syncOnlinePresence()
+            }
+          }, 1500)
+        }
+      }
+    },
+  })
+}
+
+function stopPresenceClient(): void {
+  presenceClient?.close()
+  presenceClient = null
+}
 
 /** Defer title start until tap / hold is distinguished from a mode swipe. */
 ui.onTitlePressGesture((phase) => {
@@ -246,6 +286,7 @@ void initNickname().then(() => {
 })
 
 void refreshLeaderboard()
+syncOnlinePresence()
 
 function arenaRadius(): number {
   const side = Math.min(viewW, viewH)

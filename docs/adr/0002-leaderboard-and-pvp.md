@@ -45,6 +45,7 @@ Costs must stay near $0.
 - Free-plan Durable Objects require `new_sqlite_classes` in wrangler migrations (not `new_classes`)
 - Clients send `{ type: 'finish' }` before closing so a normal death is not treated as a disconnect forfeit
 - Online clients mirror the full arena so each player sees themselves as orange; match countdown + input pipelining keep lockstep playable at uneven FPS
+- Online title mode holds `/ws/presence` for a live lobby count (see [0004-online-presence.md](0004-online-presence.md))
 - Free-tier Cloudflare is enough for hobby traffic; cost is mostly engineering time
 
 ## Alternatives considered
