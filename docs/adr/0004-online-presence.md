@@ -14,7 +14,7 @@ When Online 1v1 is selected on the title screen, players should see how many peo
 - Client connects to `/ws/presence` while that mode is active and disconnects when switching away.
 - The DO broadcasts `{ type: 'presence', online: N }` on join/leave (N includes the local player).
 - Local `scripts/dev-api.mjs` mirrors the same WebSocket endpoint.
-- UI: muted line under the Online nickname field (`#panel-online`).
+- UI: status line above the Online nickname field (`#panel-online`), just below the arena.
 
 No cookies, no stored session IDs — count is live connection count only.
 
