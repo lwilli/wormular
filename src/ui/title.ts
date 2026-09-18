@@ -36,6 +36,8 @@ export type TitleUi = {
   setStatus: (text: string) => void
   /** Online 1v1 ready / queue / error — always the center prompt. */
   setMatchStatus: (state: MatchStatus) => void
+  /** Live lobby presence count under the Online nickname field. */
+  setOnlineCount: (n: number | null) => void
   setPlayMode: (mode: PlayMode) => void
   getPlayMode: () => PlayMode
   onPlayModeChange: (
@@ -124,6 +126,8 @@ export function bindTitleUi(): TitleUi {
   const modeTagline = mustHtml('#mode-tagline')
   const panelSolo = mustHtml('#panel-solo')
   const panelLocal = mustHtml('#panel-local')
+  const panelOnline = mustHtml('#panel-online')
+  const onlineCount = mustHtml('#online-count')
   const peekPrev = mustHtml('#mode-peek-prev') as HTMLButtonElement
   const peekNext = mustHtml('#mode-peek-next') as HTMLButtonElement
   const peekPrevLabel = mustHtml('#mode-peek-prev-label')
@@ -266,6 +270,7 @@ export function bindTitleUi(): TitleUi {
 
     panelSolo.hidden = mode !== 'solo'
     panelLocal.hidden = mode !== 'local'
+    panelOnline.hidden = mode !== 'online'
     nicknameField.hidden = mode === 'local'
 
     title.dataset.playMode = mode
@@ -588,6 +593,15 @@ export function bindTitleUi(): TitleUi {
       }
       paintHoldPrompt(state.error, ['Tap to try again'])
       title.classList.remove('is-matching')
+    },
+    setOnlineCount(n) {
+      if (n == null || !Number.isFinite(n) || n < 0) {
+        onlineCount.textContent = 'Players online: —'
+        return
+      }
+      const count = Math.floor(n)
+      onlineCount.textContent =
+        count === 1 ? '1 player online' : `${count} players online`
     },
     setPlayMode(mode) {
       // Instant — used for sticky restore / death return, not user carousel.

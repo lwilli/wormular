@@ -1,4 +1,5 @@
 import { MatchRoom } from './match-room'
+import { Presence } from './presence'
 import {
   LEADERBOARD_LIMIT,
   PLAY_MODE_STATS,
@@ -12,11 +13,12 @@ import {
   type VisitResponse,
 } from '../../shared/protocol'
 
-export { MatchRoom }
+export { MatchRoom, Presence }
 
 export interface Env {
   DB: D1Database
   MATCH_ROOM: DurableObjectNamespace
+  PRESENCE: DurableObjectNamespace
   ALLOWED_ORIGINS: string
 }
 
@@ -68,6 +70,14 @@ export default {
       ) {
         const id = env.MATCH_ROOM.idFromName('queue')
         return env.MATCH_ROOM.get(id).fetch(request)
+      }
+
+      if (
+        url.pathname === '/ws/presence' &&
+        request.headers.get('Upgrade') === 'websocket'
+      ) {
+        const id = env.PRESENCE.idFromName('lobby')
+        return env.PRESENCE.get(id).fetch(request)
       }
 
       return json({ error: 'not found' }, cors, 404)

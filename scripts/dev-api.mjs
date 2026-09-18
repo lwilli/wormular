@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Local stand-in for the Cloudflare Worker (scores + lockstep matchmaking + visit/play counters).
+ * Local stand-in for the Cloudflare Worker (scores + lockstep matchmaking + visit/play counters + presence).
  * Run: node scripts/dev-api.mjs
  * Vite proxies /api/* here during npm run dev.
  */
@@ -264,16 +264,52 @@ const server = http.createServer(async (req, res) => {
 })
 
 const wss = new WebSocketServer({ noServer: true })
+const presenceWss = new WebSocketServer({ noServer: true })
+/** @type {Set<import('ws').WebSocket>} */
+const presenceSockets = new Set()
+
+function broadcastPresence() {
+  const payload = JSON.stringify({ type: 'presence', online: presenceSockets.size })
+  for (const ws of presenceSockets) {
+    if (ws.readyState === 1) ws.send(payload)
+  }
+}
 
 server.on('upgrade', (req, socket, head) => {
   const url = new URL(req.url || '/', `http://127.0.0.1:${PORT}`)
   const path = url.pathname.replace(/^\/api/, '')
-  if (path !== '/ws/match') {
-    socket.destroy()
+  if (path === '/ws/match') {
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit('connection', ws, req)
+    })
     return
   }
-  wss.handleUpgrade(req, socket, head, (ws) => {
-    wss.emit('connection', ws, req)
+  if (path === '/ws/presence') {
+    presenceWss.handleUpgrade(req, socket, head, (ws) => {
+      presenceWss.emit('connection', ws, req)
+    })
+    return
+  }
+  socket.destroy()
+})
+
+presenceWss.on('connection', (ws) => {
+  presenceSockets.add(ws)
+  broadcastPresence()
+  ws.on('message', (data) => {
+    let msg
+    try {
+      msg = JSON.parse(String(data))
+    } catch {
+      return
+    }
+    if (msg.type === 'ping' && ws.readyState === 1) {
+      ws.send(JSON.stringify({ type: 'pong' }))
+    }
+  })
+  ws.on('close', () => {
+    presenceSockets.delete(ws)
+    broadcastPresence()
   })
 })
 
