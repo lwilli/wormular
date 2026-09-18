@@ -1143,7 +1143,7 @@ function frame(ts: number): void {
       battle &&
       (mode === 'battleLocal' ||
         mode === 'battleOnline' ||
-        (mode === 'result' && battle.winner !== null))
+        mode === 'result')
     ) {
       drawBattleWorld(ctx, battle, viewW, viewH, fx, {
         dim:
