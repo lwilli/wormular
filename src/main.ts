@@ -49,7 +49,7 @@ type Mode =
   | 'battleLocal'
   | 'battleOnline'
   | 'matchmaking'
-  | 'battleResult'
+  | 'result'
 
 const PLAY_MODE_KEY = 'wormular.playMode'
 
@@ -118,14 +118,16 @@ let matchClient: MatchClient | null = null
 let onlineRole: 0 | 1 = 0
 let onlineOpponentName = 'Opponent'
 let onlinePlayerName = 'Player'
-/** Keep online you=orange mirroring through the result flash. */
+/** Keep online you=orange mirroring through the result screen. */
 let onlineViewActive = false
 /** Wall-clock ms when Local/Online pre-match countdown ends; null when idle. */
 let preBattleCountdownUntil: number | null = null
 let lastCountdownSec = -1
 let onlineTick = 0
 const onlineInputQueue = new Map<number, [boolean, boolean]>()
-let resultClearAt = 0
+/** Swallow death-mash holds before a result tap can dismiss. */
+let awaitReleaseBeforeDismiss = false
+let resultReadyAt = 0
 /** How many lockstep ticks to pipeline ahead (masks Wi‑Fi / 30fps peer stalls). */
 const ONLINE_INPUT_AHEAD = 3
 /** Title mode carousel: keep the outgoing arena drawing while it slides away. */
@@ -488,6 +490,22 @@ function armTitleStartGate(): void {
   titleReadyAt = performance.now() + TITLE_RESTART_COOLDOWN_MS
 }
 
+/** Same gate for dismissing the post-game result screen. */
+function armResultDismissGate(): void {
+  soloInput.playRequested = false
+  dualInput.playRequested = false
+  awaitReleaseBeforeDismiss = true
+  resultReadyAt = performance.now() + TITLE_RESTART_COOLDOWN_MS
+}
+
+function anyHoldActive(): boolean {
+  return soloInput.holding || dualInput.holding[0] || dualInput.holding[1]
+}
+
+function anyPlayRequested(): boolean {
+  return soloInput.playRequested || dualInput.playRequested
+}
+
 function setLocalBattleChrome(visible: boolean): void {
   const zones = document.getElementById('local-zones')
   const hud = document.getElementById('battle-hud')
@@ -658,8 +676,14 @@ function startMatchmaking(): void {
     },
     onForfeit: (winner) => {
       // Ignore disconnect noise after a normal death already ended the match.
-      if (mode === 'battleResult') return
-      endBattle(winner === onlineRole ? 'You win (forfeit)' : 'You lose (disconnect)')
+      if (mode === 'result') return
+      const p0 = battle?.players[onlineRole].score ?? 0
+      const p1 = battle?.players[1 - onlineRole].score ?? 0
+      endBattle({
+        headline:
+          winner === onlineRole ? 'You win (forfeit)' : 'You lose (disconnect)',
+        detail: `${p0} – ${p1}`,
+      })
     },
     onError: (message) => {
       ui.setMatchStatus({ error: message })
@@ -691,25 +715,47 @@ function finishStartOnline(): void {
   ui.setMatchBanner(`${onlinePlayerName} vs ${onlineOpponentName}`, '5')
 }
 
-function endBattle(message: string): void {
-  if (mode === 'battleResult') return
-  mode = 'battleResult'
+function endBattle(view: {
+  headline: string
+  detail?: string
+}): void {
+  if (mode === 'result') return
+  mode = 'result'
   preBattleCountdownUntil = null
   ui.setMatchBanner(null)
-  ui.setResult(message)
-  resultClearAt = performance.now() + 2200
+  ui.setResult({
+    headline: view.headline,
+    detail: view.detail,
+    hint: 'Tap to continue',
+  })
+  armResultDismissGate()
   // Tell the room the match is over before closing, otherwise the peer gets a
   // bogus "win (forfeit)" when this socket drops.
   matchClient?.finish()
   stopMatchClient()
 }
 
-function returnToTitleFromSolo(): void {
+function enterSoloResult(): void {
   const score = world.score
+  const prevBest = highScore
   highScore = recordScore(score)
   ui.setHighScore(highScore)
   void submitRunScore(score)
+  mode = 'result'
+  ui.setHudVisible(false)
+  const isNewBest = score > prevBest && score > 0
+  ui.setResult({
+    headline: isNewBest ? 'New High Score!' : 'Game Over',
+    detail: `Score ${score}`,
+    hint: 'Tap to continue',
+  })
+  armResultDismissGate()
+}
+
+function dismissResult(): void {
+  if (mode !== 'result') return
   showTitle()
+  void refreshLeaderboard()
 }
 
 function resize(): void {
@@ -774,10 +820,18 @@ function handleBattleEvents(b: BattleWorld): void {
       else audio.playCrash()
     }
   }
-  if (b.winner !== null && mode !== 'battleResult') {
+  if (b.winner !== null && mode !== 'result') {
     const youWin =
       mode === 'battleOnline' ? b.winner === onlineRole : b.winner === 0
-    const label =
+    const s0 =
+      mode === 'battleOnline'
+        ? b.players[onlineRole].score
+        : b.players[0].score
+    const s1 =
+      mode === 'battleOnline'
+        ? b.players[1 - onlineRole].score
+        : b.players[1].score
+    const headline =
       mode === 'battleOnline'
         ? youWin
           ? 'You win!'
@@ -785,7 +839,10 @@ function handleBattleEvents(b: BattleWorld): void {
         : b.winner === 0
           ? 'Orange wins!'
           : 'Teal wins!'
-    endBattle(label)
+    endBattle({
+      headline,
+      detail: `${s0} – ${s1}`,
+    })
   }
 }
 
@@ -809,7 +866,7 @@ function frame(ts: number): void {
       // Swallow held taps from the death mash; arm only after release.
       soloInput.playRequested = false
       dualInput.playRequested = false
-      if (ts >= titleReadyAt && !soloInput.holding && !dualInput.holding[0] && !dualInput.holding[1]) {
+      if (ts >= titleReadyAt && !anyHoldActive()) {
         awaitReleaseBeforeStart = false
       }
     } else if (
@@ -822,9 +879,16 @@ function frame(ts: number): void {
     }
   }
 
-  if (mode === 'battleResult' && ts >= resultClearAt) {
-    showTitle()
-    void refreshLeaderboard()
+  if (mode === 'result') {
+    if (awaitReleaseBeforeDismiss) {
+      soloInput.playRequested = false
+      dualInput.playRequested = false
+      if (ts >= resultReadyAt && !anyHoldActive()) {
+        awaitReleaseBeforeDismiss = false
+      }
+    } else if (anyPlayRequested() || anyHoldActive()) {
+      dismissResult()
+    }
   }
 
   // Pre-match countdown (Local tap-to-start / Online matched → 5..1 → Go).
@@ -932,7 +996,7 @@ function frame(ts: number): void {
   }
 
   if (updateFx(fx, rawDt) && mode === 'dying') {
-    returnToTitleFromSolo()
+    enterSoloResult()
   }
   const t1 = performance.now()
 
@@ -1079,11 +1143,11 @@ function frame(ts: number): void {
       battle &&
       (mode === 'battleLocal' ||
         mode === 'battleOnline' ||
-        mode === 'battleResult')
+        (mode === 'result' && battle.winner !== null))
     ) {
       drawBattleWorld(ctx, battle, viewW, viewH, fx, {
         dim:
-          mode === 'battleResult'
+          mode === 'result'
             ? 0.2
             : preBattleCountdownUntil !== null
               ? 0.18
@@ -1108,15 +1172,16 @@ function frame(ts: number): void {
   rafId = requestAnimationFrame(frame)
 }
 
-/** Ease the arena into title dim during death, then hold that dim on title. */
+/** Ease the arena into result dim during death, then hold on the result screen. */
 function titleDimForMode(m: Mode, fxState: FxState): number {
   if (m === 'title' || m === 'matchmaking') return TITLE_DIM
+  if (m === 'result') return 0.2
   if (m === 'dying') {
     const u = deathProgress(fxState)
-    // Hold death readable, then ramp dim in the back half before title.
+    // Hold death readable, then ramp dim in the back half before result.
     const fade = u < 0.45 ? 0 : (u - 0.45) / 0.55
     const eased = fade * fade
-    return TITLE_DIM * Math.min(1, eased)
+    return 0.2 * Math.min(1, eased)
   }
   return 0
 }

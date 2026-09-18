@@ -109,6 +109,8 @@ Prefs: `wormular.sfxEnabled`, `wormular.musicEnabled` (legacy `wormular.soundEna
 | Title bottom chrome | overlay `padding-bottom` ≈ `0.75rem` / safe-area | Keeps name + leaderboard pinned low without unused gap under the board |
 | Local split zones | `#local-zones` mirrored seats | Soft orange (top) / teal (bottom) tints; top seat chrome rotated 180° so both players can read scores / countdown / result |
 | Local dual input | `src/input/dualHold.ts` | Top half + Space → P0; bottom half + W → P1; multi-touch per seat |
+| Post-game result | `#result` (+ mirrored local seats) | Headline + score detail + “Tap to continue”; stays until dismiss (same restart cooldown gate as title) |
+| Result arena dim | `0.2` | Canvas dim while reviewing the final frame |
 
 ## Camera shake stack — `src/render/draw.ts`
 
