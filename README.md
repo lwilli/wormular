@@ -24,7 +24,7 @@ npm run dev
 
 Hold anywhere (or Space / ↑) to move outward. Release to fall toward the center. Eat apples; avoid rocks, walls, and yourself.
 
-The title screen shows the **starting arena paused**. Swipe or tap the side circles to pick **Solo**, **Local 1v1**, or **Online 1v1** (wraps; selection sticks). **Solo:** Press & Hold to start. **Local:** Tap to Start, then a 5s countdown — hold the **top** (orange) / **bottom** (teal) half of the screen, or Space / W on keyboard. **Online:** Tap to find an opponent — the same center prompt becomes Finding / Waiting / error. Mode selection alone does not launch the run. Solo shows personal high score + leaderboard; Local shows the dual-control brief; Online shows nickname.
+The title screen shows the **starting arena paused**. Swipe or tap the side circles to pick **Solo**, **Local 1v1**, or **Online 1v1** (wraps; selection sticks). **Solo:** Press & Hold to start. **Local:** Tap to Start, then a 5s countdown — hold the **top** (orange) / **bottom** (teal) half of the screen, or Space / W on keyboard. **Online:** Tap to find an opponent — the same center prompt becomes Finding / Waiting / error. Mode selection alone does not launch the run. Solo shows personal high score + leaderboard; Local shows the dual-control brief; Online shows nickname. After a run ends, a **result screen** shows your score (or who won) until you tap to return to the mode selector.
 
 ```bash
 npm test      # core simulation tests
@@ -116,7 +116,7 @@ Short version: Apple ID in Xcode → plug in phone → select your Team on the A
 
 ## Status
 
-Web playable with juice (FX + audio), **global leaderboard**, **local 1v1** (split-touch halves + keyboard), **online 1v1**, and **cookieless visit + play counters** (`GET /stats` on the API). Favicon / web icons and iOS App Icon use the title-art W. Client on GitHub Pages (`main`); API on Cloudflare Worker + D1 + Durable Objects (`wormular-api.lwilli.workers.dev`). Local stack: `npm run dev:all`.
+Web playable with juice (FX + audio), **global leaderboard**, **local 1v1** (split-touch halves + keyboard), **online 1v1**, **post-game result screens**, and **cookieless visit + play counters** (`GET /stats` on the API). Favicon / web icons and iOS App Icon use the title-art W. Client on GitHub Pages (`main`); API on Cloudflare Worker + D1 + Durable Objects (`wormular-api.lwilli.workers.dev`). Local stack: `npm run dev:all`.
 
 iOS Capacitor shell works on simulator; physical device needs your Apple ID signing (see [docs/ios.md](docs/ios.md)). Store / TestFlight still phase 8.
 

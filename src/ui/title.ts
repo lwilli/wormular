@@ -7,6 +7,13 @@ export type MatchStatus =
   | 'waiting'
   | { error: string }
 
+/** Post-game review panel (stays until the player dismisses). */
+export type ResultView = {
+  headline: string
+  detail?: string
+  hint?: string
+}
+
 export type PlayModeChangeMeta = {
   animate: boolean
   /** +1 = toward Online (next), -1 = toward Solo (prev). */
@@ -49,7 +56,7 @@ export type TitleUi = {
    */
   onTitlePressGesture: (cb: (phase: 'defer' | 'commit' | 'cancel') => void) => void
   setBattleHud: (p0: number, p1: number, label?: string) => void
-  setResult: (text: string | null) => void
+  setResult: (view: ResultView | null) => void
   /** Matchmaking / countdown overlay. Pass null to hide. */
   setMatchBanner: (title: string | null, count?: string | null) => void
 }
@@ -143,6 +150,26 @@ export function bindTitleUi(): TitleUi {
   const matchBannerTitle = mustHtml('#match-banner-title')
   const matchBannerCount = mustHtml('#match-banner-count')
 
+  function paintResultPanel(
+    root: HTMLElement,
+    view: ResultView | null,
+  ): void {
+    const headline = root.querySelector('.result-headline') as HTMLElement | null
+    const detail = root.querySelector('.result-detail') as HTMLElement | null
+    const hint = root.querySelector('.result-hint') as HTMLElement | null
+    if (!view) {
+      root.hidden = true
+      if (headline) headline.textContent = ''
+      if (detail) detail.textContent = ''
+      if (hint) hint.textContent = ''
+      return
+    }
+    root.hidden = false
+    if (headline) headline.textContent = view.headline
+    if (detail) detail.textContent = view.detail ?? ''
+    if (hint) hint.textContent = view.hint ?? 'Tap to continue'
+  }
+
   function setLocalBanners(titleText: string | null, count?: string | null): void {
     for (const banner of [localBannerP0, localBannerP1]) {
       const titleEl = banner.querySelector('.local-banner-title') as HTMLElement | null
@@ -162,16 +189,9 @@ export function bindTitleUi(): TitleUi {
     }
   }
 
-  function setLocalResults(text: string | null): void {
-    for (const el of [localResultP0, localResultP1]) {
-      if (!text) {
-        el.hidden = true
-        el.textContent = ''
-      } else {
-        el.hidden = false
-        el.textContent = text
-      }
-    }
+  function setLocalResults(view: ResultView | null): void {
+    paintResultPanel(localResultP0, view)
+    paintResultPanel(localResultP1, view)
   }
 
   let playMode: PlayMode = 'solo'
@@ -619,16 +639,9 @@ export function bindTitleUi(): TitleUi {
         meta.textContent = label ?? 'Local'
       }
     },
-    setResult(text) {
-      if (!text) {
-        result.hidden = true
-        result.textContent = ''
-        setLocalResults(null)
-        return
-      }
-      result.hidden = false
-      result.textContent = text
-      setLocalResults(text)
+    setResult(view) {
+      paintResultPanel(result, view)
+      setLocalResults(view)
     },
     setMatchBanner(titleText, count) {
       if (!titleText) {
