@@ -10,7 +10,7 @@
     "db:init:remote": "npx wrangler d1 execute wormular --remote --file=./schema.sql"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250913.0",
+    "@cloudflare/workers-types": "^5.20260911.1",
     "typescript": "~5.9.3",
     "wrangler": "^4.34.0"
   },
