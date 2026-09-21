@@ -18,3 +18,8 @@ new_sqlite_classes = ["MatchRoom"]
 [vars]
 # Comma-separated origins allowed for CORS (GitHub Pages + local Vite).
 ALLOWED_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173,https://lwilli.github.io"
+
+# shared/protocol.ts imports obscenity; esbuild resolves from shared/, not worker/.
+[alias]
+obscenity = "./node_modules/obscenity"
+

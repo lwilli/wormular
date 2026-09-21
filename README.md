@@ -88,6 +88,8 @@ After pulling schema changes, apply them remotely (`cd worker && npm run db:init
 - **Free-plan Durable Objects** — migrations must use `new_sqlite_classes` (not `new_classes`) for `MatchRoom`.
 - **`wrangler: command not found`** — use the npm scripts (`npx wrangler`); run `npm install` in `worker/` first.
 - **Redeploy after Worker code or `ALLOWED_ORIGINS` changes**: `npm run worker:deploy`.
+- **Worker `npm install` peer conflict / `Could not resolve "obscenity"`** — use a current `worker/` checkout (`@cloudflare/workers-types` v5 + wrangler `[alias]` for `obscenity`). Then `cd worker && npm install && npm run deploy`.
+
 ## iOS (Capacitor)
 
 Same web build in a native shell. Bundle id: `com.lwilli.wormular`.
