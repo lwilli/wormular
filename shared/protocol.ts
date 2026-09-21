@@ -95,6 +95,13 @@ export type ServerMsg =
   | { type: 'error'; message: string }
   | { type: 'pong' }
 
+/** Lobby presence WebSocket (`/ws/presence`) — not the match room. */
+export type PresenceServerMsg =
+  | { type: 'presence'; online: number }
+  | { type: 'pong' }
+
+export type PresenceClientMsg = { type: 'ping' }
+
 export function sanitizeName(raw: string): string | null {
   const name = raw.trim().replace(/\s+/g, ' ')
   if (name.length < NAME_MIN || name.length > NAME_MAX) return null

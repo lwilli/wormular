@@ -9,11 +9,18 @@ database_id = "724d0064-636a-421c-bb1e-5c8ab8c4c987"
 preview_database_id = "local-wormular"
 
 [durable_objects]
-bindings = [{ name = "MATCH_ROOM", class_name = "MatchRoom" }]
+bindings = [
+  { name = "MATCH_ROOM", class_name = "MatchRoom" },
+  { name = "PRESENCE", class_name = "Presence" },
+]
 
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["MatchRoom"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Presence"]
 
 [vars]
 # Comma-separated origins allowed for CORS (GitHub Pages + local Vite).
