@@ -57,6 +57,11 @@ function popScale(born: number, t: number): number {
   return 0.08 + 0.92 * (1 - (1 - u) * (1 - u) * (1 - u))
 }
 
+/** Pop-in scale for a starfruit (1 = fully appeared). Exported for tests. */
+export function appleSpawnPopScale(apple: Apple, t: number): number {
+  return popScale(appleBorn.get(applePopKey(apple)) ?? t, t)
+}
+
 function withPop(
   ctx: CanvasRenderingContext2D,
   x: number,
