@@ -203,7 +203,7 @@ export function drawBattleWorld(
 
   drawOcean(ctx, battle.R, battle.RCore, t)
   drawVortex(ctx, battle.RCore, t, suck, near)
-  syncSpawnPops(shell, t)
+  syncSpawnPops(shell, t, battle.apples)
   drawHazards(ctx, battle.rocks, t)
 
   for (const apple of battle.apples) {
@@ -215,6 +215,7 @@ export function drawBattleWorld(
 
   const flash = fx ? wormFlashOn(fx) : false
   const eatGlow = fx ? eatGlowProgress(fx) : null
+  const eater = fx?.eatGlowPlayer ?? null
   drawWorm(
     ctx,
     shell,
@@ -222,7 +223,7 @@ export function drawBattleWorld(
     flash && battle.winner === foe,
     you === 0 ? danger0 : danger1,
     battle.winner === foe ? suck : 0,
-    eatGlow,
+    eatGlow !== null && eater === you ? eatGlow : null,
     P0_STYLE,
     battle.players[you].worm,
   )
@@ -233,7 +234,7 @@ export function drawBattleWorld(
     flash && battle.winner === you,
     foe === 0 ? danger0 : danger1,
     battle.winner === you ? suck : 0,
-    null,
+    eatGlow !== null && eater === foe ? eatGlow : null,
     P1_STYLE,
     battle.players[foe].worm,
   )

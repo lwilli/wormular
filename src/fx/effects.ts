@@ -53,6 +53,11 @@ export type FxState = {
   /** Head→tail yellow digest wave after eating. */
   eatGlowAge: number
   eatGlowLife: number
+  /**
+   * Which battle seat owns the digest glow.
+   * `null` = solo / single-worm world (always the one worm).
+   */
+  eatGlowPlayer: 0 | 1 | null
   freezeLeft: number
   /** Initial freeze duration for the active death (for progress / dim). */
   deathFreezeLife: number
@@ -75,6 +80,7 @@ export function createFx(): FxState {
     flashLife: 0,
     eatGlowAge: 0,
     eatGlowLife: 0,
+    eatGlowPlayer: null,
     freezeLeft: 0,
     deathFreezeLife: 0,
     deathPending: false,
@@ -94,6 +100,7 @@ export function clearFx(fx: FxState): void {
   fx.flashLife = 0
   fx.eatGlowAge = 0
   fx.eatGlowLife = 0
+  fx.eatGlowPlayer = null
   fx.freezeLeft = 0
   fx.deathFreezeLife = 0
   fx.deathPending = false
@@ -116,10 +123,23 @@ export function fxActive(fx: FxState): boolean {
 
 export function handleGameEvent(fx: FxState, ev: GameEvent): void {
   if (ev.type === 'AteFood') {
-    spawnEat(fx, ev.x, ev.y, ev.radius)
+    spawnEat(fx, ev.x, ev.y, ev.radius, null)
   } else if (ev.type === 'Died') {
     spawnDeath(fx, ev.cause)
   }
+}
+
+/** Battle eat: same juice as solo, but digest glow is tagged to the eater. */
+export function handleBattleAteFood(
+  fx: FxState,
+  ev: {
+    player: 0 | 1
+    x: number
+    y: number
+    radius: number
+  },
+): void {
+  spawnEat(fx, ev.x, ev.y, ev.radius, ev.player)
 }
 
 function spawnEat(
@@ -127,11 +147,13 @@ function spawnEat(
   x: number,
   y: number,
   radius: number,
+  player: 0 | 1 | null,
 ): void {
   fx.pops.push({ x, y, radius, color: FOOD_GOLD, life: EAT_LIFE, age: 0 })
   fx.plusOnes.push({ x, y, life: PLUS_LIFE, age: 0 })
   fx.eatGlowLife = EAT_GLOW_LIFE
   fx.eatGlowAge = 0
+  fx.eatGlowPlayer = player
 
   const n = 5 + Math.floor(Math.random() * 4)
   for (let i = 0; i < n; i++) {
