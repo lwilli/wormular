@@ -90,6 +90,7 @@ While **Online 1v1** is selected, the client holds a WebSocket to `/ws/presence`
 
 - **Email verification** — Cloudflare rejects Worker deploys until the account email is verified ([docs](https://developers.cloudflare.com/fundamentals/setup/account/verify-email-address/)).
 - **Free-plan Durable Objects** — migrations must use `new_sqlite_classes` (not `new_classes`) for `MatchRoom`.
+- **`MatchRoom` hibernation** — hibernatable WebSockets wipe in-memory seats after ~5s idle. The pre-battle countdown alone is long enough; without `serializeAttachment` + a match keep-alive, lockstep freezes right after "Go!".
 - **`wrangler: command not found`** — use the npm scripts (`npx wrangler`); run `npm install` in `worker/` first.
 - **Redeploy after Worker code or `ALLOWED_ORIGINS` changes**: `npm run worker:deploy`.
 - **Worker `npm install` peer conflict / `Could not resolve "obscenity"`** — use a current `worker/` checkout (`@cloudflare/workers-types` v5 + wrangler `[alias]` for `obscenity`). Then `cd worker && npm install && npm run deploy`.

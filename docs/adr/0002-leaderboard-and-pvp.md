@@ -46,6 +46,7 @@ Costs must stay near $0.
 - Clients send `{ type: 'finish' }` before closing so a normal death is not treated as a disconnect forfeit
 - Online clients mirror the full arena so each player sees themselves as orange; match countdown + input pipelining keep lockstep playable at uneven FPS
 - Online title mode holds `/ws/presence` for a live lobby count (see [0004-online-presence.md](0004-online-presence.md))
+- `MatchRoom` must survive WebSocket hibernation: seat role/name (+ pending inputs) live in `serializeAttachment`, room flags in DO storage, and a keep-alive interval while a match is live. Without that, the 5s pre-battle countdown alone hibernates the DO and lockstep freezes after "Go!"
 - Free-tier Cloudflare is enough for hobby traffic; cost is mostly engineering time
 
 ## Alternatives considered
