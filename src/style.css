@@ -838,27 +838,28 @@ body {
   min-height: 0;
 }
 
-.local-zone-p0 {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 122, 24, 0.22) 0%,
-    rgba(255, 122, 24, 0.08) 42%,
-    rgba(255, 122, 24, 0) 100%
-  );
-  box-shadow: inset 0 3px 0 rgba(255, 122, 24, 0.55);
-}
-
+/* Teal sits top (rotated); orange sits bottom (upright, +x start). */
 .local-zone-p1 {
   background: linear-gradient(
-    0deg,
+    180deg,
     rgba(46, 196, 182, 0.22) 0%,
     rgba(46, 196, 182, 0.08) 42%,
     rgba(46, 196, 182, 0) 100%
   );
-  box-shadow: inset 0 -3px 0 rgba(46, 196, 182, 0.55);
+  box-shadow: inset 0 3px 0 rgba(46, 196, 182, 0.55);
 }
 
-/* Same chrome in both seats; orange seat is rotated so top player can read it. */
+.local-zone-p0 {
+  background: linear-gradient(
+    0deg,
+    rgba(255, 122, 24, 0.22) 0%,
+    rgba(255, 122, 24, 0.08) 42%,
+    rgba(255, 122, 24, 0) 100%
+  );
+  box-shadow: inset 0 -3px 0 rgba(255, 122, 24, 0.55);
+}
+
+/* Same chrome in both seats; top (teal) seat is rotated so that player can read it. */
 .local-seat {
   position: absolute;
   inset: 0;
@@ -870,8 +871,8 @@ body {
   padding: 0.85rem 1rem max(1.1rem, env(safe-area-inset-bottom));
 }
 
-.local-zone-p0 .local-seat {
-  /* After rotate, flex-end sits on the physical top edge for the orange player. */
+.local-zone-p1 .local-seat {
+  /* After rotate, flex-end sits on the physical top edge for the teal player. */
   transform: rotate(180deg);
   padding-bottom: max(1.1rem, env(safe-area-inset-top));
 }

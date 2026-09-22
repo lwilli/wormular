@@ -16,11 +16,11 @@ function rect(top: number, height: number): DOMRect {
 }
 
 describe('seatFromClientY', () => {
-  it('maps top half to orange (P0) and bottom half to teal (P1)', () => {
+  it('maps top half to teal (P1) and bottom half to orange (P0)', () => {
     const bounds = rect(10, 200)
-    expect(seatFromClientY(10, bounds)).toBe(0)
-    expect(seatFromClientY(109, bounds)).toBe(0)
-    expect(seatFromClientY(110, bounds)).toBe(1)
-    expect(seatFromClientY(209, bounds)).toBe(1)
+    expect(seatFromClientY(10, bounds)).toBe(1)
+    expect(seatFromClientY(109, bounds)).toBe(1)
+    expect(seatFromClientY(110, bounds)).toBe(0)
+    expect(seatFromClientY(209, bounds)).toBe(0)
   })
 })
