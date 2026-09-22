@@ -1,4 +1,4 @@
-/** Local 1v1: top half / Space = P0 (orange), bottom half / KeyW = P1 (teal). */
+/** Local 1v1: top half / KeyW = P1 (teal), bottom half / Space = P0 (orange). */
 
 import { blurTextField, typingInField } from './textFocus'
 
@@ -10,10 +10,10 @@ export type DualHoldInput = {
   destroy: () => void
 }
 
-/** Top half → seat 0 (orange), bottom half → seat 1 (teal). */
+/** Top half → seat 1 (teal), bottom half → seat 0 (orange, +x / upright). */
 export function seatFromClientY(clientY: number, bounds: DOMRect): 0 | 1 {
   const mid = bounds.top + bounds.height * 0.5
-  return clientY < mid ? 0 : 1
+  return clientY < mid ? 1 : 0
 }
 
 export function createDualHoldInput(
@@ -106,14 +106,14 @@ export function createDualHoldInput(
 
   const onKeyDown = (e: KeyboardEvent) => {
     if (typingInField()) return
-    if (e.code === 'Space' || e.code === 'ArrowUp') {
+    if (e.code === 'Space' || e.code === 'ArrowDown') {
       e.preventDefault()
       keyHolding[0] = true
       recompute()
       state.playRequested = true
       opts?.onPress?.()
     }
-    if (e.code === 'KeyW') {
+    if (e.code === 'KeyW' || e.code === 'ArrowUp') {
       e.preventDefault()
       keyHolding[1] = true
       recompute()
@@ -123,12 +123,12 @@ export function createDualHoldInput(
   }
   const onKeyUp = (e: KeyboardEvent) => {
     if (typingInField()) return
-    if (e.code === 'Space' || e.code === 'ArrowUp') {
+    if (e.code === 'Space' || e.code === 'ArrowDown') {
       e.preventDefault()
       keyHolding[0] = false
       recompute()
     }
-    if (e.code === 'KeyW') {
+    if (e.code === 'KeyW' || e.code === 'ArrowUp') {
       e.preventDefault()
       keyHolding[1] = false
       recompute()
