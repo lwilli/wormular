@@ -5,16 +5,40 @@ import { clamp, hash01 } from './util'
 
 const POP_IN = 0.18
 const rockBorn = new Map<number, number>()
+/** Position-keyed born times so each starfruit pops in independently. */
+const appleBorn = new Map<string, number>()
 let popSeed = Number.NaN
-let appleKey = ''
-let appleBorn = 0
 
-/** Remember when each rock/apple first appeared so they can pop in. */
-export function syncSpawnPops(world: World, t: number): void {
+function applePopKey(apple: Apple): string {
+  return `${apple.x.toFixed(2)},${apple.y.toFixed(2)}`
+}
+
+function syncAppleBorn(apples: Iterable<Apple | null | undefined>, t: number): void {
+  const live = new Set<string>()
+  for (const apple of apples) {
+    if (!apple) continue
+    const key = applePopKey(apple)
+    live.add(key)
+    if (!appleBorn.has(key)) appleBorn.set(key, t)
+  }
+  for (const key of appleBorn.keys()) {
+    if (!live.has(key)) appleBorn.delete(key)
+  }
+}
+
+/**
+ * Remember when each rock/apple first appeared so they can pop in.
+ * Pass `apples` for battle (up to two); otherwise uses `world.apple`.
+ */
+export function syncSpawnPops(
+  world: World,
+  t: number,
+  apples?: Iterable<Apple | null | undefined>,
+): void {
   if (world.seed !== popSeed) {
     popSeed = world.seed
     rockBorn.clear()
-    appleKey = ''
+    appleBorn.clear()
   }
 
   for (const id of rockBorn.keys()) {
@@ -25,17 +49,17 @@ export function syncSpawnPops(world: World, t: number): void {
     if (!rockBorn.has(id)) rockBorn.set(id, t)
   }
 
-  const apple = world.apple
-  const key = apple ? `${apple.x.toFixed(2)},${apple.y.toFixed(2)}` : ''
-  if (key !== appleKey) {
-    appleKey = key
-    appleBorn = t
-  }
+  syncAppleBorn(apples ?? [world.apple], t)
 }
 
 function popScale(born: number, t: number): number {
   const u = clamp((t - born) / POP_IN, 0, 1)
   return 0.08 + 0.92 * (1 - (1 - u) * (1 - u) * (1 - u))
+}
+
+/** Pop-in scale for a starfruit (1 = fully appeared). Exported for tests. */
+export function appleSpawnPopScale(apple: Apple, t: number): number {
+  return popScale(appleBorn.get(applePopKey(apple)) ?? t, t)
 }
 
 function withPop(
@@ -268,7 +292,8 @@ export function drawStarFruit(
   const { x, y, radius } = apple
   const pulse = 1 + 0.08 * Math.sin(t * 4.2)
   const r = radius * pulse
-  withPop(ctx, x, y, popScale(appleBorn, t), () => {
+  const born = appleBorn.get(applePopKey(apple)) ?? t
+  withPop(ctx, x, y, popScale(born, t), () => {
     const glow = ctx.createRadialGradient(x, y, 0, x, y, r * 2.3)
     glow.addColorStop(0, 'rgba(255, 248, 210, 0.55)')
     glow.addColorStop(0.35, 'rgba(255, 210, 74, 0.28)')

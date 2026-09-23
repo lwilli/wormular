@@ -20,6 +20,7 @@ import {
   clearFx,
   createFx,
   deathProgress,
+  handleBattleAteFood,
   handleGameEvent,
   isFreezing,
   updateFx,
@@ -842,11 +843,10 @@ resize()
 function handleBattleEvents(b: BattleWorld): void {
   for (const ev of b.events) {
     if (ev.type === 'AteFood') {
-      handleGameEvent(fx, {
-        type: 'AteFood',
+      handleBattleAteFood(fx, {
+        player: ev.player,
         x: ev.x,
         y: ev.y,
-        color: ev.color,
         radius: ev.radius,
       })
       audio.playEat()

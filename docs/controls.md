@@ -69,6 +69,7 @@ Collision ring stays at exact `RCore` (thin stroke in `drawVortex`).
 | `EAT_LIFE` | `0.15` | Eat pop duration (s) |
 | `PLUS_LIFE` | `0.45` | “+1” float duration |
 | `EAT_GLOW_LIFE` | `0.42` | Head→tail yellow digest glow duration |
+| `eatGlowPlayer` | seat / `null` | Battle: glow only on the eater; solo uses `null` (the one worm) |
 | `DEATH_FREEZE` | `0.55` | Crash death freeze before title |
 | `SHAKE_LIFE` / `SHAKE_PX` | `0.5` / `3.5` | Crash death camera shake |
 | `FLASH_LIFE` | `0.45` | Crash worm flash |
