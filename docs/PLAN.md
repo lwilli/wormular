@@ -116,7 +116,7 @@ Palette:
 - Faint concentric rings (altitude guides) — important for helicopter readability
 - Worm: fill `#FF7A18`, outline `#C45A10`
 - Apples: red `#E23B3B` and green `#3CB86A` (alternate or random)
-- Rocks: `#8B5A2B` with darker outline `#5C3B1E`
+- Rocks (all floating hazards): brown asteroid only — `#6e5a48` fill, `#d4b08a` rim, shaded blobs (no planet/comet variants)
 
 **Worm drawing (non-negotiable):** one contiguous body, not dots.
 
@@ -126,7 +126,7 @@ Palette:
 
 Optional taper: overlapping circles along the path with radius falling toward the tail. If juniors do only the double-stroke, that is already a real worm.
 
-Apples: circle + tiny stem + leaf (a few `arc` / `lineTo` calls). Rocks: circle with 1–2 shaded inner blobs, or a short irregular polygon from a seeded hash of rock id (still code, not files).
+Apples: circle + tiny stem + leaf (a few `arc` / `lineTo` calls). Rocks: irregular polygon from a seeded hash of rock id with 1–2 shaded inner blobs (still code, not files). Every hazard uses this same brown asteroid look so players can tell rocks from food at a glance.
 
 **Icons (web + iOS):** Favicon / PWA icons in `public/` and the iOS `AppIcon` use the eyed **W** cropped from `assets/images/wormular-source.png`. Regen runbook: [icons.md](icons.md) (`npm run icons`). Still later for store: screenshots, tvOS App Icon / Top Shelf.
 
