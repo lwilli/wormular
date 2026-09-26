@@ -93,14 +93,8 @@ export function drawHazards(
   }
 }
 
+/** All hazards use the brown asteroid look so they read clearly as rocks. */
 function drawHazard(ctx: CanvasRenderingContext2D, rock: Rock): void {
-  const kind = rock.id % 3
-  if (kind === 1) drawPlanet(ctx, rock)
-  else if (kind === 2) drawComet(ctx, rock)
-  else drawAsteroid(ctx, rock)
-}
-
-function drawAsteroid(ctx: CanvasRenderingContext2D, rock: Rock): void {
   const { x, y, radius, id } = rock
   const n = 8 + (id % 3)
   ctx.beginPath()
@@ -154,108 +148,6 @@ function drawAsteroid(ctx: CanvasRenderingContext2D, rock: Rock): void {
   )
   ctx.fill()
   ctx.globalAlpha = 1
-}
-
-function drawPlanet(ctx: CanvasRenderingContext2D, rock: Rock): void {
-  const { x, y, radius, id } = rock
-  const len = Math.hypot(x, y) || 1
-  const lx = -x / len
-  const ly = -y / len
-  const fill = id % 2 === 0 ? PALETTE.planetA : PALETTE.planetB
-
-  blobPath(ctx, x, y, radius, id, 16, 0.08)
-  ctx.fillStyle = fill
-  ctx.fill()
-  ctx.lineWidth = 2
-  ctx.strokeStyle = PALETTE.planetRim
-  ctx.stroke()
-
-  ctx.save()
-  blobPath(ctx, x, y, radius, id, 16, 0.08)
-  ctx.clip()
-
-  const lit = ctx.createRadialGradient(
-    x + lx * radius * 0.35,
-    y + ly * radius * 0.35,
-    radius * 0.08,
-    x - lx * radius * 0.2,
-    y - ly * radius * 0.2,
-    radius * 1.2,
-  )
-  lit.addColorStop(0, 'rgba(255, 255, 255, 0.28)')
-  lit.addColorStop(0.4, 'rgba(255, 255, 255, 0.04)')
-  lit.addColorStop(1, 'rgba(0, 0, 0, 0.45)')
-  ctx.fillStyle = lit
-  ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2)
-
-  ctx.globalAlpha = 0.5
-  ctx.fillStyle = PALETTE.planetBand
-  blobPath(
-    ctx,
-    x + (hash01(id) - 0.45) * radius * 0.3,
-    y + (hash01(id + 3) - 0.5) * radius * 0.25,
-    radius * 0.32,
-    id + 4,
-    8,
-    0.3,
-  )
-  ctx.fill()
-  ctx.fillStyle = 'rgba(10, 12, 24, 0.35)'
-  blobPath(
-    ctx,
-    x - lx * radius * 0.2,
-    y + (hash01(id + 8) - 0.5) * radius * 0.35,
-    radius * 0.18,
-    id + 9,
-    7,
-    0.35,
-  )
-  ctx.fill()
-  ctx.restore()
-}
-
-function drawComet(ctx: CanvasRenderingContext2D, rock: Rock): void {
-  const { x, y, radius, id } = rock
-  const len = Math.hypot(x, y) || 1
-  const ux = x / len
-  const uy = y / len
-  const tail = radius * 2.5
-
-  ctx.lineCap = 'round'
-  ctx.strokeStyle = PALETTE.cometIce
-  for (let i = 0; i < 3; i++) {
-    const spread = (i - 1) * 0.34
-    const tlen = tail * (1 - Math.abs(i - 1) * 0.22)
-    ctx.globalAlpha = i === 1 ? 0.22 : 0.1
-    ctx.lineWidth = i === 1 ? radius * 0.28 : radius * 0.12
-    ctx.beginPath()
-    ctx.moveTo(x, y)
-    ctx.lineTo(
-      x + ux * tlen - uy * radius * spread,
-      y + uy * tlen + ux * radius * spread,
-    )
-    ctx.stroke()
-  }
-  ctx.globalAlpha = 1
-
-  blobPath(ctx, x, y, radius * 0.84, id, 8, 0.16)
-  ctx.fillStyle = PALETTE.cometBody
-  ctx.fill()
-  ctx.lineWidth = 2
-  ctx.strokeStyle = PALETTE.cometIce
-  ctx.stroke()
-
-  ctx.fillStyle = 'rgba(220, 250, 255, 0.45)'
-  blobPath(
-    ctx,
-    x - ux * radius * 0.18,
-    y - uy * radius * 0.18,
-    radius * 0.28,
-    id + 6,
-    6,
-    0.3,
-  )
-  ctx.fill()
 }
 
 function blobPath(
