@@ -105,6 +105,7 @@ Prefs: `wormular.sfxEnabled`, `wormular.musicEnabled` (legacy `wormular.soundEna
 | Mode peek labels | `--peek-label-nudge` (usually ~0) | Labels share the peek disk axis; only nudge inward if a title would clip |
 | Mode peek size | `~22–24vw` (capped) | Side preview diameter; synced to CSS `--peek-d` |
 | Mode peek previews | canvas plate + mini arena | Opaque disk + paused Solo / 1v1 world; HTML face is a neutral ring/hit target |
+| Title canvas size | `#app` `clientWidth`/`clientHeight` | Matches the HTML overlay layout box — not `visualViewport` (iOS keyboard/toolbar) — and remounts on resume |
 | Title center scale | `centerScale` from `orbitLayout()` | Selected mode shrinks on title so neighbor peeks read as separate carousel items |
 | Solo leaderboard list | `max-height: min(5.25rem, 18vh)` (`4.25rem` / `15vh` under 700px tall) | Caps the title-screen score list so it stays under the scaled arena |
 | Title bottom chrome | overlay `padding-bottom` ≈ `0.75rem` / safe-area | Keeps name + leaderboard pinned low without unused gap under the board |
