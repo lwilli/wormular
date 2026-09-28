@@ -45,6 +45,7 @@ Then Run again in Xcode (or `npx cap run ios --target <device>` if you prefer CL
 | Untrusted developer | Trust the cert on the phone (Settings → General → VPN & Device Management). |
 | Blank / old web UI | Run `npm run cap:sync` before Run — `ios/App/App/public` is generated, not hand-edited. |
 | Cable not seeing phone | Unlock phone, trust Mac; try another cable; enable Developer Mode. |
+| Mode peeks drift off their rings after reopen / keyboard | Canvas must size to the `#app` layout box (not `visualViewport`); resume remounts via `visibilitychange` / `pageshow` + a short settle resize in `src/main.ts`. |
 
 ## App icon
 

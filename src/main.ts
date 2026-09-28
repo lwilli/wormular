@@ -455,6 +455,8 @@ function syncPeekLabelNudge(
 function syncOrbitCss(layout: OrbitLayout): void {
   const carousel = document.getElementById('mode-carousel')
   if (!carousel) return
+  const arenaD = arenaRadius() * 2
+  carousel.style.setProperty('--arena-d', `${arenaD}px`)
   carousel.style.setProperty('--peek-d', `${layout.peekD}px`)
   carousel.style.setProperty('--orbit-shift', `${layout.shift}px`)
   carousel.style.setProperty('--title-center-scale', String(layout.centerScale))
@@ -800,10 +802,29 @@ function dismissResult(): void {
   void refreshLeaderboard()
 }
 
+/**
+ * Layout box shared by the canvas and the HTML title overlay.
+ * Never use visualViewport width/height here — on iOS Safari / PWAs that
+ * shrinks with the keyboard or toolbar while `#app` / `.overlay` stay on the
+ * layout viewport, which desyncs canvas peeks from the HTML orbit rings.
+ */
+function layoutViewSize(): { w: number; h: number } {
+  const app = document.getElementById('app')
+  const w =
+    app?.clientWidth ||
+    document.documentElement.clientWidth ||
+    window.innerWidth
+  const h =
+    app?.clientHeight ||
+    document.documentElement.clientHeight ||
+    window.innerHeight
+  return { w: Math.max(1, Math.round(w)), h: Math.max(1, Math.round(h)) }
+}
+
 function resize(): void {
-  const vv = window.visualViewport
-  viewW = Math.max(1, Math.round(vv?.width ?? window.innerWidth))
-  viewH = Math.max(1, Math.round(vv?.height ?? window.innerHeight))
+  const { w, h } = layoutViewSize()
+  viewW = w
+  viewH = h
   const dpr = Math.min(window.devicePixelRatio || 1, 2)
   const maxMajor = 900
   const major = Math.max(viewW, viewH) * dpr
@@ -816,8 +837,9 @@ function resize(): void {
     canvas.width = bw
     canvas.height = bh
   }
-  canvas.style.width = `${viewW}px`
-  canvas.style.height = `${viewH}px`
+  // Fill `#app` so canvas CSS pixels match the overlay’s containing block.
+  canvas.style.width = '100%'
+  canvas.style.height = '100%'
   ctx.setTransform(bufScale, 0, 0, bufScale, 0, 0)
 
   const R = arenaRadius()
@@ -835,10 +857,36 @@ function resize(): void {
   }
 }
 
-window.addEventListener('resize', resize)
-window.visualViewport?.addEventListener('resize', resize)
-window.visualViewport?.addEventListener('scroll', resize)
-resize()
+/** iOS often reports stale sizes on resume; remeasure next frames + shortly after. */
+let resizeRaf = 0
+let resizeSettleTimer = 0
+function scheduleResize(): void {
+  resize()
+  if (resizeRaf) cancelAnimationFrame(resizeRaf)
+  resizeRaf = requestAnimationFrame(() => {
+    resizeRaf = 0
+    resize()
+    requestAnimationFrame(resize)
+  })
+  window.clearTimeout(resizeSettleTimer)
+  resizeSettleTimer = window.setTimeout(() => {
+    resizeSettleTimer = 0
+    resize()
+  }, 120)
+}
+
+function onVisibilityResume(): void {
+  if (document.visibilityState === 'hidden') return
+  scheduleResize()
+}
+
+window.addEventListener('resize', scheduleResize)
+// visualViewport still *signals* keyboard / toolbar changes; we remeasure layout.
+window.visualViewport?.addEventListener('resize', scheduleResize)
+window.visualViewport?.addEventListener('scroll', scheduleResize)
+document.addEventListener('visibilitychange', onVisibilityResume)
+window.addEventListener('pageshow', scheduleResize)
+scheduleResize()
 
 function handleBattleEvents(b: BattleWorld): void {
   for (const ev of b.events) {
@@ -1232,9 +1280,13 @@ rafId = requestAnimationFrame(frame)
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     cancelAnimationFrame(rafId)
-    window.removeEventListener('resize', resize)
-    window.visualViewport?.removeEventListener('resize', resize)
-    window.visualViewport?.removeEventListener('scroll', resize)
+    if (resizeRaf) cancelAnimationFrame(resizeRaf)
+    window.clearTimeout(resizeSettleTimer)
+    window.removeEventListener('resize', scheduleResize)
+    window.visualViewport?.removeEventListener('resize', scheduleResize)
+    window.visualViewport?.removeEventListener('scroll', scheduleResize)
+    document.removeEventListener('visibilitychange', onVisibilityResume)
+    window.removeEventListener('pageshow', scheduleResize)
     soloInput.destroy()
     dualInput.destroy()
     stopMatchClient()

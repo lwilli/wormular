@@ -109,8 +109,8 @@ body {
 .mode-carousel {
   --arena-d: calc(min(100vw, 100vh) - 48px);
   --peek-d: min(24vw, 7rem);
-  /* JS syncs --orbit-shift / --peek-d / --title-center-scale on resize so
-     peeks sit beside the scaled center with a visible gap (not nested in it). */
+  /* JS syncs --arena-d / --orbit-shift / --peek-d / --title-center-scale from
+     the layout viewport so peeks match the canvas (not visualViewport / 100vh). */
   --orbit-shift: calc(var(--arena-d) * 0.42 + var(--peek-d) * 0.55);
   --title-center-scale: 0.78;
   position: absolute;
