@@ -23,8 +23,8 @@ export function buildShareText(score: number): string {
 }
 
 /**
- * Native share sheet on iOS; Web Share API on supporting browsers.
- * Returns false if the user cancelled or sharing is unavailable.
+ * Native share sheet on iOS; Web Share API on supporting browsers;
+ * clipboard fallback otherwise. Returns false if everything fails.
  */
 export async function shareScore(opts: ShareScoreOpts): Promise<boolean> {
   const text = opts.text ?? buildShareText(opts.score)
@@ -39,12 +39,20 @@ export async function shareScore(opts: ShareScoreOpts): Promise<boolean> {
       return true
     }
   } catch {
-    // User cancel or unsupported — soft-fail.
+    // User cancel or unsupported — try clipboard before giving up.
+  }
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch {
+    // ignore
   }
   return false
 }
 
+/** Share is always offered; native / Web Share / clipboard handle delivery. */
 export function canShare(): boolean {
-  if (isNativePlatform()) return true
-  return typeof navigator !== 'undefined' && typeof navigator.share === 'function'
+  return true
 }

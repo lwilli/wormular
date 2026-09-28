@@ -1435,26 +1435,30 @@ function frame(ts: number): void {
       const prev = neighborPlayMode(selectedPlayMode, -1)
       const next = neighborPlayMode(selectedPlayMode, 1)
       drawSpace(ctx, viewW, viewH)
+      // Guided first Solo: full-size center arena only — no mode peeks.
+      const titleScale = onboardingActive ? 1 : centerScale
       drawTitleModePreview(selectedPlayMode, {
         offsetX: 0,
-        scale: centerScale,
+        scale: titleScale,
         time,
       })
       ctx.fillStyle = `rgba(5, 6, 14, ${TITLE_DIM})`
       ctx.fillRect(0, 0, viewW, viewH)
-      // Separate mode disks: opaque plate + mini arena, beside the selected mode.
-      drawPeekPlate(-shift, peekD)
-      drawTitleModePreview(prev, {
-        offsetX: -shift,
-        scale: peekScale,
-        time,
-      })
-      drawPeekPlate(shift, peekD)
-      drawTitleModePreview(next, {
-        offsetX: shift,
-        scale: peekScale,
-        time,
-      })
+      if (!onboardingActive) {
+        // Separate mode disks: opaque plate + mini arena, beside the selected mode.
+        drawPeekPlate(-shift, peekD)
+        drawTitleModePreview(prev, {
+          offsetX: -shift,
+          scale: peekScale,
+          time,
+        })
+        drawPeekPlate(shift, peekD)
+        drawTitleModePreview(next, {
+          offsetX: shift,
+          scale: peekScale,
+          time,
+        })
+      }
     } else if (
       battle &&
       (mode === 'battleLocal' ||
