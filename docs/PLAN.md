@@ -198,10 +198,10 @@ If it takes more than a day or starts looking like a particle editor, it is too 
 **After v1:**
 
 4. **Juice** — subtle eat/death VFX + two WebAudio sounds, as specified above.
-5. **iOS shell** — Vite build + Capacitor, safe areas, standalone, 60fps on device. **Done for local packaging:** `capacitor.config.ts`, `ios/`, Preferences storage, edge-to-edge insets, Web Audio SFX. Simulator verified. Physical device: see [ios.md](ios.md). Decisions: [adr/0001-capacitor-ios-shell.md](adr/0001-capacitor-ios-shell.md).
+5. **iOS shell** — Vite build + Capacitor, safe areas, standalone, 60fps on device. **Done for local packaging + native feel:** `capacitor.config.ts`, `ios/`, Preferences storage, edge-to-edge insets, Web Audio SFX, haptics, Share, App lifecycle pause, guided onboarding, Play Again result chrome, optional Game Center plugin. Physical device: see [ios.md](ios.md). Decisions: [adr/0001-capacitor-ios-shell.md](adr/0001-capacitor-ios-shell.md), [adr/0005-game-center.md](adr/0005-game-center.md).
 6. **tvOS** — same web build in a tvOS WKWebView shell + remote hold mapping; fallback plan is Swift port of `src/core` + SpriteKit stroke.
 7. **Android later** — Capacitor Android, no game changes.
-8. **Store** — screenshots, Game Center later (not v1). Web + iOS app icons already ship from the title W.
+8. **Store** — screenshots, TestFlight, App Store Connect Game Center IDs, privacy questionnaire. Web + iOS app icons already ship from the title W; GC client code is ready (ASC config is manual).
 9. **Global leaderboard** — Cloudflare Worker + D1; nickname submit on death; title-screen top N. Soft trust client scores. **Done:** Worker + remote D1; Pages builds bake `VITE_API_URL`; local mirror via `npm run dev:all`. Deploy runbook in [README.md](../README.md#production-leaderboard--online-pvp). ADR: [adr/0002-leaderboard-and-pvp.md](adr/0002-leaderboard-and-pvp.md).
 10. **1v1 battle** — dual-worm sim (opposite starts, 2 apples, first death loses); local split-input (top/bottom touch halves + Space/W); online lockstep via Durable Objects. **Done:** local + online; `MatchRoom` DO; live lobby presence (`Presence` DO + `/ws/presence`); finish-before-close; view mirror; match countdown; input pipelining; mobile split-touch zones.
 11. **Visit + play counters** — cookieless first-party `POST /visit`, `POST /play?mode=…`, `GET /stats` on the same Worker/D1 (aggregate visits + solo/local/online plays + online queue entries). **Done:** ADR [adr/0003-cookieless-visit-analytics.md](adr/0003-cookieless-visit-analytics.md).

@@ -32,16 +32,42 @@ import { connectMatch, type MatchClient } from './net/matchClient'
 import { connectPresence, type PresenceClient } from './net/presenceClient'
 import { createAudio } from './platform/audio'
 import { trackPlay, trackVisit } from './platform/analytics'
+import {
+  initGameCenter,
+  isGameCenterAuthenticated,
+  reportSoloRunAchievements,
+  showGameCenterDashboard,
+  submitGameCenterScore,
+} from './platform/gameCenter'
+import { haptics } from './platform/haptics'
+import { isNativePlatform } from './platform/kv'
 import { fetchLeaderboard, submitScore } from './platform/leaderboard'
+import { bindAppLifecycle } from './platform/lifecycle'
 import {
   initNickname,
   loadNickname,
   saveNickname,
 } from './platform/nickname'
+import { canShare, shareScore } from './platform/shareScore'
+import {
+  initSettings,
+  isHapticsEnabled,
+  isOnboardingComplete,
+  loadMusicEnabled,
+  loadSfxEnabled,
+  setOnboardingComplete,
+  toggleHaptics,
+} from './platform/settings'
 import { initStorage, recordScore, loadHighScore } from './platform/storage'
 import { drawBattleWorld, drawWorld } from './render/draw'
 import { drawSpace } from './render/cosmic'
-import { bindTitleUi, MODE_ORBIT_MS, neighborPlayMode, type PlayMode } from './ui/title'
+import {
+  bindTitleUi,
+  MODE_ORBIT_MS,
+  neighborPlayMode,
+  type PlayMode,
+  type ResultAction,
+} from './ui/title'
 import { Capacitor } from '@capacitor/core'
 
 type Mode =
@@ -148,18 +174,30 @@ let titleLaunch: {
   fromScale: number
   kind: 'solo' | 'local' | 'online'
 } | null = null
+/** Guided first Solo run — hides mode carousel until complete. */
+let onboardingActive = false
+/** Soft-pause while the app is backgrounded during a run. */
+let gameplayPaused = false
+/** Solo result with Play Again / Share buttons (ignore canvas dismiss). */
+let resultUsesActions = false
+/** Last solo score — for share + play-again. */
+let lastSoloScore = 0
+let unbindLifecycle: (() => void) | null = null
 
 ui.setHighScore(highScore)
 ui.setVisible(true)
+ui.setMenuVisible(true)
 ui.setHudVisible(false)
 ui.setSfxEnabled(audio.isSfxEnabled())
 ui.setMusicEnabled(audio.isMusicEnabled())
+ui.setHapticsEnabled(isHapticsEnabled())
+ui.setHapticsVisible(isNativePlatform())
 ui.setNickname(loadNickname() || 'Player')
-ui.setMenuVisible(true)
 ui.setPlayMode(selectedPlayMode)
 ui.setStatus('')
 ui.setOnlineCount(null)
 ui.setResult(null)
+ui.setPaused(false)
 ui.setMatchBanner(null)
 document.getElementById('battle-hud')?.setAttribute('hidden', '')
 document.getElementById('battle-hud')?.classList.remove('is-local')
@@ -173,6 +211,10 @@ ui.onSfxToggle(() => {
 })
 ui.onMusicToggle(() => {
   ui.setMusicEnabled(audio.toggleMusic())
+})
+ui.onHapticsToggle(() => {
+  ui.setHapticsEnabled(toggleHaptics())
+  haptics.selection()
 })
 
 ui.onNicknameChange((raw) => {
@@ -288,8 +330,51 @@ void initNickname().then(() => {
   if (n) ui.setNickname(n)
 })
 
+void initSettings().then(() => {
+  // Re-sync mutes after Preferences hydrate on native.
+  audio.setSfxEnabled(loadSfxEnabled())
+  audio.setMusicEnabled(loadMusicEnabled())
+  ui.setSfxEnabled(audio.isSfxEnabled())
+  ui.setMusicEnabled(audio.isMusicEnabled())
+  ui.setHapticsEnabled(isHapticsEnabled())
+  onboardingActive = !isOnboardingComplete()
+  if (onboardingActive) {
+    selectedPlayMode = 'solo'
+    savePlayMode('solo')
+    ui.setPlayMode('solo')
+    ui.setOnboarding(true)
+    ensureTitlePreview()
+  }
+})
+
+initGameCenter()
+void bindAppLifecycle({
+  onBackground: () => {
+    if (
+      mode === 'playing' ||
+      mode === 'dying' ||
+      mode === 'battleLocal' ||
+      mode === 'battleOnline'
+    ) {
+      pauseGameplay()
+    } else {
+      audio.suspend()
+    }
+  },
+  onForeground: () => {
+    scheduleResize()
+    if (!gameplayPaused) audio.resume()
+  },
+}).then((unbind) => {
+  unbindLifecycle = unbind
+})
+
 void refreshLeaderboard()
 syncOnlinePresence()
+
+ui.onResultAction((action) => {
+  handleResultAction(action)
+})
 
 function arenaRadius(): number {
   const side = Math.min(viewW, viewH)
@@ -573,6 +658,9 @@ function showTitle(): void {
   titleLaunch = null
   mode = 'title'
   onlineViewActive = false
+  resultUsesActions = false
+  gameplayPaused = false
+  ui.setPaused(false)
   stopMatchClient()
   world = createPlayWorld()
   battle = null
@@ -584,6 +672,7 @@ function showTitle(): void {
   ui.setVisible(true)
   ui.setMenuVisible(true)
   ui.setPlayMode(selectedPlayMode)
+  ui.setOnboarding(onboardingActive)
   ui.setHudVisible(false)
   ui.setStatus('')
   ui.setMatchStatus('idle')
@@ -593,6 +682,88 @@ function showTitle(): void {
   lastCountdownSec = -1
   document.getElementById('battle-hud')?.setAttribute('hidden', '')
   setLocalBattleChrome(false)
+}
+
+function pauseGameplay(): void {
+  if (gameplayPaused) return
+  if (
+    mode !== 'playing' &&
+    mode !== 'dying' &&
+    mode !== 'battleLocal' &&
+    mode !== 'battleOnline'
+  ) {
+    return
+  }
+  gameplayPaused = true
+  audio.suspend()
+  soloInput.holding = false
+  dualInput.reset()
+  soloInput.playRequested = false
+  dualInput.playRequested = false
+  ui.setPaused(true)
+}
+
+function resumeGameplay(): void {
+  if (!gameplayPaused) return
+  gameplayPaused = false
+  ui.setPaused(false)
+  audio.resume()
+  audio.unlock()
+  lastTs = performance.now()
+  accum = 0
+  soloInput.playRequested = false
+  dualInput.playRequested = false
+  scheduleResize()
+}
+
+function finishOnboarding(): void {
+  if (!onboardingActive) return
+  onboardingActive = false
+  setOnboardingComplete(true)
+  ui.setOnboarding(false)
+}
+
+function handleResultAction(action: ResultAction): void {
+  if (mode !== 'result') return
+  if (action === 'share') {
+    void shareScore({ score: lastSoloScore })
+    return
+  }
+  if (action === 'leaderboard') {
+    finishOnboarding()
+    dismissResult()
+    // Focus solo panel so the Wormular leaderboard is visible.
+    selectedPlayMode = 'solo'
+    savePlayMode('solo')
+    ui.setPlayMode('solo')
+    if (isNativePlatform() && isGameCenterAuthenticated()) {
+      showGameCenterDashboard()
+    }
+    void refreshLeaderboard()
+    return
+  }
+  if (action === 'again') {
+    finishOnboarding()
+    resultUsesActions = false
+    ui.setResult(null)
+    // Fresh solo world and immediate relaunch.
+    world = createPlayWorld()
+    battle = null
+    clearFx(fx)
+    mode = 'title'
+    selectedPlayMode = 'solo'
+    savePlayMode('solo')
+    ui.setPlayMode('solo')
+    ui.setOnboarding(false)
+    ui.setVisible(false)
+    ui.setMenuVisible(false)
+    armTitleStartGate()
+    awaitReleaseBeforeStart = false
+    startSolo()
+    return
+  }
+  finishOnboarding()
+  dismissResult()
 }
 
 /** Start only on a fresh intentional press after death cooldown + release. */
@@ -765,6 +936,7 @@ function endBattle(view: {
 }): void {
   if (mode === 'result') return
   mode = 'result'
+  resultUsesActions = false
   preBattleCountdownUntil = null
   ui.setMatchBanner(null)
   ui.setResult({
@@ -782,22 +954,36 @@ function endBattle(view: {
 function enterSoloResult(): void {
   const score = world.score
   const prevBest = highScore
+  lastSoloScore = score
   highScore = recordScore(score)
   ui.setHighScore(highScore)
   void submitRunScore(score)
+  submitGameCenterScore(score)
+  reportSoloRunAchievements(score)
   mode = 'result'
+  resultUsesActions = true
   ui.setHudVisible(false)
   const isNewBest = score > prevBest && score > 0
+  if (isNewBest) haptics.success()
+  const metaLines: string[] = [`Personal best: ${highScore}`]
+  if (isGameCenterAuthenticated()) {
+    metaLines.push('Submitted to Game Center')
+  }
   ui.setResult({
     headline: isNewBest ? 'New High Score!' : 'Game Over',
     detail: `Score ${score}`,
-    hint: 'Tap to continue',
+    metaLines,
+    actions: true,
+    shareAvailable: canShare(),
+    hint: 'Play Again',
   })
   armResultDismissGate()
 }
 
 function dismissResult(): void {
   if (mode !== 'result') return
+  finishOnboarding()
+  resultUsesActions = false
   showTitle()
   void refreshLeaderboard()
 }
@@ -898,6 +1084,7 @@ function handleBattleEvents(b: BattleWorld): void {
         radius: ev.radius,
       })
       audio.playEat()
+      haptics.light()
     } else if (ev.type === 'Died') {
       handleGameEvent(fx, {
         type: 'Died',
@@ -907,6 +1094,7 @@ function handleBattleEvents(b: BattleWorld): void {
       })
       if (ev.cause === 'center') audio.playWoosh()
       else audio.playCrash()
+      haptics.heavy()
     }
   }
   if (b.winner !== null && mode !== 'result') {
@@ -940,6 +1128,38 @@ function frame(ts: number): void {
 
   const rawDt = Math.min(0.05, (ts - lastTs) / 1000)
   lastTs = ts
+
+  if (gameplayPaused) {
+    // Keep drawing the frozen frame; resume on any intentional press.
+    if (anyPlayRequested() || anyHoldActive()) {
+      resumeGameplay()
+    } else {
+      // Still paint so the pause overlay sits over a live-looking arena.
+      if (
+        battle &&
+        (mode === 'battleLocal' || mode === 'battleOnline' || mode === 'result')
+      ) {
+        drawBattleWorld(ctx, battle, viewW, viewH, fx, {
+          dim: 0.25,
+          time: ts * 0.001,
+          viewAs: onlineViewActive ? onlineRole : undefined,
+        })
+      } else {
+        drawWorld(ctx, world, viewW, viewH, fx, {
+          dim: 0.25,
+          time: ts * 0.001,
+        })
+      }
+      fps.frame(ts, {
+        simMs: 0,
+        drawMs: 0,
+        extra: 'paused',
+      })
+      rafId = requestAnimationFrame(frame)
+      return
+    }
+  }
+
   accum += rawDt
   // Avoid banking a huge catch-up debt while lockstep waits on the peer.
   if (mode === 'battleOnline') {
@@ -975,8 +1195,12 @@ function frame(ts: number): void {
       if (ts >= resultReadyAt && !anyHoldActive()) {
         awaitReleaseBeforeDismiss = false
       }
-    } else if (anyPlayRequested() || anyHoldActive()) {
+    } else if (!resultUsesActions && (anyPlayRequested() || anyHoldActive())) {
       dismissResult()
+    } else {
+      // Action buttons own dismiss for solo results.
+      soloInput.playRequested = false
+      dualInput.playRequested = false
     }
   }
 
@@ -1052,10 +1276,13 @@ function frame(ts: number): void {
       step(world, { holding: soloInput.holding }, FIXED_DT)
       for (const ev of world.events) {
         handleGameEvent(fx, ev)
-        if (ev.type === 'AteFood') audio.playEat()
-        else if (ev.type === 'Died') {
+        if (ev.type === 'AteFood') {
+          audio.playEat()
+          haptics.light()
+        } else if (ev.type === 'Died') {
           if (ev.cause === 'center') audio.playWoosh()
           else audio.playCrash()
+          haptics.heavy()
           mode = 'dying'
         }
       }
@@ -1287,6 +1514,8 @@ if (import.meta.hot) {
     window.visualViewport?.removeEventListener('scroll', scheduleResize)
     document.removeEventListener('visibilitychange', onVisibilityResume)
     window.removeEventListener('pageshow', scheduleResize)
+    unbindLifecycle?.()
+    unbindLifecycle = null
     soloInput.destroy()
     dualInput.destroy()
     stopMatchClient()

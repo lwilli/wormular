@@ -12,7 +12,15 @@ export type ResultView = {
   headline: string
   detail?: string
   hint?: string
+  /** Personal best / rank / Game Center lines under the score. */
+  metaLines?: string[]
+  /** Show Play Again / Leaderboard / Share (solo). */
+  actions?: boolean
+  /** Hide Share when the platform cannot share. */
+  shareAvailable?: boolean
 }
+
+export type ResultAction = 'again' | 'leaderboard' | 'share' | 'continue'
 
 export type PlayModeChangeMeta = {
   animate: boolean
@@ -30,8 +38,11 @@ export type TitleUi = {
   setHudVisible: (visible: boolean) => void
   setSfxEnabled: (enabled: boolean) => void
   setMusicEnabled: (enabled: boolean) => void
+  setHapticsEnabled: (enabled: boolean) => void
+  setHapticsVisible: (visible: boolean) => void
   onSfxToggle: (cb: () => void) => void
   onMusicToggle: (cb: () => void) => void
+  onHapticsToggle: (cb: () => void) => void
   setNickname: (name: string) => void
   getNickname: () => string
   onNicknameChange: (cb: (name: string) => void) => void
@@ -59,6 +70,10 @@ export type TitleUi = {
   onTitlePressGesture: (cb: (phase: 'defer' | 'commit' | 'cancel') => void) => void
   setBattleHud: (p0: number, p1: number, label?: string) => void
   setResult: (view: ResultView | null) => void
+  onResultAction: (cb: (action: ResultAction) => void) => void
+  /** First-run guided Solo chrome (hides carousel / bottom panels). */
+  setOnboarding: (active: boolean) => void
+  setPaused: (paused: boolean) => void
   /** Matchmaking / countdown overlay. Pass null to hide. */
   setMatchBanner: (title: string | null, count?: string | null) => void
 }
@@ -150,9 +165,18 @@ export function bindTitleUi(): TitleUi {
   const localResultP0 = mustHtml('#local-result-p0')
   const localResultP1 = mustHtml('#local-result-p1')
   const result = mustHtml('#result')
+  const resultMeta = mustHtml('#result-meta')
+  const resultActions = mustHtml('#result-actions')
+  const resultAgain = mustHtml('#result-again') as HTMLButtonElement
+  const resultLeaderboard = mustHtml('#result-leaderboard') as HTMLButtonElement
+  const resultShare = mustHtml('#result-share') as HTMLButtonElement
+  const pauseEl = mustHtml('#pause')
+  const hapticsToggle = mustHtml('#haptics-toggle') as HTMLButtonElement
   const matchBanner = mustHtml('#match-banner')
   const matchBannerTitle = mustHtml('#match-banner-title')
   const matchBannerCount = mustHtml('#match-banner-count')
+
+  const resultActionListeners: Array<(action: ResultAction) => void> = []
 
   function paintResultPanel(
     root: HTMLElement,
@@ -163,6 +187,7 @@ export function bindTitleUi(): TitleUi {
     const hint = root.querySelector('.result-hint') as HTMLElement | null
     if (!view) {
       root.hidden = true
+      root.classList.remove('has-actions')
       if (headline) headline.textContent = ''
       if (detail) detail.textContent = ''
       if (hint) hint.textContent = ''
@@ -173,6 +198,53 @@ export function bindTitleUi(): TitleUi {
     if (detail) detail.textContent = view.detail ?? ''
     if (hint) hint.textContent = view.hint ?? 'Tap to continue'
   }
+
+  function paintSoloResultExtras(view: ResultView | null): void {
+    if (!view) {
+      resultMeta.hidden = true
+      resultMeta.textContent = ''
+      resultActions.hidden = true
+      result.classList.remove('has-actions')
+      return
+    }
+    const lines = view.metaLines?.filter(Boolean) ?? []
+    if (lines.length) {
+      resultMeta.hidden = false
+      resultMeta.replaceChildren(
+        ...lines.map((line) => {
+          const span = document.createElement('span')
+          span.textContent = line
+          return span
+        }),
+      )
+    } else {
+      resultMeta.hidden = true
+      resultMeta.textContent = ''
+    }
+    if (view.actions) {
+      resultActions.hidden = false
+      result.classList.add('has-actions')
+      resultShare.hidden = view.shareAvailable === false
+    } else {
+      resultActions.hidden = true
+      result.classList.remove('has-actions')
+    }
+  }
+
+  function emitResultAction(action: ResultAction, e: Event): void {
+    e.preventDefault()
+    e.stopPropagation()
+    for (const cb of resultActionListeners) cb(action)
+  }
+
+  resultAgain.addEventListener('click', (e) => emitResultAction('again', e))
+  resultAgain.addEventListener('pointerdown', (e) => e.stopPropagation())
+  resultLeaderboard.addEventListener('click', (e) =>
+    emitResultAction('leaderboard', e),
+  )
+  resultLeaderboard.addEventListener('pointerdown', (e) => e.stopPropagation())
+  resultShare.addEventListener('click', (e) => emitResultAction('share', e))
+  resultShare.addEventListener('pointerdown', (e) => e.stopPropagation())
 
   function setLocalBanners(titleText: string | null, count?: string | null): void {
     for (const banner of [localBannerP0, localBannerP1]) {
@@ -560,11 +632,25 @@ export function bindTitleUi(): TitleUi {
         unmutedTitle: 'Music on',
       })
     },
+    setHapticsEnabled(enabled) {
+      syncMuteButton(hapticsToggle, enabled, {
+        mutedLabel: 'Enable haptics',
+        unmutedLabel: 'Disable haptics',
+        mutedTitle: 'Haptics off',
+        unmutedTitle: 'Haptics on',
+      })
+    },
+    setHapticsVisible(visible) {
+      hapticsToggle.hidden = !visible
+    },
     onSfxToggle(cb) {
       bindToggleClick(sfxToggle, cb)
     },
     onMusicToggle(cb) {
       bindToggleClick(musicToggle, cb)
+    },
+    onHapticsToggle(cb) {
+      bindToggleClick(hapticsToggle, cb)
     },
     setNickname(name) {
       nickname.value = name
@@ -655,7 +741,36 @@ export function bindTitleUi(): TitleUi {
     },
     setResult(view) {
       paintResultPanel(result, view)
-      setLocalResults(view)
+      paintSoloResultExtras(view)
+      // Local seats keep the simple tap-to-continue copy (no share chrome).
+      setLocalResults(
+        view
+          ? {
+              headline: view.headline,
+              detail: view.detail,
+              hint: view.hint ?? 'Tap to continue',
+            }
+          : null,
+      )
+    },
+    onResultAction(cb) {
+      resultActionListeners.push(cb)
+    },
+    setOnboarding(active) {
+      title.classList.toggle('is-onboarding', active)
+      if (active) {
+        modeTitle.textContent = ''
+        modeTagline.textContent = 'Eat, grow, survive.'
+        paintHoldPrompt('Press & Hold', [
+          'Hold to move outward',
+          'Release to fall inward',
+        ])
+      } else {
+        applyPlayMode(playMode)
+      }
+    },
+    setPaused(paused) {
+      pauseEl.hidden = !paused
     },
     setMatchBanner(titleText, count) {
       if (!titleText) {

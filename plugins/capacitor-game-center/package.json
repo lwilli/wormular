@@ -1,0 +1,24 @@
+{
+  "name": "capacitor-game-center",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minimal Game Center bridge for Wormular",
+  "main": "index.cjs.js",
+  "module": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.cjs.js",
+    "index.d.ts",
+    "ios/Sources",
+    "Package.swift"
+  ],
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=8.0.0"
+  }
+}

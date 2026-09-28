@@ -2,11 +2,12 @@ import eatUrl from '../../assets/sounds/eat.m4a?url'
 import crashUrl from '../../assets/sounds/crash.m4a?url'
 import wooshUrl from '../../assets/sounds/woosh.m4a?url'
 import musicUrl from '../../assets/sounds/music.mp3?url'
-
-/** Legacy single mute — migrated into both SFX + music once. */
-const LEGACY_MUTE_KEY = 'wormular.soundEnabled'
-const SFX_MUTE_KEY = 'wormular.sfxEnabled'
-const MUSIC_MUTE_KEY = 'wormular.musicEnabled'
+import {
+  loadMusicEnabled,
+  loadSfxEnabled,
+  persistMusicEnabled,
+  persistSfxEnabled,
+} from './settings'
 
 /** Shared Web Audio gains so mobile mix matches desktop (HTMLAudio alone is louder on iOS). */
 const SFX_MASTER = 1.55
@@ -24,6 +25,10 @@ export type AudioController = {
   toggleMusic: () => boolean
   /** Call from a user gesture so browsers allow playback. */
   unlock: () => void
+  /** Pause BGM without changing the user’s music preference (lifecycle). */
+  suspend: () => void
+  /** Resume BGM after suspend if music is still enabled. */
+  resume: () => void
   playEat: () => void
   playCrash: () => void
   playWoosh: () => void
@@ -41,14 +46,12 @@ type SfxBuffers = {
  * relative loudness stays consistent on mobile Safari / WKWebView.
  */
 export function createAudio(): AudioController {
-  let sfxEnabled = loadFlag(SFX_MUTE_KEY, true)
-  let musicEnabled = loadFlag(MUSIC_MUTE_KEY, true)
-  migrateLegacyMute()
-  // Re-read after migration may have written the split keys.
-  sfxEnabled = loadFlag(SFX_MUTE_KEY, true)
-  musicEnabled = loadFlag(MUSIC_MUTE_KEY, true)
+  // settings.initSettings() hydrates Preferences; sync local read is fine at boot.
+  let sfxEnabled = loadSfxEnabled()
+  let musicEnabled = loadMusicEnabled()
 
   let unlocked = false
+  let suspended = false
   let music: HTMLAudioElement | null = null
   let musicGain: GainNode | null = null
   let musicRouted = false
@@ -153,7 +156,7 @@ export function createAudio(): AudioController {
   }
 
   function syncMusic(): void {
-    if (!unlocked || !musicEnabled) {
+    if (!unlocked || !musicEnabled || suspended) {
       music?.pause()
       return
     }
@@ -173,7 +176,7 @@ export function createAudio(): AudioController {
 
     setSfxEnabled(on) {
       sfxEnabled = on
-      saveFlag(SFX_MUTE_KEY, on)
+      persistSfxEnabled(on)
       if (on) unlocked = true
       if (on) {
         void ensureCtx().resume()
@@ -183,7 +186,7 @@ export function createAudio(): AudioController {
 
     setMusicEnabled(on) {
       musicEnabled = on
-      saveFlag(MUSIC_MUTE_KEY, on)
+      persistMusicEnabled(on)
       if (on) unlocked = true
       if (on) {
         void ensureCtx().resume()
@@ -205,9 +208,22 @@ export function createAudio(): AudioController {
 
     unlock() {
       if (!unlocked) unlocked = true
+      suspended = false
       const ac = ensureCtx()
       void ac.resume()
       void decodeSfx()
+      syncMusic()
+    },
+
+    suspend() {
+      suspended = true
+      music?.pause()
+      if (ctx && ctx.state === 'running') void ctx.suspend()
+    },
+
+    resume() {
+      suspended = false
+      if (ctx && ctx.state === 'suspended') void ctx.resume()
       syncMusic()
     },
 
@@ -222,42 +238,5 @@ export function createAudio(): AudioController {
     playWoosh() {
       playBuffer(buffers.woosh, WOOSH_VOL)
     },
-  }
-}
-
-function migrateLegacyMute(): void {
-  try {
-    const legacy = localStorage.getItem(LEGACY_MUTE_KEY)
-    if (legacy === null) return
-    // Only migrate if split keys are not yet set.
-    if (
-      localStorage.getItem(SFX_MUTE_KEY) !== null ||
-      localStorage.getItem(MUSIC_MUTE_KEY) !== null
-    ) {
-      return
-    }
-    const on = legacy !== '0' && legacy !== 'false'
-    saveFlag(SFX_MUTE_KEY, on)
-    saveFlag(MUSIC_MUTE_KEY, on)
-  } catch {
-    // Ignore quota / private mode.
-  }
-}
-
-function loadFlag(key: string, fallback: boolean): boolean {
-  try {
-    const raw = localStorage.getItem(key)
-    if (raw === null) return fallback
-    return raw !== '0' && raw !== 'false'
-  } catch {
-    return fallback
-  }
-}
-
-function saveFlag(key: string, on: boolean): void {
-  try {
-    localStorage.setItem(key, on ? '1' : '0')
-  } catch {
-    // Ignore quota / private mode.
   }
 }
