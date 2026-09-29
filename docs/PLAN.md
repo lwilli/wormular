@@ -138,7 +138,7 @@ UI type: **Fredoka** (via `@fontsource/fredoka`) with system-ui fallback. Title 
 
 **Playing:** no HUD except a small current score (Local 1v1: dual mirrored seat chrome — teal top rotated 180°, orange bottom upright — plus soft zone tints). Solo: finger/click anywhere is thrust. Local: top half thrusts teal, bottom half thrusts orange (multi-touch); W / Space still work on keyboard. On death: play juice, then hold a result screen (Solo: score / new high; Local/Online: winner + both scores) until tap returns to the title overlay.
 
-**Result:** centered overlay (`#result`, mirrored into local seats for Local 1v1) with headline and score detail. Solo offers **Play Again** / **Modes** / **Share** (leaderboard remains on the Solo title panel). Local/Online keep “Tap to continue”. Input is gated like the title restart cooldown so a held death mash cannot dismiss instantly.
+**Result:** centered overlay (`#result`, mirrored into local seats for Local 1v1) with headline and score detail. Solo shows personal best, **global Wormular rank when the submit API returns it**, optional Game Center note, and **Play Again** / **Modes** / **Share** (leaderboard list remains on the Solo title panel). Local/Online keep “Tap to continue”. Input is gated like the title restart cooldown so a held death mash cannot dismiss instantly.
 
 **Input map:**
 

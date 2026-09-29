@@ -66,6 +66,7 @@ import {
   neighborPlayMode,
   type PlayMode,
   type ResultAction,
+  type ResultView,
 } from './ui/title'
 import { Capacitor } from '@capacitor/core'
 
@@ -590,12 +591,14 @@ async function refreshLeaderboard(): Promise<void> {
   }
 }
 
-async function submitRunScore(score: number): Promise<void> {
-  if (score <= 0) return
+/** Submit to Wormular leaderboard; returns global rank when the API provides it. */
+async function submitRunScore(score: number): Promise<number | null> {
+  if (score <= 0) return null
   const name = saveNickname(ui.getNickname()) ?? loadNickname() ?? 'Player'
   try {
-    await submitScore(name, score, platformTag())
+    const res = await submitScore(name, score, platformTag())
     await refreshLeaderboard()
+    return typeof res.rank === 'number' && res.rank > 0 ? res.rank : null
   } catch (err) {
     // Soft-fail — local high score still saved; tell the player why.
     const message =
@@ -604,6 +607,7 @@ async function submitRunScore(score: number): Promise<void> {
         : 'Score not saved — leaderboard offline'
     ui.setStatus(message)
     void refreshLeaderboard()
+    return null
   }
 }
 
@@ -948,13 +952,32 @@ function endBattle(view: {
   stopMatchClient()
 }
 
+function soloResultView(
+  score: number,
+  isNewBest: boolean,
+  rank: number | null,
+): ResultView {
+  const metaLines: string[] = [`Personal best: ${highScore}`]
+  if (rank != null) metaLines.push(`Global rank: #${rank}`)
+  if (isGameCenterAuthenticated()) {
+    metaLines.push('Submitted to Game Center')
+  }
+  return {
+    headline: isNewBest ? 'New High Score!' : 'Game Over',
+    detail: `Score ${score}`,
+    metaLines,
+    actions: true,
+    shareAvailable: canShare(),
+    hint: 'Play Again',
+  }
+}
+
 function enterSoloResult(): void {
   const score = world.score
   const prevBest = highScore
   lastSoloScore = score
   highScore = recordScore(score)
   ui.setHighScore(highScore)
-  void submitRunScore(score)
   submitGameCenterScore(score)
   reportSoloRunAchievements(score)
   mode = 'result'
@@ -962,19 +985,13 @@ function enterSoloResult(): void {
   ui.setHudVisible(false)
   const isNewBest = score > prevBest && score > 0
   if (isNewBest) haptics.success()
-  const metaLines: string[] = [`Personal best: ${highScore}`]
-  if (isGameCenterAuthenticated()) {
-    metaLines.push('Submitted to Game Center')
-  }
-  ui.setResult({
-    headline: isNewBest ? 'New High Score!' : 'Game Over',
-    detail: `Score ${score}`,
-    metaLines,
-    actions: true,
-    shareAvailable: canShare(),
-    hint: 'Play Again',
-  })
+  // Show local meta immediately; patch in global rank when submit returns.
+  ui.setResult(soloResultView(score, isNewBest, null))
   armResultDismissGate()
+  void submitRunScore(score).then((rank) => {
+    if (mode !== 'result' || rank == null) return
+    ui.setResult(soloResultView(score, isNewBest, rank))
+  })
 }
 
 function dismissResult(): void {
