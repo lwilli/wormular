@@ -24,12 +24,15 @@ Captured before Milestone 1+ work. Linux CI/cloud agents cannot run Xcode; devic
 - **Bundle id:** `com.lwilli.wormular` · deployment target **iOS 15** · display name **Wormular**
 - **No Game Center / Haptics / Share / App lifecycle plugins** yet (added in this work)
 
-## Gaps vs product brief
+## Gaps vs product brief (pre-change snapshot)
 
-- No haptics, native share, Game Center, or pause-on-background
-- Audio mute flags only in `localStorage` (not Preferences on device)
-- Result UI, guided onboarding, native feel plugins, and Solo Home strip/sheet are implemented on the Capacitor milestones branch — see [PLAN.md](PLAN.md) Screens and [ios.md](ios.md)
-- Orientation allows landscape on iPhone (fixed to portrait in the Capacitor shell)
+These were open when this note was written. Cap milestones + UX follow-ups closed them — see [PLAN.md](PLAN.md) Screens, [ios.md](ios.md), and PRs #20 / #22.
+
+- ~~No haptics, native share, Game Center, or pause-on-background~~
+- ~~Audio mute flags only in `localStorage`~~
+- ~~Result UI “Tap to continue” only~~
+- ~~No first-run guided Solo onboarding~~
+- ~~Orientation allows landscape on iPhone~~
 
 ## Manual (Mac) remaining
 
