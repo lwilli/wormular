@@ -760,11 +760,19 @@ export function bindTitleUi(): TitleUi {
       title.classList.toggle('is-onboarding', active)
       if (active) {
         modeTitle.textContent = ''
-        modeTagline.textContent = 'Eat, grow, survive.'
-        paintHoldPrompt('Press & Hold', [
-          'Hold to move outward',
-          'Release to fall inward',
-        ])
+        // Above the arena: pitch + controls. Hold CTA parks below.
+        modeTagline.replaceChildren(
+          ...[
+            'Eat, grow, survive.',
+            'Hold to move outward',
+            'Release to fall inward',
+          ].map((line) => {
+            const span = document.createElement('span')
+            span.textContent = line
+            return span
+          }),
+        )
+        paintHoldPrompt('Press & Hold', [])
       } else {
         applyPlayMode(playMode)
       }

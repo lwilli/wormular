@@ -539,12 +539,17 @@ function syncPeekLabelNudge(
 /** Keep HTML peek hit-targets aligned with the canvas layout. */
 function syncOrbitCss(layout: OrbitLayout): void {
   const carousel = document.getElementById('mode-carousel')
-  if (!carousel) return
+  const title = document.getElementById('title')
   const arenaD = arenaRadius() * 2
-  carousel.style.setProperty('--arena-d', `${arenaD}px`)
-  carousel.style.setProperty('--peek-d', `${layout.peekD}px`)
-  carousel.style.setProperty('--orbit-shift', `${layout.shift}px`)
-  carousel.style.setProperty('--title-center-scale', String(layout.centerScale))
+  // Also set on the title overlay — onboarding hides the carousel but still
+  // needs --arena-d to park copy above/below the play disk.
+  for (const el of [carousel, title]) {
+    if (!el) continue
+    el.style.setProperty('--arena-d', `${arenaD}px`)
+    el.style.setProperty('--peek-d', `${layout.peekD}px`)
+    el.style.setProperty('--orbit-shift', `${layout.shift}px`)
+    el.style.setProperty('--title-center-scale', String(layout.centerScale))
+  }
   const mid = viewW * 0.5
   const peekR = layout.peekD * 0.5
   syncPeekLabelNudge(
