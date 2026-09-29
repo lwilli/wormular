@@ -120,12 +120,15 @@ Short version: Apple ID in Xcode → plug in phone → select your Team on the A
 - **[docs/adr/0002-leaderboard-and-pvp.md](docs/adr/0002-leaderboard-and-pvp.md)** — Cloudflare leaderboard + lockstep PvP.
 - **[docs/adr/0003-cookieless-visit-analytics.md](docs/adr/0003-cookieless-visit-analytics.md)** — first-party visit + play counters (no cookies / no banner).
 - **[docs/adr/0004-online-presence.md](docs/adr/0004-online-presence.md)** — live Online 1v1 lobby count via Durable Object WebSocket.
+- **[docs/adr/0005-solo-heading-lock-camera.md](docs/adr/0005-solo-heading-lock-camera.md)** — solo prototype: head fixed at 12 o’clock, arena rotates.
 - **[docs/ios.md](docs/ios.md)** — device / simulator runbook.
 
 ## Status
 
 Web playable with juice (FX + audio), **global leaderboard**, **local 1v1** (split-touch halves + keyboard), **online 1v1** (with live players-online count), **post-game result screens**, and **cookieless visit + play counters** (`GET /stats` on the API). Favicon / web icons and iOS App Icon use the title-art W. Client on GitHub Pages (`main`); API on Cloudflare Worker + D1 + Durable Objects (`wormular-api.lwilli.workers.dev`). Local stack: `npm run dev:all`.
 
+**Prototype (this branch):** Solo mode locks the worm head at **12 o’clock** and rotates rocks / food / body around the center (sidescroller-style). Local / Online unchanged. See [ADR 0005](docs/adr/0005-solo-heading-lock-camera.md).
+
 iOS Capacitor shell works on simulator; physical device needs your Apple ID signing (see [docs/ios.md](docs/ios.md)). Store / TestFlight still phase 8.
 
-Design notes: [docs/adr/0002-leaderboard-and-pvp.md](docs/adr/0002-leaderboard-and-pvp.md), [docs/adr/0003-cookieless-visit-analytics.md](docs/adr/0003-cookieless-visit-analytics.md), [docs/adr/0004-online-presence.md](docs/adr/0004-online-presence.md).
+Design notes: [docs/adr/0002-leaderboard-and-pvp.md](docs/adr/0002-leaderboard-and-pvp.md), [docs/adr/0003-cookieless-visit-analytics.md](docs/adr/0003-cookieless-visit-analytics.md), [docs/adr/0004-online-presence.md](docs/adr/0004-online-presence.md), [docs/adr/0005-solo-heading-lock-camera.md](docs/adr/0005-solo-heading-lock-camera.md).

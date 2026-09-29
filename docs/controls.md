@@ -117,3 +117,12 @@ Prefs: `wormular.sfxEnabled`, `wormular.musicEnabled` (legacy `wormular.soundEna
 ## Camera shake stack — `src/render/draw.ts`
 
 Per frame: death `shakeOffset(fx)` + wall `voidShake(t, danger)` + hole `voidShake(t + 1.7, near)`.
+
+## Solo heading-lock camera — `src/render/draw.ts` (prototype)
+
+| Knob / helper | Value | Notes |
+| --- | --- | --- |
+| `soloHeadingLockRotation(θ)` | `-π/2 - θ` | Maps head `(r cos θ, r sin θ)` to canvas `(0, -r)` (12 o’clock) |
+| Applied in | `drawWorld` only | Solo title / play / death / result; battle uses fixed axes |
+
+Render-only. See [adr/0005-solo-heading-lock-camera.md](adr/0005-solo-heading-lock-camera.md).

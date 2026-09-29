@@ -29,6 +29,15 @@ export const COLORS = {
   wormFlash: PALETTE.wormFlash,
 } as const
 
+/**
+ * Canvas rotation (radians) that locks the solo worm head at 12 o'clock.
+ * Head world pos is `(r cos θ, r sin θ)`; canvas `+y` is down, so this maps
+ * the head onto `(0, -r)` while the arena (rocks, food, body) spins under it.
+ */
+export function soloHeadingLockRotation(theta: number): number {
+  return -Math.PI / 2 - theta
+}
+
 export type DrawOpts = {
   /** 0–1 darken over the frame (title screen). Drawn on canvas, not CSS. */
   dim?: number
@@ -88,6 +97,13 @@ export function drawWorld(
     ctx.clip()
   }
   ctx.translate(shake.x + warn.x + hole.x, shake.y + warn.y + hole.y)
+
+  // Solo camera: keep the head fixed at 12 o'clock and rotate the arena
+  // under it (sidescroller-style). Sim stays polar; this is render-only.
+  // polarToCart(r, θ) → (r cos θ, r sin θ); canvas +y is down, so
+  // rotate(-π/2 - θ) maps the head onto (0, -r). Local / online use
+  // drawBattleWorld and keep fixed world axes.
+  ctx.rotate(soloHeadingLockRotation(world.worm.theta))
 
   const suck = fx ? suckProgress(fx) : 0
 
