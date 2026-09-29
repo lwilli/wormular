@@ -32,16 +32,46 @@ import { connectMatch, type MatchClient } from './net/matchClient'
 import { connectPresence, type PresenceClient } from './net/presenceClient'
 import { createAudio } from './platform/audio'
 import { trackPlay, trackVisit } from './platform/analytics'
-import { fetchLeaderboard, submitScore } from './platform/leaderboard'
+import {
+  initGameCenter,
+  isGameCenterAuthenticated,
+  reportSoloRunAchievements,
+  submitGameCenterScore,
+} from './platform/gameCenter'
+import { haptics } from './platform/haptics'
+import { isNativePlatform } from './platform/kv'
+import {
+  fetchLeaderboard,
+  fetchPlayerRank,
+  submitScore,
+} from './platform/leaderboard'
+import { bindAppLifecycle } from './platform/lifecycle'
 import {
   initNickname,
   loadNickname,
   saveNickname,
 } from './platform/nickname'
+import { canShare, shareScore } from './platform/shareScore'
+import {
+  initSettings,
+  isHapticsEnabled,
+  isOnboardingComplete,
+  loadMusicEnabled,
+  loadSfxEnabled,
+  setOnboardingComplete,
+  toggleHaptics,
+} from './platform/settings'
 import { initStorage, recordScore, loadHighScore } from './platform/storage'
 import { drawBattleWorld, drawWorld } from './render/draw'
 import { drawSpace } from './render/cosmic'
-import { bindTitleUi, MODE_ORBIT_MS, neighborPlayMode, type PlayMode } from './ui/title'
+import {
+  bindTitleUi,
+  MODE_ORBIT_MS,
+  neighborPlayMode,
+  type PlayMode,
+  type ResultAction,
+  type ResultView,
+} from './ui/title'
 import { Capacitor } from '@capacitor/core'
 
 type Mode =
@@ -148,18 +178,33 @@ let titleLaunch: {
   fromScale: number
   kind: 'solo' | 'local' | 'online'
 } | null = null
+/** Guided first Solo run — hides mode carousel until complete. */
+let onboardingActive = false
+/** Soft-pause while the app is backgrounded during a run. */
+let gameplayPaused = false
+/** Solo result with Play Again / Share buttons (ignore canvas dismiss). */
+let resultUsesActions = false
+/** Last solo score — for share + play-again. */
+let lastSoloScore = 0
+let unbindLifecycle: (() => void) | null = null
 
 ui.setHighScore(highScore)
+ui.setGlobalRank(null)
+ui.setLeaderboardYou(null)
+ui.setLeaderboardSheetOpen(false)
 ui.setVisible(true)
+ui.setMenuVisible(true)
 ui.setHudVisible(false)
 ui.setSfxEnabled(audio.isSfxEnabled())
 ui.setMusicEnabled(audio.isMusicEnabled())
+ui.setHapticsEnabled(isHapticsEnabled())
+ui.setHapticsVisible(isNativePlatform())
 ui.setNickname(loadNickname() || 'Player')
-ui.setMenuVisible(true)
 ui.setPlayMode(selectedPlayMode)
 ui.setStatus('')
 ui.setOnlineCount(null)
 ui.setResult(null)
+ui.setPaused(false)
 ui.setMatchBanner(null)
 document.getElementById('battle-hud')?.setAttribute('hidden', '')
 document.getElementById('battle-hud')?.classList.remove('is-local')
@@ -174,12 +219,17 @@ ui.onSfxToggle(() => {
 ui.onMusicToggle(() => {
   ui.setMusicEnabled(audio.toggleMusic())
 })
+ui.onHapticsToggle(() => {
+  ui.setHapticsEnabled(toggleHaptics())
+  haptics.selection()
+})
 
 ui.onNicknameChange((raw) => {
   const saved = saveNickname(raw)
   if (saved) {
     ui.setNickname(saved)
     ui.setStatus('')
+    void refreshSoloRank()
   } else if (raw.trim()) {
     const trimmed = raw.trim().replace(/\s+/g, ' ')
     if (trimmed.length < 3 || trimmed.length > 12) {
@@ -227,6 +277,8 @@ ui.onPlayModeChange((next, meta) => {
     armTitleStartGate()
     ensureTitlePreview(true)
   }
+  if (next !== 'solo') ui.setLeaderboardSheetOpen(false)
+  void refreshSoloRank()
 })
 
 /** Live lobby count while Online 1v1 is selected (title, queue, or match). */
@@ -288,8 +340,62 @@ void initNickname().then(() => {
   if (n) ui.setNickname(n)
 })
 
+void initSettings().then(() => {
+  // Re-sync mutes after Preferences hydrate on native.
+  audio.setSfxEnabled(loadSfxEnabled())
+  audio.setMusicEnabled(loadMusicEnabled())
+  ui.setSfxEnabled(audio.isSfxEnabled())
+  ui.setMusicEnabled(audio.isMusicEnabled())
+  ui.setHapticsEnabled(isHapticsEnabled())
+  onboardingActive = !isOnboardingComplete()
+  if (onboardingActive) {
+    selectedPlayMode = 'solo'
+    savePlayMode('solo')
+    ui.setPlayMode('solo')
+    ui.setOnboarding(true)
+    ensureTitlePreview()
+  }
+})
+
+initGameCenter()
+void bindAppLifecycle({
+  onBackground: () => {
+    if (
+      mode === 'playing' ||
+      mode === 'dying' ||
+      mode === 'battleLocal' ||
+      mode === 'battleOnline'
+    ) {
+      pauseGameplay()
+    } else {
+      audio.suspend()
+    }
+  },
+  onForeground: () => {
+    scheduleResize()
+    if (!gameplayPaused) audio.resume()
+  },
+}).then((unbind) => {
+  unbindLifecycle = unbind
+})
+
 void refreshLeaderboard()
+void refreshSoloRank()
 syncOnlinePresence()
+
+ui.onLeaderboardOpen(() => {
+  soloInput.playRequested = false
+  dualInput.playRequested = false
+  awaitReleaseBeforeStart = true
+  titlePressDeferred = false
+  ui.setLeaderboardSheetOpen(true)
+  void refreshLeaderboard()
+  void refreshSoloRank()
+})
+
+ui.onResultAction((action) => {
+  handleResultAction(action)
+})
 
 function arenaRadius(): number {
   const side = Math.min(viewW, viewH)
@@ -454,12 +560,17 @@ function syncPeekLabelNudge(
 /** Keep HTML peek hit-targets aligned with the canvas layout. */
 function syncOrbitCss(layout: OrbitLayout): void {
   const carousel = document.getElementById('mode-carousel')
-  if (!carousel) return
+  const title = document.getElementById('title')
   const arenaD = arenaRadius() * 2
-  carousel.style.setProperty('--arena-d', `${arenaD}px`)
-  carousel.style.setProperty('--peek-d', `${layout.peekD}px`)
-  carousel.style.setProperty('--orbit-shift', `${layout.shift}px`)
-  carousel.style.setProperty('--title-center-scale', String(layout.centerScale))
+  // Also set on the title overlay — onboarding hides the carousel but still
+  // needs --arena-d to park copy above/below the play disk.
+  for (const el of [carousel, title]) {
+    if (!el) continue
+    el.style.setProperty('--arena-d', `${arenaD}px`)
+    el.style.setProperty('--peek-d', `${layout.peekD}px`)
+    el.style.setProperty('--orbit-shift', `${layout.shift}px`)
+    el.style.setProperty('--title-center-scale', String(layout.centerScale))
+  }
   const mid = viewW * 0.5
   const peekR = layout.peekD * 0.5
   syncPeekLabelNudge(
@@ -501,12 +612,38 @@ async function refreshLeaderboard(): Promise<void> {
   }
 }
 
-async function submitRunScore(score: number): Promise<void> {
-  if (score <= 0) return
+/** Solo Home rank among players' all-time bests. Soft-fails offline. */
+async function refreshSoloRank(): Promise<void> {
+  if (selectedPlayMode !== 'solo' || onboardingActive) {
+    ui.setGlobalRank(null)
+    ui.setLeaderboardYou(null)
+    return
+  }
   const name = saveNickname(ui.getNickname()) ?? loadNickname() ?? 'Player'
   try {
-    await submitScore(name, score, platformTag())
+    const { best, rank } = await fetchPlayerRank(name)
+    ui.setGlobalRank(rank)
+    if (rank != null && best > 0) {
+      ui.setLeaderboardYou(`Your best: ${best} · Rank #${rank}`)
+    } else if (best > 0) {
+      ui.setLeaderboardYou(`Your best: ${best}`)
+    } else {
+      ui.setLeaderboardYou('No ranked scores yet — play Solo to place.')
+    }
+  } catch {
+    ui.setGlobalRank(null)
+    ui.setLeaderboardYou(null)
+  }
+}
+
+/** Submit to Wormular leaderboard; returns global rank when the API provides it. */
+async function submitRunScore(score: number): Promise<number | null> {
+  if (score <= 0) return null
+  const name = saveNickname(ui.getNickname()) ?? loadNickname() ?? 'Player'
+  try {
+    const res = await submitScore(name, score, platformTag())
     await refreshLeaderboard()
+    return typeof res.rank === 'number' && res.rank > 0 ? res.rank : null
   } catch (err) {
     // Soft-fail — local high score still saved; tell the player why.
     const message =
@@ -515,6 +652,7 @@ async function submitRunScore(score: number): Promise<void> {
         : 'Score not saved — leaderboard offline'
     ui.setStatus(message)
     void refreshLeaderboard()
+    return null
   }
 }
 
@@ -573,6 +711,10 @@ function showTitle(): void {
   titleLaunch = null
   mode = 'title'
   onlineViewActive = false
+  resultUsesActions = false
+  gameplayPaused = false
+  ui.setPaused(false)
+  ui.setLeaderboardSheetOpen(false)
   stopMatchClient()
   world = createPlayWorld()
   battle = null
@@ -584,6 +726,7 @@ function showTitle(): void {
   ui.setVisible(true)
   ui.setMenuVisible(true)
   ui.setPlayMode(selectedPlayMode)
+  ui.setOnboarding(onboardingActive)
   ui.setHudVisible(false)
   ui.setStatus('')
   ui.setMatchStatus('idle')
@@ -593,12 +736,89 @@ function showTitle(): void {
   lastCountdownSec = -1
   document.getElementById('battle-hud')?.setAttribute('hidden', '')
   setLocalBattleChrome(false)
+  void refreshSoloRank()
+}
+
+function pauseGameplay(): void {
+  if (gameplayPaused) return
+  if (
+    mode !== 'playing' &&
+    mode !== 'dying' &&
+    mode !== 'battleLocal' &&
+    mode !== 'battleOnline'
+  ) {
+    return
+  }
+  gameplayPaused = true
+  audio.suspend()
+  soloInput.holding = false
+  dualInput.reset()
+  soloInput.playRequested = false
+  dualInput.playRequested = false
+  ui.setPaused(true)
+}
+
+function resumeGameplay(): void {
+  if (!gameplayPaused) return
+  gameplayPaused = false
+  ui.setPaused(false)
+  audio.resume()
+  audio.unlock()
+  lastTs = performance.now()
+  accum = 0
+  soloInput.playRequested = false
+  dualInput.playRequested = false
+  scheduleResize()
+}
+
+function finishOnboarding(): void {
+  if (!onboardingActive) return
+  onboardingActive = false
+  setOnboardingComplete(true)
+  ui.setOnboarding(false)
+}
+
+function handleResultAction(action: ResultAction): void {
+  if (mode !== 'result') return
+  if (action === 'share') {
+    void shareScore({ score: lastSoloScore })
+    return
+  }
+  if (action === 'modes') {
+    finishOnboarding()
+    dismissResult()
+    // Back to the mode carousel; Solo title panel still holds the leaderboard.
+    return
+  }
+  if (action === 'again') {
+    finishOnboarding()
+    resultUsesActions = false
+    ui.setResult(null)
+    // Fresh solo world and immediate relaunch.
+    world = createPlayWorld()
+    battle = null
+    clearFx(fx)
+    mode = 'title'
+    selectedPlayMode = 'solo'
+    savePlayMode('solo')
+    ui.setPlayMode('solo')
+    ui.setOnboarding(false)
+    ui.setVisible(false)
+    ui.setMenuVisible(false)
+    armTitleStartGate()
+    awaitReleaseBeforeStart = false
+    startSolo()
+    return
+  }
+  finishOnboarding()
+  dismissResult()
 }
 
 /** Start only on a fresh intentional press after death cooldown + release. */
 function requestStart(): void {
   if (mode !== 'title') return
   if (titleLaunch) return
+  if (ui.isLeaderboardSheetOpen()) return
   if (awaitReleaseBeforeStart) return
   if (performance.now() < titleReadyAt) return
   audio.unlock()
@@ -765,6 +985,7 @@ function endBattle(view: {
 }): void {
   if (mode === 'result') return
   mode = 'result'
+  resultUsesActions = false
   preBattleCountdownUntil = null
   ui.setMatchBanner(null)
   ui.setResult({
@@ -779,25 +1000,54 @@ function endBattle(view: {
   stopMatchClient()
 }
 
+function soloResultView(
+  score: number,
+  isNewBest: boolean,
+  rank: number | null,
+): ResultView {
+  const metaLines: string[] = [`Personal best: ${highScore}`]
+  if (rank != null) metaLines.push(`Global rank: #${rank}`)
+  if (isGameCenterAuthenticated()) {
+    metaLines.push('Submitted to Game Center')
+  }
+  return {
+    headline: isNewBest ? 'New High Score!' : 'Game Over',
+    detail: `Score ${score}`,
+    metaLines,
+    actions: true,
+    shareAvailable: canShare(),
+    hint: 'Play Again',
+  }
+}
+
 function enterSoloResult(): void {
   const score = world.score
   const prevBest = highScore
+  lastSoloScore = score
   highScore = recordScore(score)
   ui.setHighScore(highScore)
-  void submitRunScore(score)
+  submitGameCenterScore(score)
+  reportSoloRunAchievements(score)
   mode = 'result'
+  resultUsesActions = true
   ui.setHudVisible(false)
   const isNewBest = score > prevBest && score > 0
-  ui.setResult({
-    headline: isNewBest ? 'New High Score!' : 'Game Over',
-    detail: `Score ${score}`,
-    hint: 'Tap to continue',
-  })
+  if (isNewBest) haptics.success()
+  // Show local meta immediately; patch in global rank when submit returns.
+  ui.setResult(soloResultView(score, isNewBest, null))
   armResultDismissGate()
+  void submitRunScore(score).then((rank) => {
+    if (mode !== 'result') return
+    if (rank != null) ui.setResult(soloResultView(score, isNewBest, rank))
+    // Home strip uses player-best rank (may differ from this-run row rank).
+    void refreshSoloRank()
+  })
 }
 
 function dismissResult(): void {
   if (mode !== 'result') return
+  finishOnboarding()
+  resultUsesActions = false
   showTitle()
   void refreshLeaderboard()
 }
@@ -898,6 +1148,7 @@ function handleBattleEvents(b: BattleWorld): void {
         radius: ev.radius,
       })
       audio.playEat()
+      haptics.light()
     } else if (ev.type === 'Died') {
       handleGameEvent(fx, {
         type: 'Died',
@@ -907,6 +1158,7 @@ function handleBattleEvents(b: BattleWorld): void {
       })
       if (ev.cause === 'center') audio.playWoosh()
       else audio.playCrash()
+      haptics.heavy()
     }
   }
   if (b.winner !== null && mode !== 'result') {
@@ -940,6 +1192,38 @@ function frame(ts: number): void {
 
   const rawDt = Math.min(0.05, (ts - lastTs) / 1000)
   lastTs = ts
+
+  if (gameplayPaused) {
+    // Keep drawing the frozen frame; resume on any intentional press.
+    if (anyPlayRequested() || anyHoldActive()) {
+      resumeGameplay()
+    } else {
+      // Still paint so the pause overlay sits over a live-looking arena.
+      if (
+        battle &&
+        (mode === 'battleLocal' || mode === 'battleOnline' || mode === 'result')
+      ) {
+        drawBattleWorld(ctx, battle, viewW, viewH, fx, {
+          dim: 0.25,
+          time: ts * 0.001,
+          viewAs: onlineViewActive ? onlineRole : undefined,
+        })
+      } else {
+        drawWorld(ctx, world, viewW, viewH, fx, {
+          dim: 0.25,
+          time: ts * 0.001,
+        })
+      }
+      fps.frame(ts, {
+        simMs: 0,
+        drawMs: 0,
+        extra: 'paused',
+      })
+      rafId = requestAnimationFrame(frame)
+      return
+    }
+  }
+
   accum += rawDt
   // Avoid banking a huge catch-up debt while lockstep waits on the peer.
   if (mode === 'battleOnline') {
@@ -975,8 +1259,12 @@ function frame(ts: number): void {
       if (ts >= resultReadyAt && !anyHoldActive()) {
         awaitReleaseBeforeDismiss = false
       }
-    } else if (anyPlayRequested() || anyHoldActive()) {
+    } else if (!resultUsesActions && (anyPlayRequested() || anyHoldActive())) {
       dismissResult()
+    } else {
+      // Action buttons own dismiss for solo results.
+      soloInput.playRequested = false
+      dualInput.playRequested = false
     }
   }
 
@@ -1052,10 +1340,13 @@ function frame(ts: number): void {
       step(world, { holding: soloInput.holding }, FIXED_DT)
       for (const ev of world.events) {
         handleGameEvent(fx, ev)
-        if (ev.type === 'AteFood') audio.playEat()
-        else if (ev.type === 'Died') {
+        if (ev.type === 'AteFood') {
+          audio.playEat()
+          haptics.light()
+        } else if (ev.type === 'Died') {
           if (ev.cause === 'center') audio.playWoosh()
           else audio.playCrash()
+          haptics.heavy()
           mode = 'dying'
         }
       }
@@ -1208,26 +1499,30 @@ function frame(ts: number): void {
       const prev = neighborPlayMode(selectedPlayMode, -1)
       const next = neighborPlayMode(selectedPlayMode, 1)
       drawSpace(ctx, viewW, viewH)
+      // Guided first Solo: full-size center arena only — no mode peeks.
+      const titleScale = onboardingActive ? 1 : centerScale
       drawTitleModePreview(selectedPlayMode, {
         offsetX: 0,
-        scale: centerScale,
+        scale: titleScale,
         time,
       })
       ctx.fillStyle = `rgba(5, 6, 14, ${TITLE_DIM})`
       ctx.fillRect(0, 0, viewW, viewH)
-      // Separate mode disks: opaque plate + mini arena, beside the selected mode.
-      drawPeekPlate(-shift, peekD)
-      drawTitleModePreview(prev, {
-        offsetX: -shift,
-        scale: peekScale,
-        time,
-      })
-      drawPeekPlate(shift, peekD)
-      drawTitleModePreview(next, {
-        offsetX: shift,
-        scale: peekScale,
-        time,
-      })
+      if (!onboardingActive) {
+        // Separate mode disks: opaque plate + mini arena, beside the selected mode.
+        drawPeekPlate(-shift, peekD)
+        drawTitleModePreview(prev, {
+          offsetX: -shift,
+          scale: peekScale,
+          time,
+        })
+        drawPeekPlate(shift, peekD)
+        drawTitleModePreview(next, {
+          offsetX: shift,
+          scale: peekScale,
+          time,
+        })
+      }
     } else if (
       battle &&
       (mode === 'battleLocal' ||
@@ -1287,6 +1582,8 @@ if (import.meta.hot) {
     window.visualViewport?.removeEventListener('scroll', scheduleResize)
     document.removeEventListener('visibilitychange', onVisibilityResume)
     window.removeEventListener('pageshow', scheduleResize)
+    unbindLifecycle?.()
+    unbindLifecycle = null
     soloInput.destroy()
     dualInput.destroy()
     stopMatchClient()

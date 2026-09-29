@@ -24,7 +24,7 @@ npm run dev
 
 Hold anywhere (or Space / ↑) to move outward. Release to fall toward the center. Eat apples; avoid rocks, walls, and yourself.
 
-The title screen shows the **starting arena paused**. Swipe or tap the side circles to pick **Solo**, **Local 1v1**, or **Online 1v1** (wraps; selection sticks). **Solo:** Press & Hold to start. **Local:** Tap to Start, then a 5s countdown — hold the **top** (teal) / **bottom** (orange) half of the screen, or W / Space on keyboard. **Online:** Tap to find an opponent — the same center prompt becomes Finding / Waiting / error. Mode selection alone does not launch the run. Solo shows personal high score + leaderboard; Local shows the dual-control brief; Online shows a live **players online** count above the nickname. After a run ends, a **result screen** shows your score (or who won) until you tap to return to the mode selector.
+The title screen shows the **starting arena paused**. Swipe or tap the side circles to pick **Solo**, **Local 1v1**, or **Online 1v1** (wraps; selection sticks). **Solo:** Press & Hold to start. **Local:** Tap to Start, then a 5s countdown — hold the **top** (teal) / **bottom** (orange) half of the screen, or W / Space on keyboard. **Online:** Tap to find an opponent — the same center prompt becomes Finding / Waiting / error. Mode selection alone does not launch the run. Solo shows personal high score + leaderboard; Local shows the dual-control brief; Online shows a live **players online** count above the nickname. Solo Home shows **name**, **personal best**, and **global rank** under the arena (tap rank for the full leaderboard sheet). After a Solo run, the result offers **Play Again**, **Modes**, and **Share**. Local/Online results still dismiss with a tap.
 
 ```bash
 npm test      # core simulation tests
@@ -120,12 +120,14 @@ Short version: Apple ID in Xcode → plug in phone → select your Team on the A
 - **[docs/adr/0002-leaderboard-and-pvp.md](docs/adr/0002-leaderboard-and-pvp.md)** — Cloudflare leaderboard + lockstep PvP.
 - **[docs/adr/0003-cookieless-visit-analytics.md](docs/adr/0003-cookieless-visit-analytics.md)** — first-party visit + play counters (no cookies / no banner).
 - **[docs/adr/0004-online-presence.md](docs/adr/0004-online-presence.md)** — live Online 1v1 lobby count via Durable Object WebSocket.
-- **[docs/ios.md](docs/ios.md)** — device / simulator runbook.
+- **[docs/adr/0005-game-center.md](docs/adr/0005-game-center.md)** — optional Game Center parallel to the Wormular leaderboard.
+- **[docs/ios.md](docs/ios.md)** — device / simulator / Game Center / TestFlight runbook.
+- **[docs/ios-implementation-notes.md](docs/ios-implementation-notes.md)** — architecture map from the iOS implementation pass.
 
 ## Status
 
 Web playable with juice (FX + audio), **global leaderboard**, **local 1v1** (split-touch halves + keyboard), **online 1v1** (with live players-online count), **post-game result screens**, and **cookieless visit + play counters** (`GET /stats` on the API). Favicon / web icons and iOS App Icon use the title-art W. Client on GitHub Pages (`main`); API on Cloudflare Worker + D1 + Durable Objects (`wormular-api.lwilli.workers.dev`). Local stack: `npm run dev:all`.
 
-iOS Capacitor shell works on simulator; physical device needs your Apple ID signing (see [docs/ios.md](docs/ios.md)). Store / TestFlight still phase 8.
+iOS Capacitor shell (Capacitor 8): portrait full-screen, safe areas, Preferences settings, haptics, native share, lifecycle pause, guided first Solo run, Play Again / Share result actions, and optional Game Center (local plugin). Physical device needs Apple ID signing; Game Center + TestFlight need a paid Developer Program + App Store Connect IDs (see [docs/ios.md](docs/ios.md)).
 
-Design notes: [docs/adr/0002-leaderboard-and-pvp.md](docs/adr/0002-leaderboard-and-pvp.md), [docs/adr/0003-cookieless-visit-analytics.md](docs/adr/0003-cookieless-visit-analytics.md), [docs/adr/0004-online-presence.md](docs/adr/0004-online-presence.md).
+Design notes: [docs/adr/0002-leaderboard-and-pvp.md](docs/adr/0002-leaderboard-and-pvp.md), [docs/adr/0003-cookieless-visit-analytics.md](docs/adr/0003-cookieless-visit-analytics.md), [docs/adr/0004-online-presence.md](docs/adr/0004-online-presence.md), [docs/adr/0005-game-center.md](docs/adr/0005-game-center.md).

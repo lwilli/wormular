@@ -181,6 +181,31 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
+  if (path === '/scores/rank' && req.method === 'GET') {
+    const name = sanitizeName(String(url.searchParams.get('name') || ''))
+    if (!name) {
+      json(req, res, 400, { error: 'invalid name' })
+      return
+    }
+    const mine = scores.filter((s) => s.name === name)
+    const best = mine.length ? Math.max(...mine.map((s) => s.score)) : 0
+    if (best <= 0) {
+      json(req, res, 200, { best: 0, rank: null })
+      return
+    }
+    const bestByPlayer = new Map()
+    for (const s of scores) {
+      const prev = bestByPlayer.get(s.name) ?? 0
+      if (s.score > prev) bestByPlayer.set(s.name, s.score)
+    }
+    let rank = 1
+    for (const b of bestByPlayer.values()) {
+      if (b > best) rank += 1
+    }
+    json(req, res, 200, { best, rank })
+    return
+  }
+
   if (path === '/scores' && req.method === 'POST') {
     const ip = req.socket.remoteAddress || 'local'
     const now = Date.now()

@@ -12,7 +12,15 @@ export type ResultView = {
   headline: string
   detail?: string
   hint?: string
+  /** Personal best / rank / Game Center lines under the score. */
+  metaLines?: string[]
+  /** Show Play Again / Leaderboard / Share (solo). */
+  actions?: boolean
+  /** Hide Share when the platform cannot share. */
+  shareAvailable?: boolean
 }
+
+export type ResultAction = 'again' | 'modes' | 'share' | 'continue'
 
 export type PlayModeChangeMeta = {
   animate: boolean
@@ -30,8 +38,11 @@ export type TitleUi = {
   setHudVisible: (visible: boolean) => void
   setSfxEnabled: (enabled: boolean) => void
   setMusicEnabled: (enabled: boolean) => void
+  setHapticsEnabled: (enabled: boolean) => void
+  setHapticsVisible: (visible: boolean) => void
   onSfxToggle: (cb: () => void) => void
   onMusicToggle: (cb: () => void) => void
+  onHapticsToggle: (cb: () => void) => void
   setNickname: (name: string) => void
   getNickname: () => string
   onNicknameChange: (cb: (name: string) => void) => void
@@ -39,6 +50,13 @@ export type TitleUi = {
     rows: { name: string; score: number }[],
     status?: string,
   ) => void
+  /** Solo Home rank line under the arena. Pass null when unknown/offline. */
+  setGlobalRank: (rank: number | null) => void
+  setLeaderboardSheetOpen: (open: boolean) => void
+  isLeaderboardSheetOpen: () => boolean
+  onLeaderboardOpen: (cb: () => void) => void
+  /** Optional summary line inside the sheet (best + rank). */
+  setLeaderboardYou: (text: string | null) => void
   setMenuVisible: (visible: boolean) => void
   setStatus: (text: string) => void
   /** Online 1v1 ready / queue / error — always the center prompt. */
@@ -59,6 +77,10 @@ export type TitleUi = {
   onTitlePressGesture: (cb: (phase: 'defer' | 'commit' | 'cancel') => void) => void
   setBattleHud: (p0: number, p1: number, label?: string) => void
   setResult: (view: ResultView | null) => void
+  onResultAction: (cb: (action: ResultAction) => void) => void
+  /** First-run guided Solo chrome (hides carousel / bottom panels). */
+  setOnboarding: (active: boolean) => void
+  setPaused: (paused: boolean) => void
   /** Matchmaking / countdown overlay. Pass null to hide. */
   setMatchBanner: (title: string | null, count?: string | null) => void
 }
@@ -117,6 +139,13 @@ export function bindTitleUi(): TitleUi {
   const modeCaption = mustHtml('.mode-caption')
   const titleBottom = mustHtml('.title-bottom')
   const highScore = mustHtml('#high-score')
+  const soloRank = mustHtml('#solo-rank') as HTMLButtonElement
+  const leaderboardSheet = mustHtml('#leaderboard-sheet')
+  const leaderboardClose = mustHtml('#leaderboard-close') as HTMLButtonElement
+  const leaderboardBackdrop = mustHtml(
+    '#leaderboard-backdrop',
+  ) as HTMLButtonElement
+  const leaderboardYou = mustHtml('#leaderboard-you')
   const sfxToggle = mustHtml('#sfx-toggle') as HTMLButtonElement
   const musicToggle = mustHtml('#music-toggle') as HTMLButtonElement
   const hud = mustHtml('#hud')
@@ -127,6 +156,7 @@ export function bindTitleUi(): TitleUi {
   const boardStatus = mustHtml('#leaderboard-status')
   const menu = mustHtml('#menu')
   const status = mustHtml('#menu-status')
+  const leaderboardOpenListeners: Array<() => void> = []
   const holdMain = mustHtml('#hold-prompt-main')
   const holdSub = mustHtml('#hold-prompt-sub')
   const modeTitle = mustHtml('#mode-title')
@@ -150,9 +180,18 @@ export function bindTitleUi(): TitleUi {
   const localResultP0 = mustHtml('#local-result-p0')
   const localResultP1 = mustHtml('#local-result-p1')
   const result = mustHtml('#result')
+  const resultMeta = mustHtml('#result-meta')
+  const resultActions = mustHtml('#result-actions')
+  const resultAgain = mustHtml('#result-again') as HTMLButtonElement
+  const resultModes = mustHtml('#result-modes') as HTMLButtonElement
+  const resultShare = mustHtml('#result-share') as HTMLButtonElement
+  const pauseEl = mustHtml('#pause')
+  const hapticsToggle = mustHtml('#haptics-toggle') as HTMLButtonElement
   const matchBanner = mustHtml('#match-banner')
   const matchBannerTitle = mustHtml('#match-banner-title')
   const matchBannerCount = mustHtml('#match-banner-count')
+
+  const resultActionListeners: Array<(action: ResultAction) => void> = []
 
   function paintResultPanel(
     root: HTMLElement,
@@ -163,6 +202,7 @@ export function bindTitleUi(): TitleUi {
     const hint = root.querySelector('.result-hint') as HTMLElement | null
     if (!view) {
       root.hidden = true
+      root.classList.remove('has-actions')
       if (headline) headline.textContent = ''
       if (detail) detail.textContent = ''
       if (hint) hint.textContent = ''
@@ -172,6 +212,75 @@ export function bindTitleUi(): TitleUi {
     if (headline) headline.textContent = view.headline
     if (detail) detail.textContent = view.detail ?? ''
     if (hint) hint.textContent = view.hint ?? 'Tap to continue'
+  }
+
+  function paintSoloResultExtras(view: ResultView | null): void {
+    if (!view) {
+      resultMeta.hidden = true
+      resultMeta.textContent = ''
+      resultActions.hidden = true
+      result.classList.remove('has-actions')
+      return
+    }
+    const lines = view.metaLines?.filter(Boolean) ?? []
+    if (lines.length) {
+      resultMeta.hidden = false
+      resultMeta.replaceChildren(
+        ...lines.map((line) => {
+          const span = document.createElement('span')
+          span.textContent = line
+          return span
+        }),
+      )
+    } else {
+      resultMeta.hidden = true
+      resultMeta.textContent = ''
+    }
+    if (view.actions) {
+      resultActions.hidden = false
+      result.classList.add('has-actions')
+      resultShare.hidden = view.shareAvailable === false
+    } else {
+      resultActions.hidden = true
+      result.classList.remove('has-actions')
+    }
+  }
+
+  function emitResultAction(action: ResultAction, e: Event): void {
+    e.preventDefault()
+    e.stopPropagation()
+    for (const cb of resultActionListeners) cb(action)
+  }
+
+  resultAgain.addEventListener('click', (e) => emitResultAction('again', e))
+  resultAgain.addEventListener('pointerdown', (e) => e.stopPropagation())
+  resultModes.addEventListener('click', (e) => emitResultAction('modes', e))
+  resultModes.addEventListener('pointerdown', (e) => e.stopPropagation())
+  resultShare.addEventListener('click', (e) => emitResultAction('share', e))
+  resultShare.addEventListener('pointerdown', (e) => e.stopPropagation())
+
+  function setLeaderboardSheetOpen(open: boolean): void {
+    leaderboardSheet.hidden = !open
+  }
+
+  soloRank.addEventListener('click', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    for (const cb of leaderboardOpenListeners) cb()
+  })
+  soloRank.addEventListener('pointerdown', (e) => e.stopPropagation())
+  leaderboardClose.addEventListener('click', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setLeaderboardSheetOpen(false)
+  })
+  leaderboardBackdrop.addEventListener('click', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setLeaderboardSheetOpen(false)
+  })
+  for (const el of [leaderboardClose, leaderboardBackdrop]) {
+    el.addEventListener('pointerdown', (e) => e.stopPropagation())
   }
 
   function setLocalBanners(titleText: string | null, count?: string | null): void {
@@ -379,7 +488,7 @@ export function bindTitleUi(): TitleUi {
     if (!(t instanceof Element)) return false
     return Boolean(
       t.closest(
-        'button, input, label, a, .menu, .orbit-disk, .audio-toggles, .nickname-field',
+        'button, input, label, a, .menu, .orbit-disk, .audio-toggles, .nickname-field, .leaderboard-sheet, .solo-strip-rank',
       ),
     )
   }
@@ -536,7 +645,27 @@ export function bindTitleUi(): TitleUi {
       }
     },
     setHighScore(score) {
-      highScore.textContent = `Personal High Score: ${score}`
+      highScore.textContent = `Personal best: ${score}`
+    },
+    setGlobalRank(rank) {
+      soloRank.textContent =
+        rank != null && rank > 0 ? `Global rank: #${rank}` : 'Global rank: —'
+    },
+    setLeaderboardSheetOpen,
+    isLeaderboardSheetOpen() {
+      return !leaderboardSheet.hidden
+    },
+    onLeaderboardOpen(cb) {
+      leaderboardOpenListeners.push(cb)
+    },
+    setLeaderboardYou(text) {
+      if (!text) {
+        leaderboardYou.hidden = true
+        leaderboardYou.textContent = ''
+        return
+      }
+      leaderboardYou.hidden = false
+      leaderboardYou.textContent = text
     },
     setScore(score) {
       scoreEl.textContent = String(score)
@@ -560,11 +689,25 @@ export function bindTitleUi(): TitleUi {
         unmutedTitle: 'Music on',
       })
     },
+    setHapticsEnabled(enabled) {
+      syncMuteButton(hapticsToggle, enabled, {
+        mutedLabel: 'Enable haptics',
+        unmutedLabel: 'Disable haptics',
+        mutedTitle: 'Haptics off',
+        unmutedTitle: 'Haptics on',
+      })
+    },
+    setHapticsVisible(visible) {
+      hapticsToggle.hidden = !visible
+    },
     onSfxToggle(cb) {
       bindToggleClick(sfxToggle, cb)
     },
     onMusicToggle(cb) {
       bindToggleClick(musicToggle, cb)
+    },
+    onHapticsToggle(cb) {
+      bindToggleClick(hapticsToggle, cb)
     },
     setNickname(name) {
       nickname.value = name
@@ -655,7 +798,44 @@ export function bindTitleUi(): TitleUi {
     },
     setResult(view) {
       paintResultPanel(result, view)
-      setLocalResults(view)
+      paintSoloResultExtras(view)
+      // Local seats keep the simple tap-to-continue copy (no share chrome).
+      setLocalResults(
+        view
+          ? {
+              headline: view.headline,
+              detail: view.detail,
+              hint: view.hint ?? 'Tap to continue',
+            }
+          : null,
+      )
+    },
+    onResultAction(cb) {
+      resultActionListeners.push(cb)
+    },
+    setOnboarding(active) {
+      title.classList.toggle('is-onboarding', active)
+      if (active) {
+        modeTitle.textContent = ''
+        // Pitch above the disk; Press & Hold stays centered on the arena.
+        modeTagline.replaceChildren(
+          ...[
+            'Eat, grow, survive.',
+            'Hold to move outward',
+            'Release to fall inward',
+          ].map((line) => {
+            const span = document.createElement('span')
+            span.textContent = line
+            return span
+          }),
+        )
+        paintHoldPrompt('Press & Hold', [])
+      } else {
+        applyPlayMode(playMode)
+      }
+    },
+    setPaused(paused) {
+      pauseEl.hidden = !paused
     },
     setMatchBanner(titleText, count) {
       if (!titleText) {

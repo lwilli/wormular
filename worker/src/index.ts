@@ -7,6 +7,7 @@ import {
   sanitizeName,
   type PlayModeStat,
   type PlayResponse,
+  type PlayerRankResponse,
   type ScoresResponse,
   type StatsResponse,
   type SubmitScoreResponse,
@@ -46,6 +47,10 @@ export default {
 
       if (url.pathname === '/scores' && request.method === 'GET') {
         return await getScores(env, url, cors)
+      }
+
+      if (url.pathname === '/scores/rank' && request.method === 'GET') {
+        return await getPlayerRank(env, url, cors)
       }
 
       if (url.pathname === '/scores' && request.method === 'POST') {
@@ -115,6 +120,45 @@ async function getScores(
       createdAt: String(row.createdAt),
       platform: row.platform != null ? String(row.platform) : undefined,
     })),
+  }
+  return json(body, cors)
+}
+
+/** Rank of a player's all-time best among every player's best. */
+async function getPlayerRank(
+  env: Env,
+  url: URL,
+  cors: HeadersInit,
+): Promise<Response> {
+  const raw = url.searchParams.get('name') ?? ''
+  const name = sanitizeName(raw)
+  if (!name) {
+    return json({ error: 'invalid name' }, cors, 400)
+  }
+
+  const bestRow = await env.DB.prepare(
+    `SELECT MAX(score) as best FROM scores WHERE name = ?`,
+  )
+    .bind(name)
+    .first<{ best: number | null }>()
+
+  const best = bestRow?.best != null ? Number(bestRow.best) : 0
+  if (best <= 0) {
+    const empty: PlayerRankResponse = { best: 0, rank: null }
+    return json(empty, cors)
+  }
+
+  const rankRow = await env.DB.prepare(
+    `SELECT COUNT(*) + 1 as rank FROM (
+       SELECT MAX(score) as best FROM scores GROUP BY name
+     ) WHERE best > ?`,
+  )
+    .bind(best)
+    .first<{ rank: number }>()
+
+  const body: PlayerRankResponse = {
+    best,
+    rank: rankRow?.rank != null ? Number(rankRow.rank) : null,
   }
   return json(body, cors)
 }

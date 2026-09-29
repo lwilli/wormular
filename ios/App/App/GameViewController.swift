@@ -5,6 +5,10 @@ import WebKit
 /// Capacitor bridge with iOS text interaction (magnifier / selection) disabled.
 /// CSS alone cannot suppress the loupe Apple reintroduced in iOS 15.
 class GameViewController: CAPBridgeViewController {
+    override var prefersStatusBarHidden: Bool { true }
+    override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
+    override var prefersHomeIndicatorAutoHidden: Bool { true }
+
     override func webViewConfiguration(for instanceConfiguration: InstanceConfiguration) -> WKWebViewConfiguration {
         let config = super.webViewConfiguration(for: instanceConfiguration)
         if #available(iOS 14.5, *) {

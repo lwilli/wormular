@@ -1,5 +1,6 @@
 import {
   LEADERBOARD_LIMIT,
+  type PlayerRankResponse,
   type ScoresResponse,
   type ScoreRow,
   type SubmitScoreResponse,
@@ -20,6 +21,16 @@ export async function fetchLeaderboard(
   if (!res.ok) throw new Error(`leaderboard ${res.status}`)
   const body = (await res.json()) as ScoresResponse
   return body.scores ?? []
+}
+
+/** Player's all-time best rank among all players (not this-run row rank). */
+export async function fetchPlayerRank(
+  name: string,
+): Promise<PlayerRankResponse> {
+  const url = `${apiBase()}/scores/rank?name=${encodeURIComponent(name)}`
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`rank ${res.status}`)
+  return (await res.json()) as PlayerRankResponse
 }
 
 export async function submitScore(
