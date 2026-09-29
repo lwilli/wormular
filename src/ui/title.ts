@@ -50,6 +50,13 @@ export type TitleUi = {
     rows: { name: string; score: number }[],
     status?: string,
   ) => void
+  /** Solo Home rank line under the arena. Pass null when unknown/offline. */
+  setGlobalRank: (rank: number | null) => void
+  setLeaderboardSheetOpen: (open: boolean) => void
+  isLeaderboardSheetOpen: () => boolean
+  onLeaderboardOpen: (cb: () => void) => void
+  /** Optional summary line inside the sheet (best + rank). */
+  setLeaderboardYou: (text: string | null) => void
   setMenuVisible: (visible: boolean) => void
   setStatus: (text: string) => void
   /** Online 1v1 ready / queue / error — always the center prompt. */
@@ -132,6 +139,13 @@ export function bindTitleUi(): TitleUi {
   const modeCaption = mustHtml('.mode-caption')
   const titleBottom = mustHtml('.title-bottom')
   const highScore = mustHtml('#high-score')
+  const soloRank = mustHtml('#solo-rank') as HTMLButtonElement
+  const leaderboardSheet = mustHtml('#leaderboard-sheet')
+  const leaderboardClose = mustHtml('#leaderboard-close') as HTMLButtonElement
+  const leaderboardBackdrop = mustHtml(
+    '#leaderboard-backdrop',
+  ) as HTMLButtonElement
+  const leaderboardYou = mustHtml('#leaderboard-you')
   const sfxToggle = mustHtml('#sfx-toggle') as HTMLButtonElement
   const musicToggle = mustHtml('#music-toggle') as HTMLButtonElement
   const hud = mustHtml('#hud')
@@ -142,6 +156,7 @@ export function bindTitleUi(): TitleUi {
   const boardStatus = mustHtml('#leaderboard-status')
   const menu = mustHtml('#menu')
   const status = mustHtml('#menu-status')
+  const leaderboardOpenListeners: Array<() => void> = []
   const holdMain = mustHtml('#hold-prompt-main')
   const holdSub = mustHtml('#hold-prompt-sub')
   const modeTitle = mustHtml('#mode-title')
@@ -243,6 +258,30 @@ export function bindTitleUi(): TitleUi {
   resultModes.addEventListener('pointerdown', (e) => e.stopPropagation())
   resultShare.addEventListener('click', (e) => emitResultAction('share', e))
   resultShare.addEventListener('pointerdown', (e) => e.stopPropagation())
+
+  function setLeaderboardSheetOpen(open: boolean): void {
+    leaderboardSheet.hidden = !open
+  }
+
+  soloRank.addEventListener('click', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    for (const cb of leaderboardOpenListeners) cb()
+  })
+  soloRank.addEventListener('pointerdown', (e) => e.stopPropagation())
+  leaderboardClose.addEventListener('click', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setLeaderboardSheetOpen(false)
+  })
+  leaderboardBackdrop.addEventListener('click', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setLeaderboardSheetOpen(false)
+  })
+  for (const el of [leaderboardClose, leaderboardBackdrop]) {
+    el.addEventListener('pointerdown', (e) => e.stopPropagation())
+  }
 
   function setLocalBanners(titleText: string | null, count?: string | null): void {
     for (const banner of [localBannerP0, localBannerP1]) {
@@ -449,7 +488,7 @@ export function bindTitleUi(): TitleUi {
     if (!(t instanceof Element)) return false
     return Boolean(
       t.closest(
-        'button, input, label, a, .menu, .orbit-disk, .audio-toggles, .nickname-field',
+        'button, input, label, a, .menu, .orbit-disk, .audio-toggles, .nickname-field, .leaderboard-sheet, .solo-strip-rank',
       ),
     )
   }
@@ -606,7 +645,27 @@ export function bindTitleUi(): TitleUi {
       }
     },
     setHighScore(score) {
-      highScore.textContent = `Personal High Score: ${score}`
+      highScore.textContent = `Personal best: ${score}`
+    },
+    setGlobalRank(rank) {
+      soloRank.textContent =
+        rank != null && rank > 0 ? `Global rank: #${rank}` : 'Global rank: —'
+    },
+    setLeaderboardSheetOpen,
+    isLeaderboardSheetOpen() {
+      return !leaderboardSheet.hidden
+    },
+    onLeaderboardOpen(cb) {
+      leaderboardOpenListeners.push(cb)
+    },
+    setLeaderboardYou(text) {
+      if (!text) {
+        leaderboardYou.hidden = true
+        leaderboardYou.textContent = ''
+        return
+      }
+      leaderboardYou.hidden = false
+      leaderboardYou.textContent = text
     },
     setScore(score) {
       scoreEl.textContent = String(score)
@@ -758,7 +817,7 @@ export function bindTitleUi(): TitleUi {
       title.classList.toggle('is-onboarding', active)
       if (active) {
         modeTitle.textContent = ''
-        // Above the arena: pitch + controls. Hold CTA parks below.
+        // Pitch above the disk; Press & Hold stays centered on the arena.
         modeTagline.replaceChildren(
           ...[
             'Eat, grow, survive.',

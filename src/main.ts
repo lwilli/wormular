@@ -40,7 +40,11 @@ import {
 } from './platform/gameCenter'
 import { haptics } from './platform/haptics'
 import { isNativePlatform } from './platform/kv'
-import { fetchLeaderboard, submitScore } from './platform/leaderboard'
+import {
+  fetchLeaderboard,
+  fetchPlayerRank,
+  submitScore,
+} from './platform/leaderboard'
 import { bindAppLifecycle } from './platform/lifecycle'
 import {
   initNickname,
@@ -185,6 +189,9 @@ let lastSoloScore = 0
 let unbindLifecycle: (() => void) | null = null
 
 ui.setHighScore(highScore)
+ui.setGlobalRank(null)
+ui.setLeaderboardYou(null)
+ui.setLeaderboardSheetOpen(false)
 ui.setVisible(true)
 ui.setMenuVisible(true)
 ui.setHudVisible(false)
@@ -222,6 +229,7 @@ ui.onNicknameChange((raw) => {
   if (saved) {
     ui.setNickname(saved)
     ui.setStatus('')
+    void refreshSoloRank()
   } else if (raw.trim()) {
     const trimmed = raw.trim().replace(/\s+/g, ' ')
     if (trimmed.length < 3 || trimmed.length > 12) {
@@ -269,6 +277,8 @@ ui.onPlayModeChange((next, meta) => {
     armTitleStartGate()
     ensureTitlePreview(true)
   }
+  if (next !== 'solo') ui.setLeaderboardSheetOpen(false)
+  void refreshSoloRank()
 })
 
 /** Live lobby count while Online 1v1 is selected (title, queue, or match). */
@@ -370,7 +380,18 @@ void bindAppLifecycle({
 })
 
 void refreshLeaderboard()
+void refreshSoloRank()
 syncOnlinePresence()
+
+ui.onLeaderboardOpen(() => {
+  soloInput.playRequested = false
+  dualInput.playRequested = false
+  awaitReleaseBeforeStart = true
+  titlePressDeferred = false
+  ui.setLeaderboardSheetOpen(true)
+  void refreshLeaderboard()
+  void refreshSoloRank()
+})
 
 ui.onResultAction((action) => {
   handleResultAction(action)
@@ -591,6 +612,30 @@ async function refreshLeaderboard(): Promise<void> {
   }
 }
 
+/** Solo Home rank among players' all-time bests. Soft-fails offline. */
+async function refreshSoloRank(): Promise<void> {
+  if (selectedPlayMode !== 'solo' || onboardingActive) {
+    ui.setGlobalRank(null)
+    ui.setLeaderboardYou(null)
+    return
+  }
+  const name = saveNickname(ui.getNickname()) ?? loadNickname() ?? 'Player'
+  try {
+    const { best, rank } = await fetchPlayerRank(name)
+    ui.setGlobalRank(rank)
+    if (rank != null && best > 0) {
+      ui.setLeaderboardYou(`Your best: ${best} · Rank #${rank}`)
+    } else if (best > 0) {
+      ui.setLeaderboardYou(`Your best: ${best}`)
+    } else {
+      ui.setLeaderboardYou('No ranked scores yet — play Solo to place.')
+    }
+  } catch {
+    ui.setGlobalRank(null)
+    ui.setLeaderboardYou(null)
+  }
+}
+
 /** Submit to Wormular leaderboard; returns global rank when the API provides it. */
 async function submitRunScore(score: number): Promise<number | null> {
   if (score <= 0) return null
@@ -669,6 +714,7 @@ function showTitle(): void {
   resultUsesActions = false
   gameplayPaused = false
   ui.setPaused(false)
+  ui.setLeaderboardSheetOpen(false)
   stopMatchClient()
   world = createPlayWorld()
   battle = null
@@ -690,6 +736,7 @@ function showTitle(): void {
   lastCountdownSec = -1
   document.getElementById('battle-hud')?.setAttribute('hidden', '')
   setLocalBattleChrome(false)
+  void refreshSoloRank()
 }
 
 function pauseGameplay(): void {
@@ -771,6 +818,7 @@ function handleResultAction(action: ResultAction): void {
 function requestStart(): void {
   if (mode !== 'title') return
   if (titleLaunch) return
+  if (ui.isLeaderboardSheetOpen()) return
   if (awaitReleaseBeforeStart) return
   if (performance.now() < titleReadyAt) return
   audio.unlock()
@@ -989,8 +1037,10 @@ function enterSoloResult(): void {
   ui.setResult(soloResultView(score, isNewBest, null))
   armResultDismissGate()
   void submitRunScore(score).then((rank) => {
-    if (mode !== 'result' || rank == null) return
-    ui.setResult(soloResultView(score, isNewBest, rank))
+    if (mode !== 'result') return
+    if (rank != null) ui.setResult(soloResultView(score, isNewBest, rank))
+    // Home strip uses player-best rank (may differ from this-run row rank).
+    void refreshSoloRank()
   })
 }
 

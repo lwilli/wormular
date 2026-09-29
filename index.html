@@ -229,8 +229,9 @@
             <div id="panel-online" class="mode-panel" hidden>
               <p id="online-count" class="online-count" role="status">Players online: —</p>
             </div>
+            <!-- Shared name: compact in Solo strip, labeled field on Online. -->
             <label id="nickname-field" class="nickname-field">
-              <span>Name</span>
+              <span class="nickname-label">Name</span>
               <input
                 id="nickname"
                 class="nickname-input"
@@ -243,13 +244,16 @@
               />
             </label>
             <div id="panel-solo" class="mode-panel">
-              <div id="high-score" class="high-score">Personal High Score: 0</div>
-              <div class="leaderboard">
-                <div class="leaderboard-title">Global Leaderboard</div>
-                <ol id="leaderboard-list" class="leaderboard-list"></ol>
-                <div id="leaderboard-status" class="leaderboard-status">
-                  Loading…
-                </div>
+              <div class="solo-strip" role="group" aria-label="Solo stats">
+                <div id="high-score" class="solo-strip-best">Personal best: 0</div>
+                <button
+                  id="solo-rank"
+                  class="solo-strip-rank"
+                  type="button"
+                  title="Open leaderboard"
+                >
+                  Global rank: —
+                </button>
               </div>
             </div>
             <div id="panel-local" class="mode-panel" hidden>
@@ -264,6 +268,34 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+      <div id="leaderboard-sheet" class="leaderboard-sheet" hidden>
+        <button
+          id="leaderboard-backdrop"
+          class="leaderboard-backdrop"
+          type="button"
+          aria-label="Close leaderboard"
+        ></button>
+        <div
+          class="leaderboard-sheet-card"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="leaderboard-sheet-title"
+        >
+          <div class="leaderboard-sheet-header">
+            <h2 id="leaderboard-sheet-title" class="leaderboard-title">
+              Global Leaderboard
+            </h2>
+            <button id="leaderboard-close" class="leaderboard-close" type="button">
+              Close
+            </button>
+          </div>
+          <p id="leaderboard-you" class="leaderboard-you" hidden></p>
+          <div class="leaderboard">
+            <ol id="leaderboard-list" class="leaderboard-list"></ol>
+            <div id="leaderboard-status" class="leaderboard-status">Loading…</div>
           </div>
         </div>
       </div>

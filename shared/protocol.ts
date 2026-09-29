@@ -49,6 +49,12 @@ export type SubmitScoreResponse = {
   rank: number | null
 }
 
+/** Rank of a player's all-time best among all players' bests. */
+export type PlayerRankResponse = {
+  best: number
+  rank: number | null
+}
+
 /** Cookieless aggregate counters (`POST /visit`, `POST /play`, `GET /stats`). */
 export type PlayModeStat = 'solo' | 'local' | 'online' | 'online_queue'
 
