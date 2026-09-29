@@ -20,7 +20,7 @@ export type ResultView = {
   shareAvailable?: boolean
 }
 
-export type ResultAction = 'again' | 'leaderboard' | 'share' | 'continue'
+export type ResultAction = 'again' | 'modes' | 'share' | 'continue'
 
 export type PlayModeChangeMeta = {
   animate: boolean
@@ -168,7 +168,7 @@ export function bindTitleUi(): TitleUi {
   const resultMeta = mustHtml('#result-meta')
   const resultActions = mustHtml('#result-actions')
   const resultAgain = mustHtml('#result-again') as HTMLButtonElement
-  const resultLeaderboard = mustHtml('#result-leaderboard') as HTMLButtonElement
+  const resultModes = mustHtml('#result-modes') as HTMLButtonElement
   const resultShare = mustHtml('#result-share') as HTMLButtonElement
   const pauseEl = mustHtml('#pause')
   const hapticsToggle = mustHtml('#haptics-toggle') as HTMLButtonElement
@@ -239,10 +239,8 @@ export function bindTitleUi(): TitleUi {
 
   resultAgain.addEventListener('click', (e) => emitResultAction('again', e))
   resultAgain.addEventListener('pointerdown', (e) => e.stopPropagation())
-  resultLeaderboard.addEventListener('click', (e) =>
-    emitResultAction('leaderboard', e),
-  )
-  resultLeaderboard.addEventListener('pointerdown', (e) => e.stopPropagation())
+  resultModes.addEventListener('click', (e) => emitResultAction('modes', e))
+  resultModes.addEventListener('pointerdown', (e) => e.stopPropagation())
   resultShare.addEventListener('click', (e) => emitResultAction('share', e))
   resultShare.addEventListener('pointerdown', (e) => e.stopPropagation())
 

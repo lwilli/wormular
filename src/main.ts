@@ -36,7 +36,6 @@ import {
   initGameCenter,
   isGameCenterAuthenticated,
   reportSoloRunAchievements,
-  showGameCenterDashboard,
   submitGameCenterScore,
 } from './platform/gameCenter'
 import { haptics } from './platform/haptics'
@@ -734,17 +733,10 @@ function handleResultAction(action: ResultAction): void {
     void shareScore({ score: lastSoloScore })
     return
   }
-  if (action === 'leaderboard') {
+  if (action === 'modes') {
     finishOnboarding()
     dismissResult()
-    // Focus solo panel so the Wormular leaderboard is visible.
-    selectedPlayMode = 'solo'
-    savePlayMode('solo')
-    ui.setPlayMode('solo')
-    if (isNativePlatform() && isGameCenterAuthenticated()) {
-      showGameCenterDashboard()
-    }
-    void refreshLeaderboard()
+    // Back to the mode carousel; Solo title panel still holds the leaderboard.
     return
   }
   if (action === 'again') {
