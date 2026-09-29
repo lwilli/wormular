@@ -28,9 +28,8 @@ Captured before Milestone 1+ work. Linux CI/cloud agents cannot run Xcode; devic
 
 - No haptics, native share, Game Center, or pause-on-background
 - Audio mute flags only in `localStorage` (not Preferences on device)
-- Result UI is “Tap to continue” only (no Play Again / Share / Leaderboard actions)
-- No first-run guided Solo onboarding
-- Orientation allows landscape on iPhone
+- Result UI, guided onboarding, native feel plugins, and Solo Home strip/sheet are implemented on the Capacitor milestones branch — see [PLAN.md](PLAN.md) Screens and [ios.md](ios.md)
+- Orientation allows landscape on iPhone (fixed to portrait in the Capacitor shell)
 
 ## Manual (Mac) remaining
 

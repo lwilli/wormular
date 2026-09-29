@@ -14,7 +14,7 @@ export type ResultView = {
   hint?: string
   /** Personal best / rank / Game Center lines under the score. */
   metaLines?: string[]
-  /** Show Play Again / Leaderboard / Share (solo). */
+  /** Show Play Again / Modes / Share. */
   actions?: boolean
   /** Hide Share when the platform cannot share. */
   shareAvailable?: boolean
@@ -49,6 +49,7 @@ export type TitleUi = {
   setLeaderboard: (
     rows: { name: string; score: number }[],
     status?: string,
+    opts?: { highlightName?: string | null },
   ) => void
   /** Solo Home rank line under the arena. Pass null when unknown/offline. */
   setGlobalRank: (rank: number | null) => void
@@ -57,6 +58,9 @@ export type TitleUi = {
   onLeaderboardOpen: (cb: () => void) => void
   /** Optional summary line inside the sheet (best + rank). */
   setLeaderboardYou: (text: string | null) => void
+  /** Native Game Center entry in the sheet (hidden when unavailable). */
+  setGameCenterVisible: (visible: boolean) => void
+  onGameCenterOpen: (cb: () => void) => void
   setMenuVisible: (visible: boolean) => void
   setStatus: (text: string) => void
   /** Online 1v1 ready / queue / error — always the center prompt. */
@@ -146,6 +150,9 @@ export function bindTitleUi(): TitleUi {
     '#leaderboard-backdrop',
   ) as HTMLButtonElement
   const leaderboardYou = mustHtml('#leaderboard-you')
+  const leaderboardGc = mustHtml(
+    '#leaderboard-game-center',
+  ) as HTMLButtonElement
   const sfxToggle = mustHtml('#sfx-toggle') as HTMLButtonElement
   const musicToggle = mustHtml('#music-toggle') as HTMLButtonElement
   const hud = mustHtml('#hud')
@@ -157,9 +164,13 @@ export function bindTitleUi(): TitleUi {
   const menu = mustHtml('#menu')
   const status = mustHtml('#menu-status')
   const leaderboardOpenListeners: Array<() => void> = []
+  const gameCenterOpenListeners: Array<() => void> = []
   const holdMain = mustHtml('#hold-prompt-main')
   const holdSub = mustHtml('#hold-prompt-sub')
-  const modeTitle = mustHtml('#mode-title')
+  const modeSegments = mustHtml('#mode-segments')
+  const modeSegmentButtons = Array.from(
+    modeSegments.querySelectorAll<HTMLButtonElement>('.mode-segment'),
+  )
   const modeTagline = mustHtml('#mode-tagline')
   const panelSolo = mustHtml('#panel-solo')
   const panelLocal = mustHtml('#panel-local')
@@ -279,9 +290,14 @@ export function bindTitleUi(): TitleUi {
     e.stopPropagation()
     setLeaderboardSheetOpen(false)
   })
-  for (const el of [leaderboardClose, leaderboardBackdrop]) {
+  for (const el of [leaderboardClose, leaderboardBackdrop, leaderboardGc]) {
     el.addEventListener('pointerdown', (e) => e.stopPropagation())
   }
+  leaderboardGc.addEventListener('click', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    for (const cb of gameCenterOpenListeners) cb()
+  })
 
   function setLocalBanners(titleText: string | null, count?: string | null): void {
     for (const banner of [localBannerP0, localBannerP1]) {
@@ -390,10 +406,19 @@ export function bindTitleUi(): TitleUi {
     title.classList.remove('is-matching')
   }
 
+  function paintModeSegments(mode: PlayMode): void {
+    for (const btn of modeSegmentButtons) {
+      const active = btn.dataset.mode === mode
+      btn.classList.toggle('is-active', active)
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false')
+      btn.disabled = transitioning
+    }
+  }
+
   function applyPlayMode(mode: PlayMode, opts?: { peeks?: boolean }): void {
     playMode = mode
     const copy = MODE_COPY[mode]
-    modeTitle.textContent = copy.title
+    paintModeSegments(mode)
     modeTagline.textContent = copy.tagline
     paintModeHoldPrompt()
 
@@ -451,6 +476,7 @@ export function bindTitleUi(): TitleUi {
       clearModeAnimClasses()
       transitioning = false
       applyPeekChrome()
+      paintModeSegments(playMode)
     }, MODE_ORBIT_MS)
   }
 
@@ -472,6 +498,17 @@ export function bindTitleUi(): TitleUi {
     stepMode(1)
   })
 
+  for (const btn of modeSegmentButtons) {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      const mode = btn.dataset.mode as PlayMode | undefined
+      if (!mode || !PLAY_MODES.includes(mode)) return
+      selectMode(mode)
+    })
+    btn.addEventListener('pointerdown', (e) => e.stopPropagation())
+  }
+
   // Horizontal swipe on the title surface switches modes without starting.
   // Presses are deferred until we know they are a tap / hold, not a swipe —
   // otherwise the first rAF after pointerdown starts the run.
@@ -488,7 +525,7 @@ export function bindTitleUi(): TitleUi {
     if (!(t instanceof Element)) return false
     return Boolean(
       t.closest(
-        'button, input, label, a, .menu, .orbit-disk, .audio-toggles, .nickname-field, .leaderboard-sheet, .solo-strip-rank',
+        'button, input, label, a, .menu, .orbit-disk, .audio-toggles, .nickname-field, .leaderboard-sheet, .solo-strip-rank, .mode-segments',
       ),
     )
   }
@@ -667,6 +704,12 @@ export function bindTitleUi(): TitleUi {
       leaderboardYou.hidden = false
       leaderboardYou.textContent = text
     },
+    setGameCenterVisible(visible) {
+      leaderboardGc.hidden = !visible
+    },
+    onGameCenterOpen(cb) {
+      gameCenterOpenListeners.push(cb)
+    },
     setScore(score) {
       scoreEl.textContent = String(score)
     },
@@ -720,11 +763,25 @@ export function bindTitleUi(): TitleUi {
       nickname.addEventListener('change', fire)
       nickname.addEventListener('blur', fire)
     },
-    setLeaderboard(rows, statusText) {
+    setLeaderboard(rows, statusText, opts) {
+      const highlight = (opts?.highlightName ?? '').trim().toLowerCase()
       boardList.replaceChildren()
-      for (const row of rows) {
+      for (const [i, row] of rows.entries()) {
         const li = document.createElement('li')
-        li.textContent = `${row.name} — ${row.score}`
+        li.className = 'leaderboard-row'
+        const rank = document.createElement('span')
+        rank.className = 'leaderboard-rank'
+        rank.textContent = String(i + 1)
+        const name = document.createElement('span')
+        name.className = 'leaderboard-name'
+        name.textContent = row.name
+        const score = document.createElement('span')
+        score.className = 'leaderboard-score'
+        score.textContent = String(row.score)
+        li.append(rank, name, score)
+        if (highlight && row.name.trim().toLowerCase() === highlight) {
+          li.classList.add('is-you')
+        }
         boardList.appendChild(li)
       }
       boardStatus.textContent =
@@ -799,16 +856,21 @@ export function bindTitleUi(): TitleUi {
     setResult(view) {
       paintResultPanel(result, view)
       paintSoloResultExtras(view)
-      // Local seats keep the simple tap-to-continue copy (no share chrome).
-      setLocalResults(
-        view
-          ? {
-              headline: view.headline,
-              detail: view.detail,
-              hint: view.hint ?? 'Tap to continue',
-            }
-          : null,
-      )
+      // Action buttons live on the center panel; seats stay for tap-only results.
+      if (view?.actions) {
+        setLocalResults(null)
+        result.classList.remove('is-local')
+      } else {
+        setLocalResults(
+          view
+            ? {
+                headline: view.headline,
+                detail: view.detail,
+                hint: view.hint ?? 'Tap to continue',
+              }
+            : null,
+        )
+      }
     },
     onResultAction(cb) {
       resultActionListeners.push(cb)
@@ -816,7 +878,6 @@ export function bindTitleUi(): TitleUi {
     setOnboarding(active) {
       title.classList.toggle('is-onboarding', active)
       if (active) {
-        modeTitle.textContent = ''
         // Pitch above the disk; Press & Hold stays centered on the arena.
         modeTagline.replaceChildren(
           ...[

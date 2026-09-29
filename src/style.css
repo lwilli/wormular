@@ -289,15 +289,54 @@ body {
   z-index: 2;
 }
 
-.mode-title {
-  /* Larger than .hold-prompt-main so the mode reads as the hero label. */
-  font-size: clamp(1.85rem, 7vw, 2.6rem);
+/* Primary mode switch under the logo; peeks remain a secondary gesture. */
+.mode-segments {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.35rem;
+  pointer-events: auto;
+}
+
+.mode-segment {
+  appearance: none;
+  margin: 0;
+  padding: 0.15rem 0.2rem;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: clamp(1.05rem, 4.2vw, 1.35rem);
   font-weight: 700;
-  letter-spacing: 0.04em;
-  /* Keep "1v1" lowercase-v; spell titles in applyPlayMode casing. */
-  text-transform: none;
-  color: var(--text);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+  touch-action: manipulation;
+}
+
+.mode-segment.is-active {
+  color: var(--accent);
+}
+
+.mode-segment:disabled {
+  cursor: default;
+}
+
+.mode-segment:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 3px;
+  border-radius: 0.2rem;
+}
+
+.mode-segment-sep {
+  color: rgba(242, 244, 248, 0.35);
+  font-size: clamp(1.05rem, 4.2vw, 1.35rem);
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
 }
 
 .mode-tagline {
@@ -873,13 +912,48 @@ body {
 }
 
 .leaderboard-list {
+  list-style: none;
   margin: 0;
-  padding-left: 1.15rem;
+  padding: 0;
   max-height: min(14rem, 42vh);
   overflow: auto;
   font-size: 0.95rem;
   font-variant-numeric: tabular-nums;
   color: var(--text);
+}
+
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 1.6rem 1fr auto;
+  gap: 0.45rem;
+  align-items: baseline;
+  padding: 0.35rem 0.45rem;
+  border-radius: 0.35rem;
+}
+
+.leaderboard-row.is-you {
+  background: var(--accent);
+  color: #1a1008;
+}
+
+.leaderboard-rank {
+  opacity: 0.75;
+  font-weight: 600;
+}
+
+.leaderboard-row.is-you .leaderboard-rank {
+  opacity: 1;
+}
+
+.leaderboard-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.leaderboard-score {
+  font-weight: 700;
 }
 
 .leaderboard-status {
@@ -940,12 +1014,15 @@ body {
   appearance: none;
   border: none;
   border-radius: 0.4rem;
-  padding: 0.4rem 0.65rem;
-  background: rgba(242, 244, 248, 0.1);
-  color: var(--text);
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  background: transparent;
+  color: var(--accent);
   font: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1;
   cursor: pointer;
 }
 
@@ -959,6 +1036,32 @@ body {
 
 .leaderboard-you[hidden] {
   display: none;
+}
+
+.leaderboard-gc {
+  appearance: none;
+  align-self: center;
+  margin-top: 0.15rem;
+  border: none;
+  border-radius: 0.45rem;
+  padding: 0.55rem 1.1rem;
+  background: rgba(242, 244, 248, 0.1);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.leaderboard-gc[hidden] {
+  display: none;
+}
+
+.leaderboard-gc:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
 }
 
 @media (max-height: 700px) {
@@ -1316,11 +1419,8 @@ body {
 
 /* First-run guided Solo: hide mode carousel / bottom chrome. */
 .overlay.is-onboarding .mode-carousel,
-.overlay.is-onboarding .title-bottom {
-  display: none;
-}
-
-.overlay.is-onboarding .mode-title {
+.overlay.is-onboarding .title-bottom,
+.overlay.is-onboarding .mode-segments {
   display: none;
 }
 

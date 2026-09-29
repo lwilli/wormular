@@ -185,7 +185,38 @@
           />
         </div>
         <div class="mode-caption">
-          <div id="mode-title" class="mode-title">Solo</div>
+          <nav
+            id="mode-segments"
+            class="mode-segments"
+            aria-label="Game mode"
+          >
+            <button
+              type="button"
+              class="mode-segment is-active"
+              data-mode="solo"
+              aria-pressed="true"
+            >
+              Solo
+            </button>
+            <span class="mode-segment-sep" aria-hidden="true">·</span>
+            <button
+              type="button"
+              class="mode-segment"
+              data-mode="local"
+              aria-pressed="false"
+            >
+              Local
+            </button>
+            <span class="mode-segment-sep" aria-hidden="true">·</span>
+            <button
+              type="button"
+              class="mode-segment"
+              data-mode="online"
+              aria-pressed="false"
+            >
+              Online
+            </button>
+          </nav>
           <div id="mode-tagline" class="mode-tagline"></div>
         </div>
         <div
@@ -288,8 +319,13 @@
             <h2 id="leaderboard-sheet-title" class="leaderboard-title">
               Global Leaderboard
             </h2>
-            <button id="leaderboard-close" class="leaderboard-close" type="button">
-              Close
+            <button
+              id="leaderboard-close"
+              class="leaderboard-close"
+              type="button"
+              aria-label="Close leaderboard"
+            >
+              ×
             </button>
           </div>
           <p id="leaderboard-you" class="leaderboard-you" hidden></p>
@@ -297,6 +333,14 @@
             <ol id="leaderboard-list" class="leaderboard-list"></ol>
             <div id="leaderboard-status" class="leaderboard-status">Loading…</div>
           </div>
+          <button
+            id="leaderboard-game-center"
+            class="leaderboard-gc"
+            type="button"
+            hidden
+          >
+            Game Center
+          </button>
         </div>
       </div>
     </div>

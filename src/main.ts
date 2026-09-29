@@ -36,6 +36,7 @@ import {
   initGameCenter,
   isGameCenterAuthenticated,
   reportSoloRunAchievements,
+  showGameCenterDashboard,
   submitGameCenterScore,
 } from './platform/gameCenter'
 import { haptics } from './platform/haptics'
@@ -51,7 +52,11 @@ import {
   loadNickname,
   saveNickname,
 } from './platform/nickname'
-import { canShare, shareScore } from './platform/shareScore'
+import {
+  buildBattleShareText,
+  canShare,
+  shareScore,
+} from './platform/shareScore'
 import {
   initSettings,
   isHapticsEnabled,
@@ -182,15 +187,20 @@ let titleLaunch: {
 let onboardingActive = false
 /** Soft-pause while the app is backgrounded during a run. */
 let gameplayPaused = false
-/** Solo result with Play Again / Share buttons (ignore canvas dismiss). */
+/** Result with Play Again / Modes / Share (ignore canvas dismiss). */
 let resultUsesActions = false
+/** Which mode the current result actions apply to. */
+let resultActionMode: PlayMode = 'solo'
 /** Last solo score — for share + play-again. */
 let lastSoloScore = 0
+/** Optional custom share body for battle results. */
+let lastShareText: string | null = null
 let unbindLifecycle: (() => void) | null = null
 
 ui.setHighScore(highScore)
 ui.setGlobalRank(null)
 ui.setLeaderboardYou(null)
+ui.setGameCenterVisible(false)
 ui.setLeaderboardSheetOpen(false)
 ui.setVisible(true)
 ui.setMenuVisible(true)
@@ -389,8 +399,13 @@ ui.onLeaderboardOpen(() => {
   awaitReleaseBeforeStart = true
   titlePressDeferred = false
   ui.setLeaderboardSheetOpen(true)
+  ui.setGameCenterVisible(isNativePlatform() && isGameCenterAuthenticated())
   void refreshLeaderboard()
   void refreshSoloRank()
+})
+
+ui.onGameCenterOpen(() => {
+  showGameCenterDashboard()
 })
 
 ui.onResultAction((action) => {
@@ -600,15 +615,18 @@ function platformTag(): string {
 }
 
 async function refreshLeaderboard(): Promise<void> {
-  ui.setLeaderboard([], 'Loading…')
+  const highlightName =
+    saveNickname(ui.getNickname()) ?? loadNickname() ?? 'Player'
+  ui.setLeaderboard([], 'Loading…', { highlightName })
   try {
     const rows = await fetchLeaderboard()
     ui.setLeaderboard(
       rows.map((r) => ({ name: r.name, score: r.score })),
       rows.length ? '' : 'No scores yet',
+      { highlightName },
     )
   } catch {
-    ui.setLeaderboard([], 'Leaderboard offline')
+    ui.setLeaderboard([], 'Leaderboard offline', { highlightName })
   }
 }
 
@@ -781,32 +799,58 @@ function finishOnboarding(): void {
 function handleResultAction(action: ResultAction): void {
   if (mode !== 'result') return
   if (action === 'share') {
-    void shareScore({ score: lastSoloScore })
+    void shareScore({
+      score: lastSoloScore,
+      text: lastShareText ?? undefined,
+    })
     return
   }
   if (action === 'modes') {
     finishOnboarding()
     dismissResult()
-    // Back to the mode carousel; Solo title panel still holds the leaderboard.
     return
   }
   if (action === 'again') {
     finishOnboarding()
     resultUsesActions = false
+    lastShareText = null
     ui.setResult(null)
-    // Fresh solo world and immediate relaunch.
-    world = createPlayWorld()
-    battle = null
     clearFx(fx)
     mode = 'title'
+    armTitleStartGate()
+    awaitReleaseBeforeStart = false
+    if (resultActionMode === 'local') {
+      selectedPlayMode = 'local'
+      savePlayMode('local')
+      ui.setPlayMode('local')
+      ui.setOnboarding(false)
+      battle = createTitleBattle()
+      world = createPlayWorld()
+      startBattleLocal()
+      return
+    }
+    if (resultActionMode === 'online') {
+      selectedPlayMode = 'online'
+      savePlayMode('online')
+      ui.setPlayMode('online')
+      ui.setOnboarding(false)
+      battle = null
+      world = createPlayWorld()
+      ensureTitlePreview()
+      ui.setVisible(true)
+      ui.setMenuVisible(true)
+      startMatchmaking()
+      return
+    }
+    // Solo: fresh world and immediate relaunch.
+    world = createPlayWorld()
+    battle = null
     selectedPlayMode = 'solo'
     savePlayMode('solo')
     ui.setPlayMode('solo')
     ui.setOnboarding(false)
     ui.setVisible(false)
     ui.setMenuVisible(false)
-    armTitleStartGate()
-    awaitReleaseBeforeStart = false
     startSolo()
     return
   }
@@ -984,14 +1028,24 @@ function endBattle(view: {
   detail?: string
 }): void {
   if (mode === 'result') return
+  const fromLocal = mode === 'battleLocal'
+  resultActionMode = fromLocal ? 'local' : 'online'
+  lastShareText = buildBattleShareText(view.headline, view.detail)
+  lastSoloScore = 0
   mode = 'result'
-  resultUsesActions = false
+  resultUsesActions = true
   preBattleCountdownUntil = null
   ui.setMatchBanner(null)
+  // Center Play Again / Modes / Share (same as Solo); hide local seat panels.
+  if (fromLocal) {
+    document.getElementById('result')?.classList.remove('is-local')
+  }
   ui.setResult({
     headline: view.headline,
     detail: view.detail,
-    hint: 'Tap to continue',
+    actions: true,
+    shareAvailable: canShare(),
+    hint: 'Play Again',
   })
   armResultDismissGate()
   // Tell the room the match is over before closing, otherwise the peer gets a
@@ -1024,6 +1078,8 @@ function enterSoloResult(): void {
   const score = world.score
   const prevBest = highScore
   lastSoloScore = score
+  lastShareText = null
+  resultActionMode = 'solo'
   highScore = recordScore(score)
   ui.setHighScore(highScore)
   submitGameCenterScore(score)

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { buildShareText } from '../../src/platform/shareScore'
+import {
+  buildBattleShareText,
+  buildShareText,
+} from '../../src/platform/shareScore'
 import {
   ACHIEVEMENT_SCORE_GATES,
   GAME_CENTER,
@@ -10,6 +13,13 @@ describe('shareScore copy', () => {
     const text = buildShareText(18420)
     expect(text).toContain('18,420')
     expect(text).toContain('Wormular')
+    expect(text).toContain('https://lwilli.github.io/wormular/')
+  })
+
+  it('formats battle results', () => {
+    const text = buildBattleShareText('Orange wins!', '3 – 1')
+    expect(text).toContain('Orange wins!')
+    expect(text).toContain('3 – 1')
     expect(text).toContain('https://lwilli.github.io/wormular/')
   })
 })
