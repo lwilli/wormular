@@ -100,18 +100,16 @@ Prefs: `wormular.sfxEnabled`, `wormular.musicEnabled` (legacy `wormular.soundEna
 | Mode hold-commit | `120ms` (`HOLD_COMMIT_MS`) | Press-and-hold can start once the finger has not begun a swipe |
 | Mode tap slop | `14px` (`TAP_SLOP_PX`) | Horizontal jitter ignored when committing a hold-start |
 | Mode orbit slide | `420ms` (`MODE_ORBIT_MS` / `--orbit-ms`) | Live arenas slide/scale; caption/bottom use the same duration |
-| Title launch | `300ms` (`TITLE_LAUNCH_MS`) | Selected arena expands centerScale→1 while peeks + chrome fade into play |
-| Mode peek inset | JS `orbitLayout()` gap + ~8% peek clip | Peeks sit beside a scaled-down selected arena; a slight off-screen clip keeps them recessed without pulling labels off-axis |
-| Mode peek labels | `--peek-label-nudge` (usually ~0) | Labels share the peek disk axis; only nudge inward if a title would clip |
-| Mode peek size | `~22–24vw` (capped) | Side preview diameter; synced to CSS `--peek-d` |
-| Mode peek previews | canvas plate + mini arena | Opaque disk + paused Solo / 1v1 world; HTML face is a neutral ring/hit target |
+| Title launch | `300ms` (`TITLE_LAUNCH_MS`) | Title dim + chrome fade into play (arena already full size) |
 | Title canvas size | `#app` `clientWidth`/`clientHeight` | Matches the HTML overlay layout box — not `visualViewport` (iOS keyboard/toolbar) — and remounts on resume |
-| Title center scale | `centerScale` from `orbitLayout()` | Selected mode shrinks on title so neighbor peeks read as separate carousel items |
-| Solo leaderboard list | `max-height: min(5.25rem, 18vh)` (`4.25rem` / `15vh` under 700px tall) | Caps the title-screen score list so it stays under the scaled arena |
-| Title bottom chrome | overlay `padding-bottom` ≈ `0.75rem` / safe-area | Keeps name + leaderboard pinned low without unused gap under the board |
-| Local split zones | `#local-zones` mirrored seats | Soft teal (top) / orange (bottom) tints; top seat chrome rotated 180° so both players can read scores / countdown / result |
+| Title arena scale | `1` (full size) | Side peeks removed; selected mode fills the title disk |
+| Mode segments | `#mode-segments` under logo | Solo / Local / Online switch (swipe also works; side peeks removed) |
+| Solo Home strip | name · personal best · global rank | Rank opens the leaderboard sheet |
+| Leaderboard sheet | bottom sheet from Solo rank | Your best/rank summary, highlighted row, optional Game Center (native) |
+| Title bottom chrome | overlay `padding-bottom` ≈ `0.75rem` / safe-area | Keeps Solo strip / mode briefs pinned low without unused gap |
+| Local split zones | `#local-zones` mirrored seats | Soft teal (top) / orange (bottom) tints; top seat chrome rotated 180° so both players can read scores / countdown |
 | Local dual input | `src/input/dualHold.ts` | Top half + W → P1 (teal); bottom half + Space → P0 (orange, +x); multi-touch per seat |
-| Post-game result | `#result` (+ mirrored local seats) | Headline + score detail + “Tap to continue”; stays until dismiss (same restart cooldown gate as title) |
+| Post-game result | `#result` | Play Again / Modes / Share for Solo, Local, and Online (same restart cooldown gate as title) |
 | Result arena dim | `0.2` | Canvas dim while reviewing the final frame |
 
 ## Camera shake stack — `src/render/draw.ts`

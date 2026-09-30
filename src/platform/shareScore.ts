@@ -22,6 +22,18 @@ export function buildShareText(score: number): string {
   return lines.join('\n')
 }
 
+/** Share copy for Local / Online battle results. */
+export function buildBattleShareText(headline: string, detail?: string): string {
+  const scoreLine = detail?.trim() ? ` (${detail.trim()})` : ''
+  const lines = [
+    `${headline}${scoreLine} in Wormular.`,
+    'Can you beat that?',
+    WORMULAR_WEB_URL,
+  ]
+  if (WORMULAR_APP_STORE_URL) lines.push(WORMULAR_APP_STORE_URL)
+  return lines.join('\n')
+}
+
 /**
  * Native share sheet on iOS; Web Share API on supporting browsers;
  * clipboard fallback otherwise. Returns false if everything fails.

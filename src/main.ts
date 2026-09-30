@@ -36,6 +36,7 @@ import {
   initGameCenter,
   isGameCenterAuthenticated,
   reportSoloRunAchievements,
+  showGameCenterDashboard,
   submitGameCenterScore,
 } from './platform/gameCenter'
 import { haptics } from './platform/haptics'
@@ -51,7 +52,11 @@ import {
   loadNickname,
   saveNickname,
 } from './platform/nickname'
-import { canShare, shareScore } from './platform/shareScore'
+import {
+  buildBattleShareText,
+  canShare,
+  shareScore,
+} from './platform/shareScore'
 import {
   initSettings,
   isHapticsEnabled,
@@ -67,7 +72,6 @@ import { drawSpace } from './render/cosmic'
 import {
   bindTitleUi,
   MODE_ORBIT_MS,
-  neighborPlayMode,
   type PlayMode,
   type ResultAction,
   type ResultView,
@@ -136,9 +140,6 @@ let viewW = Math.max(1, window.innerWidth)
 let viewH = Math.max(1, window.innerHeight)
 let world = createPlayWorld()
 let battle: BattleWorld | null = null
-/** Cached paused arenas for idle side peeks (not the selected center mode). */
-let peekSolo: World | null = null
-let peekBattle: BattleWorld | null = null
 let accum = 0
 let lastTs = performance.now()
 let awaitReleaseBeforeStart = false
@@ -182,15 +183,20 @@ let titleLaunch: {
 let onboardingActive = false
 /** Soft-pause while the app is backgrounded during a run. */
 let gameplayPaused = false
-/** Solo result with Play Again / Share buttons (ignore canvas dismiss). */
+/** Result with Play Again / Modes / Share (ignore canvas dismiss). */
 let resultUsesActions = false
+/** Which mode the current result actions apply to. */
+let resultActionMode: PlayMode = 'solo'
 /** Last solo score — for share + play-again. */
 let lastSoloScore = 0
+/** Optional custom share body for battle results. */
+let lastShareText: string | null = null
 let unbindLifecycle: (() => void) | null = null
 
 ui.setHighScore(highScore)
 ui.setGlobalRank(null)
 ui.setLeaderboardYou(null)
+ui.setGameCenterVisible(false)
 ui.setLeaderboardSheetOpen(false)
 ui.setVisible(true)
 ui.setMenuVisible(true)
@@ -389,8 +395,13 @@ ui.onLeaderboardOpen(() => {
   awaitReleaseBeforeStart = true
   titlePressDeferred = false
   ui.setLeaderboardSheetOpen(true)
+  ui.setGameCenterVisible(isNativePlatform() && isGameCenterAuthenticated())
   void refreshLeaderboard()
   void refreshSoloRank()
+})
+
+ui.onGameCenterOpen(() => {
+  showGameCenterDashboard()
 })
 
 ui.onResultAction((action) => {
@@ -430,26 +441,6 @@ function ensureTitlePreview(force = false): void {
       battle = createTitleBattle()
     }
   }
-  ensurePeekPreviews(force)
-}
-
-/** Side-peek mini arenas so neighbors look like real selectable modes. */
-function ensurePeekPreviews(force = false): void {
-  const R = arenaRadius()
-  if (force || !peekSolo || Math.abs(peekSolo.R - R) > 2) {
-    peekSolo = createPlayWorld()
-  }
-  if (force || !peekBattle || Math.abs(peekBattle.R - R) > 2) {
-    peekBattle = createTitleBattle()
-  }
-}
-
-function previewWorldFor(mode: PlayMode): World | BattleWorld {
-  if (mode === 'solo') {
-    return selectedPlayMode === 'solo' ? world : peekSolo!
-  }
-  if (selectedPlayMode === mode && battle) return battle
-  return peekBattle!
 }
 
 function drawTitleModePreview(
@@ -466,123 +457,38 @@ function drawTitleModePreview(
     scale: opts.scale,
   } as const
   if (playMode === 'solo') {
-    drawWorld(ctx, previewWorldFor(playMode) as World, viewW, viewH, fx, drawOpts)
-  } else {
-    drawBattleWorld(
-      ctx,
-      previewWorldFor(playMode) as BattleWorld,
-      viewW,
-      viewH,
-      fx,
-      drawOpts,
-    )
+    drawWorld(ctx, world, viewW, viewH, fx, drawOpts)
+  } else if (battle) {
+    drawBattleWorld(ctx, battle, viewW, viewH, fx, drawOpts)
   }
 }
 
-/** Opaque disk under a side peek so it reads as its own mode, not part of center. */
-function drawPeekPlate(offsetX: number, diameter: number): void {
-  const cx = viewW * 0.5 + offsetX
-  const cy = viewH * 0.5
-  ctx.save()
-  ctx.beginPath()
-  ctx.arc(cx, cy, diameter * 0.5 + 1, 0, Math.PI * 2)
-  ctx.fillStyle = 'rgba(7, 9, 20, 0.97)'
-  ctx.fill()
-  ctx.restore()
-}
-
 type OrbitLayout = {
-  peekD: number
-  peekScale: number
+  /** Horizontal travel for mode-slide; peeks are no longer drawn. */
   shift: number
-  /** Selected mode scale on title — shrunk so peeks sit beside it with a gap. */
+  /** Always 1 — segments replace side peeks, so the title arena is full size. */
   centerScale: number
 }
 
 function orbitLayout(): OrbitLayout {
-  const arenaD = arenaRadius() * 2
-  const arenaR = arenaD * 0.5
-  const rootPx =
-    Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
-  const narrow = Math.min(viewW, viewH) < ARENA_NARROW_SIDE_PX
-  const peekD = narrow
-    ? Math.min(viewW * 0.22, 5.75 * rootPx)
-    : Math.min(viewW * 0.24, 7 * rootPx)
-  const gap = Math.max(12, Math.min(24, viewW * 0.036))
-  // Let a sliver of each peek hang off-screen (recessed / not-selected feel).
-  // Keep this small so the geometric center still reads as the circle’s center
-  // (and side titles can sit on that axis without looking edge-biased).
-  const clip = Math.min(peekD * 0.08, 8)
-  const maxShift = viewW * 0.5 - peekD * 0.5 + clip
-  // Fit: centerScale*arenaR + peekR + gap <= maxShift (peeks outside the selected rim).
-  const centerScale = Math.min(
-    1,
-    Math.max(0.55, (maxShift - peekD * 0.5 - gap) / arenaR),
-  )
-  const shift = Math.min(maxShift, centerScale * arenaR + peekD * 0.5 + gap)
+  // Off-screen travel for the mode-change slide (segments + swipe only).
+  const shift = Math.max(viewW * 0.92, arenaRadius() * 2.15)
   return {
-    peekD,
-    peekScale: peekD / arenaD,
     shift,
-    centerScale,
+    centerScale: 1,
   }
 }
 
-/**
- * Center each peek label on the disk axis. Measure after layout so the
- * title’s box mid matches the circle; only clamp inward if it would clip.
- */
-function syncPeekLabelNudge(
-  el: HTMLElement | null,
-  diskCx: number,
-  _peekR: number,
-): void {
-  if (!el) return
-  const label = el.querySelector('.orbit-label') as HTMLElement | null
-  if (!label) return
-  el.style.setProperty('--peek-label-nudge', '0px')
-  // Force layout with nudge cleared before measuring.
-  const lr = label.getBoundingClientRect()
-  if (lr.width < 1) return
-  // Trailing letter-spacing is cancelled via margin-right in CSS, so box mid ≈ ink.
-  const mid = (lr.left + lr.right) * 0.5
-  let nudge = diskCx - mid
-  const labelHalf = lr.width * 0.5
-  const pad = 6
-  const labelCx = Math.min(
-    viewW - labelHalf - pad,
-    Math.max(labelHalf + pad, mid + nudge),
-  )
-  nudge = labelCx - mid
-  el.style.setProperty('--peek-label-nudge', `${nudge}px`)
-}
-
-/** Keep HTML peek hit-targets aligned with the canvas layout. */
-function syncOrbitCss(layout: OrbitLayout): void {
+/** Sync arena size for onboarding copy / hold prompt centering. */
+function syncOrbitCss(_layout: OrbitLayout): void {
   const carousel = document.getElementById('mode-carousel')
   const title = document.getElementById('title')
   const arenaD = arenaRadius() * 2
-  // Also set on the title overlay — onboarding hides the carousel but still
-  // needs --arena-d to park copy above/below the play disk.
   for (const el of [carousel, title]) {
     if (!el) continue
     el.style.setProperty('--arena-d', `${arenaD}px`)
-    el.style.setProperty('--peek-d', `${layout.peekD}px`)
-    el.style.setProperty('--orbit-shift', `${layout.shift}px`)
-    el.style.setProperty('--title-center-scale', String(layout.centerScale))
+    el.style.setProperty('--title-center-scale', '1')
   }
-  const mid = viewW * 0.5
-  const peekR = layout.peekD * 0.5
-  syncPeekLabelNudge(
-    document.getElementById('mode-peek-prev'),
-    mid - layout.shift,
-    peekR,
-  )
-  syncPeekLabelNudge(
-    document.getElementById('mode-peek-next'),
-    mid + layout.shift,
-    peekR,
-  )
 }
 
 function easeOrbit(u: number): number {
@@ -600,15 +506,18 @@ function platformTag(): string {
 }
 
 async function refreshLeaderboard(): Promise<void> {
-  ui.setLeaderboard([], 'Loading…')
+  const highlightName =
+    saveNickname(ui.getNickname()) ?? loadNickname() ?? 'Player'
+  ui.setLeaderboard([], 'Loading…', { highlightName })
   try {
     const rows = await fetchLeaderboard()
     ui.setLeaderboard(
       rows.map((r) => ({ name: r.name, score: r.score })),
       rows.length ? '' : 'No scores yet',
+      { highlightName },
     )
   } catch {
-    ui.setLeaderboard([], 'Leaderboard offline')
+    ui.setLeaderboard([], 'Leaderboard offline', { highlightName })
   }
 }
 
@@ -781,32 +690,58 @@ function finishOnboarding(): void {
 function handleResultAction(action: ResultAction): void {
   if (mode !== 'result') return
   if (action === 'share') {
-    void shareScore({ score: lastSoloScore })
+    void shareScore({
+      score: lastSoloScore,
+      text: lastShareText ?? undefined,
+    })
     return
   }
   if (action === 'modes') {
     finishOnboarding()
     dismissResult()
-    // Back to the mode carousel; Solo title panel still holds the leaderboard.
     return
   }
   if (action === 'again') {
     finishOnboarding()
     resultUsesActions = false
+    lastShareText = null
     ui.setResult(null)
-    // Fresh solo world and immediate relaunch.
-    world = createPlayWorld()
-    battle = null
     clearFx(fx)
     mode = 'title'
+    armTitleStartGate()
+    awaitReleaseBeforeStart = false
+    if (resultActionMode === 'local') {
+      selectedPlayMode = 'local'
+      savePlayMode('local')
+      ui.setPlayMode('local')
+      ui.setOnboarding(false)
+      battle = createTitleBattle()
+      world = createPlayWorld()
+      startBattleLocal()
+      return
+    }
+    if (resultActionMode === 'online') {
+      selectedPlayMode = 'online'
+      savePlayMode('online')
+      ui.setPlayMode('online')
+      ui.setOnboarding(false)
+      battle = null
+      world = createPlayWorld()
+      ensureTitlePreview()
+      ui.setVisible(true)
+      ui.setMenuVisible(true)
+      startMatchmaking()
+      return
+    }
+    // Solo: fresh world and immediate relaunch.
+    world = createPlayWorld()
+    battle = null
     selectedPlayMode = 'solo'
     savePlayMode('solo')
     ui.setPlayMode('solo')
     ui.setOnboarding(false)
     ui.setVisible(false)
     ui.setMenuVisible(false)
-    armTitleStartGate()
-    awaitReleaseBeforeStart = false
     startSolo()
     return
   }
@@ -984,14 +919,24 @@ function endBattle(view: {
   detail?: string
 }): void {
   if (mode === 'result') return
+  const fromLocal = mode === 'battleLocal'
+  resultActionMode = fromLocal ? 'local' : 'online'
+  lastShareText = buildBattleShareText(view.headline, view.detail)
+  lastSoloScore = 0
   mode = 'result'
-  resultUsesActions = false
+  resultUsesActions = true
   preBattleCountdownUntil = null
   ui.setMatchBanner(null)
+  // Center Play Again / Modes / Share (same as Solo); hide local seat panels.
+  if (fromLocal) {
+    document.getElementById('result')?.classList.remove('is-local')
+  }
   ui.setResult({
     headline: view.headline,
     detail: view.detail,
-    hint: 'Tap to continue',
+    actions: true,
+    shareAvailable: canShare(),
+    hint: 'Play Again',
   })
   armResultDismissGate()
   // Tell the room the match is over before closing, otherwise the peer gets a
@@ -1024,6 +969,8 @@ function enterSoloResult(): void {
   const score = world.score
   const prevBest = highScore
   lastSoloScore = score
+  lastShareText = null
+  resultActionMode = 'solo'
   highScore = recordScore(score)
   ui.setHighScore(highScore)
   submitGameCenterScore(score)
@@ -1383,17 +1330,12 @@ function frame(ts: number): void {
   if (arenaSlide && (mode === 'title' || mode === 'matchmaking')) {
     const u = easeOrbit((ts - arenaSlide.t0) / arenaSlide.dur)
     if (u >= 1) {
-      // Keep the outgoing world as the peek that just slid away — no content pop.
-      if (arenaSlide.outSolo) peekSolo = arenaSlide.outSolo
-      if (arenaSlide.outBattle) peekBattle = arenaSlide.outBattle
       arenaSlide = null
     } else {
-      const { peekScale, shift, centerScale } = orbitLayout()
+      const { shift } = orbitLayout()
       const dir = arenaSlide.dir
       const outX = lerp(0, -dir * shift, u)
-      const outS = lerp(centerScale, peekScale, u)
       const inX = lerp(dir * shift, 0, u)
-      const inS = lerp(peekScale, centerScale, u)
       const time = ts * 0.001
       const slideOpts = {
         dim: 0,
@@ -1401,6 +1343,7 @@ function frame(ts: number): void {
         skipSpace: true,
         skipDim: true,
         clipArena: true,
+        scale: 1,
       } as const
 
       drawSpace(ctx, viewW, viewH)
@@ -1409,13 +1352,11 @@ function frame(ts: number): void {
         drawBattleWorld(ctx, arenaSlide.outBattle, viewW, viewH, fx, {
           ...slideOpts,
           offsetX: outX,
-          scale: outS,
         })
       } else if (arenaSlide.outSolo) {
         drawWorld(ctx, arenaSlide.outSolo, viewW, viewH, fx, {
           ...slideOpts,
           offsetX: outX,
-          scale: outS,
         })
       }
 
@@ -1423,13 +1364,11 @@ function frame(ts: number): void {
         drawBattleWorld(ctx, battle, viewW, viewH, fx, {
           ...slideOpts,
           offsetX: inX,
-          scale: inS,
         })
       } else {
         drawWorld(ctx, world, viewW, viewH, fx, {
           ...slideOpts,
           offsetX: inX,
-          scale: inS,
         })
       }
 
@@ -1443,31 +1382,10 @@ function frame(ts: number): void {
       titleLaunch.dur <= 0
         ? 1
         : easeOrbit((ts - titleLaunch.t0) / titleLaunch.dur)
-    const layout = orbitLayout()
     const scale = lerp(titleLaunch.fromScale, 1, Math.min(1, u))
-    const peekFade = 1 - Math.min(1, u)
     const time = ts * 0.001
-    const prev = neighborPlayMode(selectedPlayMode, -1)
-    const next = neighborPlayMode(selectedPlayMode, 1)
     drawSpace(ctx, viewW, viewH)
-    if (peekFade > 0.02) {
-      ctx.save()
-      ctx.globalAlpha = peekFade
-      drawPeekPlate(-layout.shift, layout.peekD)
-      drawTitleModePreview(prev, {
-        offsetX: -layout.shift,
-        scale: layout.peekScale,
-        time,
-      })
-      drawPeekPlate(layout.shift, layout.peekD)
-      drawTitleModePreview(next, {
-        offsetX: layout.shift,
-        scale: layout.peekScale,
-        time,
-      })
-      ctx.restore()
-    }
-    // Expanding selected arena (solo world, local battle, or matched online).
+    // Full-size title arena fades into play (no side peeks to dismiss).
     if (titleLaunch.kind === 'solo' || selectedPlayMode === 'solo') {
       drawTitleModePreview('solo', { offsetX: 0, scale, time })
     } else if (battle) {
@@ -1491,38 +1409,17 @@ function frame(ts: number): void {
   } else if (!arenaSlide) {
     const onTitle = mode === 'title' || mode === 'matchmaking'
     if (onTitle) {
-      ensurePeekPreviews()
       const layout = orbitLayout()
       syncOrbitCss(layout)
-      const { peekScale, shift, centerScale, peekD } = layout
       const time = ts * 0.001
-      const prev = neighborPlayMode(selectedPlayMode, -1)
-      const next = neighborPlayMode(selectedPlayMode, 1)
       drawSpace(ctx, viewW, viewH)
-      // Guided first Solo: full-size center arena only — no mode peeks.
-      const titleScale = onboardingActive ? 1 : centerScale
       drawTitleModePreview(selectedPlayMode, {
         offsetX: 0,
-        scale: titleScale,
+        scale: 1,
         time,
       })
       ctx.fillStyle = `rgba(5, 6, 14, ${TITLE_DIM})`
       ctx.fillRect(0, 0, viewW, viewH)
-      if (!onboardingActive) {
-        // Separate mode disks: opaque plate + mini arena, beside the selected mode.
-        drawPeekPlate(-shift, peekD)
-        drawTitleModePreview(prev, {
-          offsetX: -shift,
-          scale: peekScale,
-          time,
-        })
-        drawPeekPlate(shift, peekD)
-        drawTitleModePreview(next, {
-          offsetX: shift,
-          scale: peekScale,
-          time,
-        })
-      }
     } else if (
       battle &&
       (mode === 'battleLocal' ||
