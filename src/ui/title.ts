@@ -117,14 +117,15 @@ const MODE_COPY: Record<
   },
   local: {
     title: 'LOCAL 1v1',
-    tagline: 'Top / bottom · first death loses',
+    // Bottom mode-brief already covers controls; keep the caption clear.
+    tagline: '',
     shortLabel: 'Local',
     promptMain: 'Tap to Start',
     promptLines: [],
   },
   online: {
     title: 'ONLINE 1v1',
-    tagline: 'Match a stranger · first death loses',
+    tagline: '',
     shortLabel: 'Online',
     promptMain: 'Tap to find an opponent',
     promptLines: [],
