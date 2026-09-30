@@ -373,19 +373,14 @@ export function bindTitleUi(): TitleUi {
     carousel.classList.remove('is-sliding-next', 'is-sliding-prev')
   }
 
-  function applyPeekChrome(): void {
-    const prev = neighbor(-1)
-    const next = neighbor(1)
-    peekPrev.hidden = false
-    peekNext.hidden = false
-    peekPrev.disabled = transitioning
-    peekNext.disabled = transitioning
-    peekPrevLabel.textContent = MODE_COPY[prev].shortLabel
-    peekNextLabel.textContent = MODE_COPY[next].shortLabel
-    peekPrev.setAttribute('aria-label', MODE_COPY[prev].title)
-    peekNext.setAttribute('aria-label', MODE_COPY[next].title)
-    peekPrev.dataset.peekMode = prev
-    peekNext.dataset.peekMode = next
+  /** Segments + swipe own mode switching — keep peek hit-targets off-screen. */
+  function hidePeekChrome(): void {
+    peekPrev.hidden = true
+    peekNext.hidden = true
+    peekPrev.disabled = true
+    peekNext.disabled = true
+    peekPrevLabel.textContent = ''
+    peekNextLabel.textContent = ''
   }
 
   function paintHoldPrompt(main: string, lines: string[]): void {
@@ -415,7 +410,7 @@ export function bindTitleUi(): TitleUi {
     }
   }
 
-  function applyPlayMode(mode: PlayMode, opts?: { peeks?: boolean }): void {
+  function applyPlayMode(mode: PlayMode): void {
     playMode = mode
     const copy = MODE_COPY[mode]
     paintModeSegments(mode)
@@ -428,15 +423,11 @@ export function bindTitleUi(): TitleUi {
     nicknameField.hidden = mode === 'local'
 
     title.dataset.playMode = mode
-    if (opts?.peeks !== false) applyPeekChrome()
+    hidePeekChrome()
   }
 
-  function commitMode(
-    mode: PlayMode,
-    meta: PlayModeChangeMeta,
-    opts?: { peeks?: boolean },
-  ): void {
-    applyPlayMode(mode, opts)
+  function commitMode(mode: PlayMode, meta: PlayModeChangeMeta): void {
+    applyPlayMode(mode)
     for (const cb of modeListeners) cb(mode, meta)
   }
 
@@ -459,15 +450,11 @@ export function bindTitleUi(): TitleUi {
     transitioning = true
     window.clearTimeout(finishTimer)
     clearModeAnimClasses()
-
-    peekPrev.hidden = false
-    peekNext.hidden = false
-    peekPrev.disabled = true
-    peekNext.disabled = true
+    hidePeekChrome()
 
     // Commit immediately so main can render both arenas sliding live.
     carousel.classList.add(dir > 0 ? 'is-sliding-next' : 'is-sliding-prev')
-    commitMode(mode, { animate: true, dir }, { peeks: false })
+    commitMode(mode, { animate: true, dir })
     modeCaption.classList.add(dir > 0 ? 'mode-anim-in-right' : 'mode-anim-in-left')
     titleBottom.classList.add(dir > 0 ? 'mode-anim-in-right' : 'mode-anim-in-left')
     holdSub.classList.add('mode-anim-fade-in')
@@ -475,7 +462,7 @@ export function bindTitleUi(): TitleUi {
     finishTimer = window.setTimeout(() => {
       clearModeAnimClasses()
       transitioning = false
-      applyPeekChrome()
+      hidePeekChrome()
       paintModeSegments(playMode)
     }, MODE_ORBIT_MS)
   }

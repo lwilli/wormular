@@ -119,11 +119,8 @@ body {
 
 .mode-carousel {
   --arena-d: calc(min(100vw, 100vh) - 48px);
-  --peek-d: min(24vw, 7rem);
-  /* JS syncs --arena-d / --orbit-shift / --peek-d / --title-center-scale from
-     the layout viewport so peeks match the canvas (not visualViewport / 100vh). */
-  --orbit-shift: calc(var(--arena-d) * 0.42 + var(--peek-d) * 0.55);
-  --title-center-scale: 0.78;
+  /* Full-size title arena; mode switch is segments + swipe (no side peeks). */
+  --title-center-scale: 1;
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -134,8 +131,6 @@ body {
 @media (max-width: 400px), (max-height: 400px) {
   .mode-carousel {
     --arena-d: calc(min(100vw, 100vh) - 24px);
-    --peek-d: min(22vw, 5.75rem);
-    --title-center-scale: 0.62;
   }
 }
 
@@ -157,17 +152,10 @@ body {
   will-change: transform, opacity;
 }
 
+/* Peeks retired — segments under the logo are the mode titles. */
 .orbit-prev,
 .orbit-next {
-  width: var(--peek-d);
-  height: var(--peek-d);
-  pointer-events: auto;
-  cursor: pointer;
-}
-
-.orbit-prev[hidden],
-.orbit-next[hidden] {
-  display: none;
+  display: none !important;
 }
 
 .orbit-current {
